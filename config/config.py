@@ -106,12 +106,34 @@ class AuthConfig(_Strict):
     refresh_token_expire_days: int = 7
 
 
+class DeepAgentConfig(_Strict):
+    """deepagents 智能体配置。模型走 OpenAI 兼容端点，因此只用 langchain-openai 一个包。"""
+
+    model: str = "deepseek-flash"
+    base_url: str = "https://api.deepseek.com"
+    # 从哪个环境变量读 API key（避免把密钥写进 yaml）
+    api_key_env: str = "DEEPSEEK_API_KEY"
+    temperature: float = 0.0
+
+    @property
+    def api_key(self) -> str:
+        """读取环境变量里的 API key，缺失时给出明确报错。"""
+        key = os.environ.get(self.api_key_env)
+        if not key:
+            raise RuntimeError(
+                f"环境变量 {self.api_key_env} 未设置，无法调用模型 {self.model}；"
+                f"可在 config.yaml 的 deepagent.api_key_env 改名字，或设置 APP_DEEPAGENT__API_KEY_ENV 覆盖"
+            )
+        return key
+
+
 class AppConfig(_Strict):
     """应用总配置，字段与 config.yaml 的顶层键一一对应。"""
 
     postgresql: PostgresConfig
     logger: LoggerConfig = LoggerConfig()
     auth: AuthConfig = AuthConfig()
+    deepagent: DeepAgentConfig = DeepAgentConfig()
 
 
 def _apply_env_overrides(cfg: DictConfig, env: Mapping[str, str] | None = None) -> None:

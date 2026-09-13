@@ -1,12 +1,12 @@
 # deepagents_template
 
 FastAPI + PostgreSQL + loguru 的后端模板：配置文件（OmegaConf + pydantic）、loguru 日志、
-用户注册登录与 JWT 鉴权、alembic 数据库迁移。
+用户注册登录与 JWT 鉴权、alembic 数据库迁移，以及用 PostgreSQL 做持久化记忆的 deepagents 智能体。
 
 目录：[1 环境要求](#1-环境要求) · [2 项目结构](#2-项目结构) · [3 首次运行](#3-首次运行) ·
 [4 运行项目](#4-运行项目) · [5 数据库迁移与新增表](#5-数据库迁移与新增表) ·
 [6 生产环境部署](#6-生产环境部署) · [7 接口](#7-接口) · [8 配置项](#8-配置项) ·
-[9 测试](#9-测试) · [10 常见问题](#10-常见问题)
+[9 测试](#9-测试) · [10 常见问题](#10-常见问题) · [11 deepagents 智能体](#11-deepagents-智能体)
 
 ---
 
@@ -36,20 +36,23 @@ uv sync --frozen      # 按 uv.lock 精确安装依赖（新增依赖用 uv add�
 ├── logger/__init__.py       # loguru 控制台 + 滚动文件 sink；接管标准库 logging
 ├── dependencies/
 │   ├── database.py          #   异步 engine / AsyncSessionFactory / get_session（请求级会话）
-│   └── auth.py              #   get_current_user（Bearer → JWT → User），CurrentUser 注入类型
+│   ├── auth.py              #   get_current_user（Bearer → JWT → User），CurrentUser 注入类型
+│   └── agent.py             #   AgentDep：拿应用级 DeepAgent 实例
 ├── models/                  # SQLAlchemy ORM
 │   ├── __init__.py          #   Base（命名约定）/ BaseModel（id+时间戳）；末尾 import 各表模型
 │   └── user.py              #   users 表：account / email / hashed_password / refresh_token
 ├── repositories/            # 数据库读写类（UserRepository）
-├── services/                # 路由功能实现（AuthService：bcrypt + JWT 签发校验）
-├── routers/                 # FastAPI 路由（auth.py → /auth/*）
+├── services/                # 路由功能实现（AuthService：bcrypt + JWT；AgentService：智能体生命周期）
+├── routers/                 # FastAPI 路由（auth.py → /auth/*，agent.py → /agent/*）
+├── agents/agent.py          # DeepAgent：deepagents + PostgreSQL state/store 的异步外壳
 ├── main.py                  # 应用入口：app / lifespan / /health / 事件循环与 uvicorn 启动参数
 ├── migrations/              # alembic 迁移（连接串来自 config.yaml 的 postgresql.user 段）
-│   ├── env.py
+│   ├── env.py               #   排除 langgraph 自建的 checkpoints/store 表
 │   └── versions/*.py        #   已包含 ce9e484f27fb 建 users 表
-├── tests/test_auth.py       # 端到端自检脚本（18 项，无需 pytest）
+├── tests/test_auth.py       # 鉴权端到端自检（18 项，无需 pytest）
+├── tests/test_agent.py      # 智能体端到端自检（18 项，真实调用模型，需 DEEPSEEK_API_KEY）
 ├── alembic.ini              # 只配 script_location / 日志，URL 由 env.py 注入
-└── agents/                  # deepagents 的装配位置（当前为空，尚未接线）
+└── uv.lock                  # 依赖锁文件
 ```
 
 分层约定：**routers 只收参/返回 → services 写业务逻辑 → repositories 只做数据库读写 → models 定义表**。
@@ -65,15 +68,19 @@ uv sync --frozen
 
 # 2) 改 config/config.yaml 里 postgresql.user / postgresql.deepagent 的连接信息
 #    （本机就是 PostgreSQL 的话，通常只改 user/password/db_name）
+#    并把 deepagent.api_key_env 指向存放模型 key 的环境变量（默认 DEEPSEEK_API_KEY）
 
 # 3) 建业务库的表（users + alembic_version）
 uv run alembic upgrade head
 
-# 4) 启动
+# 4) 启动（启动时智能体会自动建 checkpoints / checkpoint_blobs / checkpoint_writes / store 四张表）
 uv run python main.py         # http://127.0.0.1:8000 ，Swagger 在 /docs
 
 # 5) 自检（注册/登录/me/刷新/登出/禁用用户，共 18 项，跑完自动清理测试数据）
 uv run python tests/test_auth.py
+
+# 6) 智能体自检（18 项，会真实调用模型：短时记忆跨实例续聊、长期记忆跨会话读回、SSE 流式）
+uv run python tests/test_agent.py
 ```
 
 ---
@@ -165,6 +172,9 @@ uv run alembic downgrade -1 && uv run alembic upgrade head
 | --- | --- | --- |
 | `postgresql.user.host/port/user/password/db_name` | 指向生产业务库，**密码不要写进提交的 yaml** | `APP_POSTGRESQL__USER__HOST` / `__PORT` / `__USER` / `__PASSWORD` / `__DB_NAME` |
 | `postgresql.deepagent.*` | 指向 deepagents 的检查点/长期记忆库 | `APP_POSTGRESQL__DEEPAGENT__HOST` / `__PORT` / `__USER` / `__PASSWORD` / `__DB_NAME` |
+| `deepagent.model` / `base_url` | 模型名与 OpenAI 兼容端点（当前默认 DeepSeek） | `APP_DEEPAGENT__MODEL` / `APP_DEEPAGENT__BASE_URL` |
+| `deepagent.api_key_env` | **不要**把 key 写进 yaml：这里只写「到哪个环境变量去取」 | `APP_DEEPAGENT__API_KEY_ENV` |
+| `deepagent.temperature` | 0–1，越大越发散 | `APP_DEEPAGENT__TEMPERATURE` |
 | `auth.secret_key` | **必须替换**为 ≥32 字节随机串，泄露等于任何人都能签 token | `APP_AUTH__SECRET_KEY` |
 | `auth.access_token_expire_minutes` | 15–60 分钟（越短越安全，越大越省刷新） | `APP_AUTH__ACCESS_TOKEN_EXPIRE_MINUTES` |
 | `auth.refresh_token_expire_days` | 7–30 天 | `APP_AUTH__REFRESH_TOKEN_EXPIRE_DAYS` |
@@ -318,3 +328,73 @@ bcrypt 只处理前 72 字节，本项目对超长密码直接拒绝（不静默
 
 **Q：怎么切到另一个数据库？**
 只改 `config/config.yaml`（或对应环境变量），应用与 alembic 都用同一份配置，无需改代码。
+
+---
+
+## 11. deepagents 智能体
+
+`agents/agent.py` 里的 `DeepAgent` 把 deepagents 包成一个异步类，用 PostgreSQL 做两类持久化：
+
+| 记忆类型 | 载体 | 生命周期 | 对应表 |
+| --- | --- | --- | --- |
+| 短时记忆（state） | `AsyncPostgresSaver` 检查点 | 单个 `thread_id` 内，**跨进程/重启**保留 | `checkpoints` / `checkpoint_blobs` / `checkpoint_writes` |
+| 长期记忆（store） | `AsyncPostgresStore` + `StoreBackend` | 跨会话、跨进程；`/memories/` 下的文件走它 | `store` |
+
+- 除 `/memories/` 外的路径仍由 `StateBackend` 管理（线程内临时文件），`ThreadState.files` 随检查点一起落库；
+- **用户隔离**：`thread_id` 落库时会加用户前缀（`{user_id}:{thread_id}`），`/memories/` 用 `{user_id}` 作为 store 命名空间，
+  所以拿到别人的 thread_id 也读不到内容，两个用户的文件互不可见；
+- 上层用 `AgentService`（`services/agent.py`）持有全局实例，`main.py` 的 lifespan 里 `start()` / `stop()`，
+  启动即建表（`setup()` 幂等）并预热连接池，缺 API key 或库不可用会在启动时就报错（fail fast）。
+
+```python
+from agents import DeepAgent
+
+# async with 写法
+async with DeepAgent() as agent:
+    answer = await agent.ainvoke("记住：我的代号是夜枭", thread_id="chat-1", user_id="u1")
+    async for event in agent.astream("我的代号是什么？", thread_id="chat-1", user_id="u1"):
+        if event.kind == "token":
+            print(event.text, end="")      # 逐 token
+        elif event.kind == "done":
+            print("\n最终:", event.text)     # 完整回答
+
+# 显式 aenter / aexit（等价，适合在 lifespan 里手动管理）
+agent = DeepAgent()
+await agent.aenter()
+await agent.ainvoke("你好", thread_id="chat-1", user_id="u1")
+await agent.aexit()
+```
+
+方法一览：
+
+| 方法 | 说明 |
+| --- | --- |
+| `ainvoke(message, *, thread_id, user_id)` | 跑一轮，返回最终回答（state 自动落检查点） |
+| `astream(message, *, thread_id, user_id)` | 异步迭代 `AgentEvent`：`token` → 增量文本，`tool_call` → 工具名，`done` → 完整回答 |
+| `aget_state(thread_id, user_id)` | 读短时记忆：消息条数、最后一条回答、会话内临时文件 |
+| `alist_memories(user_id)` | 读长期记忆：`/memories/` 下的文件路径 |
+| `aenter()` / `aexit()` | 建立/释放 checkpointer + store 连接池并编译图（`async with` 亦可） |
+| `graph` / `store` | 编译好的 LangGraph 图 / store 实例（未启动时访问会抛 `RuntimeError`） |
+
+HTTP 接口（都要 `Authorization: Bearer <access_token>`）：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/agent/chat` | body `{"message": "...", "thread_id": "chat"}` → `{"thread_id", "answer"}` |
+| POST | `/agent/stream` | 同一个 body，SSE 流：`event: token` / `event: done` / `event: end`，出错推 `event: error` |
+| GET | `/agent/state/{thread_id}` | 短时记忆：`messages` / `answer` / `files` |
+| GET | `/agent/memories` | 长期记忆文件列表 |
+
+模型走 OpenAI 兼容端点，所以只装 `langchain-openai` 一个包，换厂商只改配置：
+
+```yaml
+deepagent:
+  model: deepseek-flash                                   # 想用 qwen：model: qwen-plus
+  base_url: https://api.deepseek.com                      # 百炼：https://dashscope.aliyuncs.com/compatible-mode/v1
+  api_key_env: DEEPSEEK_API_KEY                           # 只写环境变量名，不写 key 本身
+  temperature: 0.0
+```
+
+> 智能体相关表由 langgraph 的 `setup()` 自己创建/升级（带 *_migrations 版本表），
+> 不归 alembic 管：`migrations/env.py` 里的 `include_object` 已把它们排除，
+> 否则 `alembic check` 会认为这些表是「多余的表」并想删掉。

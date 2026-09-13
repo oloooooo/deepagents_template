@@ -1,6 +1,6 @@
 {
   "scriptCompleted": true,
-  "contentDigest": "b98e3961564851a241591018bf6fa93c3b2a2edb7492afab207c11e85528f916",
+  "contentDigest": "dfed6abea3030630b7074ed55ebe10b0742eeca000d6c0dad97d81fba0a7bb7c",
   "files": [
     {
       "path": "AGENTS.md",
@@ -11,13 +11,19 @@
     {
       "path": "README.md",
       "language": "markdown",
-      "sizeLines": 320,
+      "sizeLines": 400,
       "fileCategory": "docs"
     },
     {
       "path": "agents/__init__.py",
       "language": "python",
-      "sizeLines": 0,
+      "sizeLines": 11,
+      "fileCategory": "code"
+    },
+    {
+      "path": "agents/agent.py",
+      "language": "python",
+      "sizeLines": 285,
       "fileCategory": "code"
     },
     {
@@ -29,25 +35,31 @@
     {
       "path": "config/__init__.py",
       "language": "python",
-      "sizeLines": 25,
+      "sizeLines": 27,
       "fileCategory": "code"
     },
     {
       "path": "config/config.py",
       "language": "python",
-      "sizeLines": 144,
+      "sizeLines": 166,
       "fileCategory": "code"
     },
     {
       "path": "config/config.yaml",
       "language": "yaml",
-      "sizeLines": 43,
+      "sizeLines": 50,
       "fileCategory": "config"
     },
     {
       "path": "dependencies/__init__.py",
       "language": "python",
-      "sizeLines": 13,
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "dependencies/agent.py",
+      "language": "python",
+      "sizeLines": 17,
       "fileCategory": "code"
     },
     {
@@ -71,13 +83,13 @@
     {
       "path": "main.py",
       "language": "python",
-      "sizeLines": 54,
+      "sizeLines": 62,
       "fileCategory": "code"
     },
     {
       "path": "migrations/env.py",
       "language": "python",
-      "sizeLines": 65,
+      "sizeLines": 92,
       "fileCategory": "code"
     },
     {
@@ -107,7 +119,7 @@
     {
       "path": "pyproject.toml",
       "language": "toml",
-      "sizeLines": 19,
+      "sizeLines": 20,
       "fileCategory": "config"
     },
     {
@@ -129,6 +141,12 @@
       "fileCategory": "code"
     },
     {
+      "path": "routers/agent.py",
+      "language": "python",
+      "sizeLines": 100,
+      "fileCategory": "code"
+    },
+    {
       "path": "routers/auth.py",
       "language": "python",
       "sizeLines": 104,
@@ -141,9 +159,21 @@
       "fileCategory": "code"
     },
     {
+      "path": "services/agent.py",
+      "language": "python",
+      "sizeLines": 37,
+      "fileCategory": "code"
+    },
+    {
       "path": "services/auth.py",
       "language": "python",
       "sizeLines": 157,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_agent.py",
+      "language": "python",
+      "sizeLines": 273,
       "fileCategory": "code"
     },
     {
@@ -153,20 +183,20 @@
       "fileCategory": "code"
     }
   ],
-  "totalFiles": 25,
-  "filteredByIgnore": 56,
+  "totalFiles": 30,
+  "filteredByIgnore": 59,
   "estimatedComplexity": "small",
   "failures": [],
   "stats": {
-    "filesScanned": 25,
+    "filesScanned": 30,
     "byCategory": {
       "docs": 2,
-      "code": 20,
+      "code": 25,
       "config": 3
     },
     "byLanguage": {
       "markdown": 2,
-      "python": 19,
+      "python": 24,
       "config": 1,
       "yaml": 1,
       "mako": 1,
@@ -176,7 +206,13 @@
   "importMap": {
     "AGENTS.md": [],
     "README.md": [],
-    "agents/__init__.py": [],
+    "agents/__init__.py": [
+      "agents/agent.py"
+    ],
+    "agents/agent.py": [
+      "config/__init__.py",
+      "logger/__init__.py"
+    ],
     "alembic.ini": [],
     "config/__init__.py": [
       "config/config.py"
@@ -184,7 +220,12 @@
     "config/config.py": [],
     "config/config.yaml": [],
     "dependencies/__init__.py": [
+      "dependencies/agent.py",
       "dependencies/database.py"
+    ],
+    "dependencies/agent.py": [
+      "agents/__init__.py",
+      "services/agent.py"
     ],
     "dependencies/auth.py": [
       "dependencies/database.py",
@@ -203,7 +244,9 @@
       "dependencies/__init__.py",
       "logger/__init__.py",
       "routers/__init__.py",
-      "routers/auth.py"
+      "routers/agent.py",
+      "routers/auth.py",
+      "services/agent.py"
     ],
     "migrations/env.py": [
       "config/__init__.py",
@@ -225,7 +268,13 @@
       "models/__init__.py"
     ],
     "routers/__init__.py": [
+      "routers/agent.py",
       "routers/auth.py"
+    ],
+    "routers/agent.py": [
+      "dependencies/__init__.py",
+      "dependencies/auth.py",
+      "logger/__init__.py"
     ],
     "routers/auth.py": [
       "config/__init__.py",
@@ -237,10 +286,18 @@
     "services/__init__.py": [
       "services/auth.py"
     ],
+    "services/agent.py": [
+      "agents/__init__.py"
+    ],
     "services/auth.py": [
       "config/__init__.py",
       "models/__init__.py",
       "repositories/__init__.py"
+    ],
+    "tests/test_agent.py": [
+      "agents/__init__.py",
+      "config/__init__.py",
+      "main.py"
     ],
     "tests/test_auth.py": [
       "config/__init__.py",
@@ -248,7 +305,7 @@
     ]
   },
   "projectName": "deepagents_template",
-  "projectDescription": "FastAPI + PostgreSQL 后端模板：OmegaConf+pydantic 配置、loguru 日志、用户注册登录与 JWT 鉴权、alembic 迁移，并为 deepagents（LangGraph 检查点/长期记忆）预留装配位。",
+  "projectDescription": "FastAPI + PostgreSQL 后端模板：OmegaConf+pydantic 配置、loguru 日志、用户注册登录与 JWT 鉴权、alembic 迁移，并用 PostgreSQL 的检查点（短时记忆）与 store（长期记忆/文件后端）承载 deepagents 智能体。",
   "languages": [
     "python",
     "markdown",
@@ -264,6 +321,10 @@
     "Pydantic",
     "Loguru",
     "OmegaConf",
-    "uvicorn"
+    "uvicorn",
+    "deepagents",
+    "LangGraph",
+    "LangChain",
+    "langchain-openai"
   ]
 }

@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "2c908daf852472d162a2341e08ddf78091a433d6",
-  "generatedAt": "2026-09-13T12:20:05.014Z",
+  "gitCommitHash": "35e9eb8705c0195d664fbd9d2e4dab6273332e1b",
+  "generatedAt": "2026-09-13T13:19:41.642Z",
   "files": {
     "AGENTS.md": {
       "filePath": "AGENTS.md",
@@ -15,22 +15,234 @@
     },
     "README.md": {
       "filePath": "README.md",
-      "contentHash": "89c837acfbcfe5bd5bbf32f0e3fba93849d1f41a5d01a91be866abfd44cdaffa",
+      "contentHash": "a6572a38437301d3bd73c14306d43e55a750c7f1dc3539c6b57757ba8b925c1d",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 321,
+      "totalLines": 401,
       "hasStructuralAnalysis": false
     },
     "agents/__init__.py": {
       "filePath": "agents/__init__.py",
-      "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "contentHash": "ae0990ad5df8b7d2fc079ecaad40ea5ac890d145ff5cc1e289f287e7fc8edfb8",
       "functions": [],
       "classes": [],
-      "imports": [],
+      "imports": [
+        {
+          "source": ".agent",
+          "specifiers": [
+            "DEFAULT_SYSTEM_PROMPT",
+            "MEMORY_ROUTE",
+            "AgentContext",
+            "AgentEvent",
+            "DeepAgent"
+          ]
+        }
+      ],
       "exports": [],
-      "totalLines": 1,
+      "totalLines": 12,
+      "hasStructuralAnalysis": true
+    },
+    "agents/agent.py": {
+      "filePath": "agents/agent.py",
+      "contentHash": "2e909bd831b658ea925a7362cb1357a27e766dae5d52d15b2b5957301566b6fd",
+      "functions": [
+        {
+          "name": "_conversation_id",
+          "params": [
+            "thread_id",
+            "user_id"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "_chunk_text",
+          "params": [
+            "chunk"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "_last_text",
+          "params": [
+            "messages"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "classes": [
+        {
+          "name": "AgentContext",
+          "methods": [],
+          "properties": [
+            "user_id"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "AgentEvent",
+          "methods": [],
+          "properties": [
+            "kind",
+            "text",
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "DeepAgent",
+          "methods": [
+            "__init__",
+            "__aenter__",
+            "__aexit__",
+            "aenter",
+            "aexit",
+            "graph",
+            "store",
+            "ainvoke",
+            "astream",
+            "aget_state",
+            "alist_memories",
+            "_build_graph",
+            "_build_model",
+            "_input",
+            "_run_config"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 190
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "collections.abc",
+          "specifiers": [
+            "AsyncIterator",
+            "Sequence"
+          ]
+        },
+        {
+          "source": "contextlib",
+          "specifiers": [
+            "AsyncExitStack"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass",
+            "field"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any",
+            "Literal"
+          ]
+        },
+        {
+          "source": "deepagents",
+          "specifiers": [
+            "create_deep_agent"
+          ]
+        },
+        {
+          "source": "deepagents.backends",
+          "specifiers": [
+            "CompositeBackend",
+            "StateBackend",
+            "StoreBackend"
+          ]
+        },
+        {
+          "source": "langchain_core.language_models",
+          "specifiers": [
+            "BaseChatModel"
+          ]
+        },
+        {
+          "source": "langchain_core.messages",
+          "specifiers": [
+            "BaseMessage",
+            "HumanMessage"
+          ]
+        },
+        {
+          "source": "langchain_core.tools",
+          "specifiers": [
+            "BaseTool"
+          ]
+        },
+        {
+          "source": "langchain_openai",
+          "specifiers": [
+            "ChatOpenAI"
+          ]
+        },
+        {
+          "source": "langgraph.checkpoint.postgres.aio",
+          "specifiers": [
+            "AsyncPostgresSaver"
+          ]
+        },
+        {
+          "source": "langgraph.store.postgres.aio",
+          "specifiers": [
+            "AsyncPostgresStore"
+          ]
+        },
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "DeepAgentConfig",
+            "PostgreConfig",
+            "app_config"
+          ]
+        },
+        {
+          "source": "logger",
+          "specifiers": [
+            "logger"
+          ]
+        }
+      ],
+      "exports": [
+        "AgentContext",
+        "AgentEvent",
+        "DeepAgent",
+        "_conversation_id",
+        "_chunk_text",
+        "_last_text"
+      ],
+      "totalLines": 286,
       "hasStructuralAnalysis": true
     },
     "alembic.ini": {
@@ -45,7 +257,7 @@
     },
     "config/__init__.py": {
       "filePath": "config/__init__.py",
-      "contentHash": "d86db57790bf543caea2989cc6d66bbf06c6363eee110f02c9bec17c91c044b1",
+      "contentHash": "b07f00b680e018b037eca8b0bab4ca91855e5515d6ee28737c0d37ad1d460c55",
       "functions": [],
       "classes": [],
       "imports": [
@@ -56,6 +268,7 @@
             "CONFIG_FILE",
             "AppConfig",
             "AuthConfig",
+            "DeepAgentConfig",
             "LoggerConfig",
             "PostgreConfig",
             "PostgresConfig",
@@ -65,12 +278,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 26,
+      "totalLines": 28,
       "hasStructuralAnalysis": true
     },
     "config/config.py": {
       "filePath": "config/config.py",
-      "contentHash": "0d664b5043767d3f98ef765ab8fd4983ba685eb376b9b4eb7cca5857ed87adf5",
+      "contentHash": "ace0101a712bf8a1423b6e051dc33f433ba7a48f94df3ee48e004a10309a5153",
       "functions": [
         {
           "name": "_apply_env_overrides",
@@ -155,15 +368,30 @@
           "lineCount": 8
         },
         {
+          "name": "DeepAgentConfig",
+          "methods": [
+            "api_key"
+          ],
+          "properties": [
+            "model",
+            "base_url",
+            "api_key_env",
+            "temperature"
+          ],
+          "exported": true,
+          "lineCount": 19
+        },
+        {
           "name": "AppConfig",
           "methods": [],
           "properties": [
             "postgresql",
             "logger",
-            "auth"
+            "auth",
+            "deepagent"
           ],
           "exported": true,
-          "lineCount": 6
+          "lineCount": 7
         }
       ],
       "imports": [
@@ -213,26 +441,27 @@
         "PostgresConfig",
         "LoggerConfig",
         "AuthConfig",
+        "DeepAgentConfig",
         "AppConfig",
         "_apply_env_overrides",
         "load_config"
       ],
-      "totalLines": 145,
+      "totalLines": 167,
       "hasStructuralAnalysis": true
     },
     "config/config.yaml": {
       "filePath": "config/config.yaml",
-      "contentHash": "51eee2f542e93392586d1189f97a7780e09c11654595a164ed0b21350b336ea8",
+      "contentHash": "0056cf57d87f4cf5ddce7d1319bba22003e0a95d50d5257fd0d97a37d7574704",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 44,
+      "totalLines": 51,
       "hasStructuralAnalysis": false
     },
     "dependencies/__init__.py": {
       "filePath": "dependencies/__init__.py",
-      "contentHash": "cc46f1dc78cfa3b864b6ef56c19203858502963a98317c9213e1246537bc8c51",
+      "contentHash": "b83dad04298cd8befdcc9741030fb9057c5b4806c7497476c7ffdf7432d02293",
       "functions": [],
       "classes": [],
       "imports": [
@@ -255,6 +484,13 @@
           ]
         },
         {
+          "source": ".agent",
+          "specifiers": [
+            "AgentDep",
+            "get_agent"
+          ]
+        },
+        {
           "source": ".database",
           "specifiers": [
             "AsyncSessionFactory",
@@ -264,7 +500,52 @@
         }
       ],
       "exports": [],
-      "totalLines": 14,
+      "totalLines": 22,
+      "hasStructuralAnalysis": true
+    },
+    "dependencies/agent.py": {
+      "filePath": "dependencies/agent.py",
+      "contentHash": "bf8a221800ed710176bdb249d8f144c95af8633fb1ec974ed2a64fb8f5f1ce0c",
+      "functions": [
+        {
+          "name": "get_agent",
+          "params": [],
+          "returnType": "DeepAgent",
+          "exported": true,
+          "lineCount": 2
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "Annotated"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "Depends"
+          ]
+        },
+        {
+          "source": "agents",
+          "specifiers": [
+            "DeepAgent"
+          ]
+        },
+        {
+          "source": "services.agent",
+          "specifiers": [
+            "agent_service"
+          ]
+        }
+      ],
+      "exports": [
+        "get_agent"
+      ],
+      "totalLines": 18,
       "hasStructuralAnalysis": true
     },
     "dependencies/auth.py": {
@@ -453,7 +734,7 @@
     },
     "main.py": {
       "filePath": "main.py",
-      "contentHash": "b4e65ee8806d8a65dea3010bc9ce0cdb9b8f98c60529a8f2d31d0c82f05cfa51",
+      "contentHash": "dc85895c20b473f3f416dba7c395298bb44654bf11058ceaf46897a45e9a3504",
       "functions": [
         {
           "name": "lifespan",
@@ -461,7 +742,7 @@
             "app"
           ],
           "exported": true,
-          "lineCount": 6
+          "lineCount": 10
         },
         {
           "name": "health",
@@ -512,7 +793,14 @@
         {
           "source": "routers",
           "specifiers": [
+            "agent",
             "auth"
+          ]
+        },
+        {
+          "source": "services.agent",
+          "specifiers": [
+            "agent_service"
           ]
         }
       ],
@@ -520,26 +808,39 @@
         "lifespan",
         "health"
       ],
-      "totalLines": 55,
+      "totalLines": 63,
       "hasStructuralAnalysis": true
     },
     "migrations/env.py": {
       "filePath": "migrations/env.py",
-      "contentHash": "75f49871d381c14457fceb3185ffe906a1eabfdf783c1faebce5222d16f931c0",
+      "contentHash": "1d170737d7218b797ba50b3d94852d1202ede2cca33cac4cd687b80eb9268f11",
       "functions": [
+        {
+          "name": "include_object",
+          "params": [
+            "obj",
+            "name",
+            "type_",
+            "reflected",
+            "compare_to"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 7
+        },
         {
           "name": "run_migrations_offline",
           "params": [],
           "returnType": "None",
           "exported": true,
-          "lineCount": 12
+          "lineCount": 13
         },
         {
           "name": "run_migrations_online",
           "params": [],
           "returnType": "None",
           "exported": true,
-          "lineCount": 17
+          "lineCount": 18
         }
       ],
       "classes": [],
@@ -548,6 +849,12 @@
           "source": "logging.config",
           "specifiers": [
             "fileConfig"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any"
           ]
         },
         {
@@ -577,10 +884,11 @@
         }
       ],
       "exports": [
+        "include_object",
         "run_migrations_offline",
         "run_migrations_online"
       ],
-      "totalLines": 66,
+      "totalLines": 93,
       "hasStructuralAnalysis": true
     },
     "migrations/script.py.mako": {
@@ -761,12 +1069,12 @@
     },
     "pyproject.toml": {
       "filePath": "pyproject.toml",
-      "contentHash": "210d45501c1478263f6e2cd4fee46e84d7b0e6bc57dc2583ed07113e873f17af",
+      "contentHash": "583427775f599f67004520a4b5efe4517aede17f620edbb625428ffd90e4916b",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 20,
+      "totalLines": 21,
       "hasStructuralAnalysis": false
     },
     "repositories/__init__.py": {
@@ -834,19 +1142,174 @@
     },
     "routers/__init__.py": {
       "filePath": "routers/__init__.py",
-      "contentHash": "2c571d0d19ba0853a9f089978835cc7403bb5db40d54789f0a94a94c5c583405",
+      "contentHash": "7fb1cca8b465bccdeb29369a33cb90db7442cb0ce54082e7465276d39ff6393e",
       "functions": [],
       "classes": [],
       "imports": [
         {
           "source": ".",
           "specifiers": [
+            "agent",
             "auth"
           ]
         }
       ],
       "exports": [],
       "totalLines": 6,
+      "hasStructuralAnalysis": true
+    },
+    "routers/agent.py": {
+      "filePath": "routers/agent.py",
+      "contentHash": "c7ca8e4774888d360643f64e99f85dbc3523b563dcfe38841f02345138d1dc5c",
+      "functions": [
+        {
+          "name": "chat",
+          "params": [
+            "payload",
+            "current_user",
+            "agent"
+          ],
+          "returnType": "ChatResponse",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "stream",
+          "params": [
+            "payload",
+            "current_user",
+            "agent"
+          ],
+          "returnType": "StreamingResponse",
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "get_state",
+          "params": [
+            "current_user",
+            "agent",
+            "thread_id"
+          ],
+          "returnType": "MemoryResponse",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "list_memories",
+          "params": [
+            "current_user",
+            "agent"
+          ],
+          "returnType": "list[str]",
+          "exported": true,
+          "lineCount": 2
+        }
+      ],
+      "classes": [
+        {
+          "name": "ChatRequest",
+          "methods": [],
+          "properties": [
+            "message",
+            "thread_id"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "ChatResponse",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "answer"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "MemoryResponse",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "user_id",
+            "messages",
+            "answer",
+            "files"
+          ],
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "imports": [
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "collections.abc",
+          "specifiers": [
+            "AsyncIterator"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Annotated"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "APIRouter",
+            "Path"
+          ]
+        },
+        {
+          "source": "fastapi.responses",
+          "specifiers": [
+            "StreamingResponse"
+          ]
+        },
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel",
+            "ConfigDict",
+            "Field"
+          ]
+        },
+        {
+          "source": "dependencies",
+          "specifiers": [
+            "AgentDep"
+          ]
+        },
+        {
+          "source": "dependencies.auth",
+          "specifiers": [
+            "CurrentUser"
+          ]
+        },
+        {
+          "source": "logger",
+          "specifiers": [
+            "logger"
+          ]
+        }
+      ],
+      "exports": [
+        "ChatRequest",
+        "ChatResponse",
+        "MemoryResponse",
+        "chat",
+        "stream",
+        "get_state",
+        "list_memories"
+      ],
+      "totalLines": 101,
       "hasStructuralAnalysis": true
     },
     "routers/auth.py": {
@@ -1062,6 +1525,38 @@
       "totalLines": 20,
       "hasStructuralAnalysis": true
     },
+    "services/agent.py": {
+      "filePath": "services/agent.py",
+      "contentHash": "5212d668a3ffb75d51927fcdd8741b60fb4934ca35e117aaa4d76e89e16aa2d5",
+      "functions": [],
+      "classes": [
+        {
+          "name": "AgentService",
+          "methods": [
+            "__init__",
+            "start",
+            "stop",
+            "get"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 23
+        }
+      ],
+      "imports": [
+        {
+          "source": "agents",
+          "specifiers": [
+            "DeepAgent"
+          ]
+        }
+      ],
+      "exports": [
+        "AgentService"
+      ],
+      "totalLines": 38,
+      "hasStructuralAnalysis": true
+    },
     "services/auth.py": {
       "filePath": "services/auth.py",
       "contentHash": "63dac8733e84bb894b64119d6911ea0468905d57ef53babedd3cbd1947583856",
@@ -1208,6 +1703,142 @@
         "AuthService"
       ],
       "totalLines": 158,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_agent.py": {
+      "filePath": "tests/test_agent.py",
+      "contentHash": "873847cca30ac2b6efb2748effdfdcb22d4adbf3580e0e42c546f12e07f497e2",
+      "functions": [
+        {
+          "name": "step",
+          "params": [
+            "name"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "db_rows",
+          "params": [
+            "sql",
+            "params"
+          ],
+          "returnType": "list[tuple]",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "cleanup",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "parse_sse",
+          "params": [
+            "body"
+          ],
+          "returnType": "list[tuple[str, dict]]",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "class_level_checks",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 89
+        },
+        {
+          "name": "router_checks",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 76
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 16
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "psycopg",
+          "specifiers": [
+            "psycopg"
+          ]
+        },
+        {
+          "source": "fastapi.testclient",
+          "specifiers": [
+            "TestClient"
+          ]
+        },
+        {
+          "source": "agents",
+          "specifiers": [
+            "DeepAgent"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        },
+        {
+          "source": "main",
+          "specifiers": [
+            "app"
+          ]
+        }
+      ],
+      "exports": [
+        "step",
+        "db_rows",
+        "cleanup",
+        "parse_sse",
+        "class_level_checks",
+        "router_checks",
+        "main"
+      ],
+      "totalLines": 274,
       "hasStructuralAnalysis": true
     },
     "tests/test_auth.py": {
