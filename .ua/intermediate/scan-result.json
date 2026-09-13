@@ -1,0 +1,269 @@
+{
+  "scriptCompleted": true,
+  "contentDigest": "b98e3961564851a241591018bf6fa93c3b2a2edb7492afab207c11e85528f916",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "language": "markdown",
+      "sizeLines": 14,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "README.md",
+      "language": "markdown",
+      "sizeLines": 320,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "agents/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "alembic.ini",
+      "language": "config",
+      "sizeLines": 149,
+      "fileCategory": "config"
+    },
+    {
+      "path": "config/__init__.py",
+      "language": "python",
+      "sizeLines": 25,
+      "fileCategory": "code"
+    },
+    {
+      "path": "config/config.py",
+      "language": "python",
+      "sizeLines": 144,
+      "fileCategory": "code"
+    },
+    {
+      "path": "config/config.yaml",
+      "language": "yaml",
+      "sizeLines": 43,
+      "fileCategory": "config"
+    },
+    {
+      "path": "dependencies/__init__.py",
+      "language": "python",
+      "sizeLines": 13,
+      "fileCategory": "code"
+    },
+    {
+      "path": "dependencies/auth.py",
+      "language": "python",
+      "sizeLines": 45,
+      "fileCategory": "code"
+    },
+    {
+      "path": "dependencies/database.py",
+      "language": "python",
+      "sizeLines": 48,
+      "fileCategory": "code"
+    },
+    {
+      "path": "logger/__init__.py",
+      "language": "python",
+      "sizeLines": 98,
+      "fileCategory": "code"
+    },
+    {
+      "path": "main.py",
+      "language": "python",
+      "sizeLines": 54,
+      "fileCategory": "code"
+    },
+    {
+      "path": "migrations/env.py",
+      "language": "python",
+      "sizeLines": 65,
+      "fileCategory": "code"
+    },
+    {
+      "path": "migrations/script.py.mako",
+      "language": "mako",
+      "sizeLines": 28,
+      "fileCategory": "code"
+    },
+    {
+      "path": "migrations/versions/ce9e484f27fb_create_users_table.py",
+      "language": "python",
+      "sizeLines": 46,
+      "fileCategory": "code"
+    },
+    {
+      "path": "models/__init__.py",
+      "language": "python",
+      "sizeLines": 44,
+      "fileCategory": "code"
+    },
+    {
+      "path": "models/user.py",
+      "language": "python",
+      "sizeLines": 36,
+      "fileCategory": "code"
+    },
+    {
+      "path": "pyproject.toml",
+      "language": "toml",
+      "sizeLines": 19,
+      "fileCategory": "config"
+    },
+    {
+      "path": "repositories/__init__.py",
+      "language": "python",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "repositories/user.py",
+      "language": "python",
+      "sizeLines": 35,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/__init__.py",
+      "language": "python",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/auth.py",
+      "language": "python",
+      "sizeLines": 104,
+      "fileCategory": "code"
+    },
+    {
+      "path": "services/__init__.py",
+      "language": "python",
+      "sizeLines": 19,
+      "fileCategory": "code"
+    },
+    {
+      "path": "services/auth.py",
+      "language": "python",
+      "sizeLines": 157,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_auth.py",
+      "language": "python",
+      "sizeLines": 145,
+      "fileCategory": "code"
+    }
+  ],
+  "totalFiles": 25,
+  "filteredByIgnore": 56,
+  "estimatedComplexity": "small",
+  "failures": [],
+  "stats": {
+    "filesScanned": 25,
+    "byCategory": {
+      "docs": 2,
+      "code": 20,
+      "config": 3
+    },
+    "byLanguage": {
+      "markdown": 2,
+      "python": 19,
+      "config": 1,
+      "yaml": 1,
+      "mako": 1,
+      "toml": 1
+    }
+  },
+  "importMap": {
+    "AGENTS.md": [],
+    "README.md": [],
+    "agents/__init__.py": [],
+    "alembic.ini": [],
+    "config/__init__.py": [
+      "config/config.py"
+    ],
+    "config/config.py": [],
+    "config/config.yaml": [],
+    "dependencies/__init__.py": [
+      "dependencies/database.py"
+    ],
+    "dependencies/auth.py": [
+      "dependencies/database.py",
+      "models/__init__.py",
+      "repositories/__init__.py",
+      "services/__init__.py"
+    ],
+    "dependencies/database.py": [
+      "config/__init__.py"
+    ],
+    "logger/__init__.py": [
+      "config/__init__.py"
+    ],
+    "main.py": [
+      "config/__init__.py",
+      "dependencies/__init__.py",
+      "logger/__init__.py",
+      "routers/__init__.py",
+      "routers/auth.py"
+    ],
+    "migrations/env.py": [
+      "config/__init__.py",
+      "models/__init__.py"
+    ],
+    "migrations/script.py.mako": [],
+    "migrations/versions/ce9e484f27fb_create_users_table.py": [],
+    "models/__init__.py": [
+      "models/user.py"
+    ],
+    "models/user.py": [
+      "models/__init__.py"
+    ],
+    "pyproject.toml": [],
+    "repositories/__init__.py": [
+      "repositories/user.py"
+    ],
+    "repositories/user.py": [
+      "models/__init__.py"
+    ],
+    "routers/__init__.py": [
+      "routers/auth.py"
+    ],
+    "routers/auth.py": [
+      "config/__init__.py",
+      "dependencies/__init__.py",
+      "dependencies/auth.py",
+      "models/__init__.py",
+      "services/__init__.py"
+    ],
+    "services/__init__.py": [
+      "services/auth.py"
+    ],
+    "services/auth.py": [
+      "config/__init__.py",
+      "models/__init__.py",
+      "repositories/__init__.py"
+    ],
+    "tests/test_auth.py": [
+      "config/__init__.py",
+      "main.py"
+    ]
+  },
+  "projectName": "deepagents_template",
+  "projectDescription": "FastAPI + PostgreSQL 后端模板：OmegaConf+pydantic 配置、loguru 日志、用户注册登录与 JWT 鉴权、alembic 迁移，并为 deepagents（LangGraph 检查点/长期记忆）预留装配位。",
+  "languages": [
+    "python",
+    "markdown",
+    "yaml",
+    "toml",
+    "mako",
+    "ini"
+  ],
+  "frameworks": [
+    "FastAPI",
+    "SQLAlchemy",
+    "Alembic",
+    "Pydantic",
+    "Loguru",
+    "OmegaConf",
+    "uvicorn"
+  ]
+}

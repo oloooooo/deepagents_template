@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+.env
+
+# 本项目运行时日志（loguru 文件 sink）
+logs/
+.ua/.trash-*

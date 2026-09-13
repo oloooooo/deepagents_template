@@ -1,0 +1,2680 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "deepagents_template",
+    "languages": [
+      "python",
+      "markdown",
+      "yaml",
+      "toml",
+      "mako",
+      "ini"
+    ],
+    "frameworks": [
+      "FastAPI",
+      "SQLAlchemy",
+      "Alembic",
+      "Pydantic",
+      "Loguru",
+      "OmegaConf",
+      "uvicorn"
+    ],
+    "description": "FastAPI + PostgreSQL 后端模板：OmegaConf+pydantic 配置、loguru 日志、用户注册登录与 JWT 鉴权、alembic 迁移，并为 deepagents（LangGraph 检查点/长期记忆）预留装配位。",
+    "analyzedAt": "2026-09-13T12:19:57.183529Z",
+    "gitCommitHash": "2c908daf852472d162a2341e08ddf78091a433d6"
+  },
+  "nodes": [
+    {
+      "id": "file:dependencies/__init__.py",
+      "type": "file",
+      "name": "dependencies/__init__.py",
+      "filePath": "dependencies/__init__.py",
+      "summary": "依赖注入的统一出口：转出 engine、AsyncSessionFactory、get_session，并定义 SessionDep 类型别名，路由只需写 session: SessionDep。",
+      "tags": [
+        "barrel",
+        "依赖注入",
+        "fastapi"
+      ],
+      "complexity": "simple",
+      "languageNotes": "用 Annotated[AsyncSession, Depends(get_session)] 打包类型与依赖，把 FastAPI 的依赖声明从签名里挪到类型别名中。"
+    },
+    {
+      "id": "file:dependencies/database.py",
+      "type": "file",
+      "name": "dependencies/database.py",
+      "filePath": "dependencies/database.py",
+      "summary": "创建业务库的异步 engine 与 AsyncSessionFactory（连接池 10+20、pool_pre_ping），并导出请求级 get_session；win32 下把事件循环策略换成 SelectorEventLoop 以兼容 psycopg 异步驱动。",
+      "tags": [
+        "database",
+        "config",
+        "依赖注入",
+        "async"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "engine 在模块导入时创建（配置有问题会立刻失败）；async_sessionmaker(expire_on_commit=False) 省掉提交后再取属性的额外查询。"
+    },
+    {
+      "id": "function:dependencies/database.py:get_session",
+      "type": "function",
+      "name": "get_session",
+      "filePath": "dependencies/database.py",
+      "summary": "yield 型依赖：每个请求开一个 AsyncSession，请求结束（含异常）自动关闭连接。",
+      "tags": [
+        "依赖注入",
+        "async",
+        "database"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "concept:windows-proactor-eventloop",
+      "type": "concept",
+      "name": "Windows ProactorEventLoop 兼容性",
+      "filePath": "dependencies/database.py",
+      "summary": "psycopg 异步驱动无法在 Windows 默认的 ProactorEventLoop 上运行，而 uvicorn 在「单进程且非 reload」时恰好选它，因此必须显式使用 SelectorEventLoop（代码内策略兜底、--loop 参数或 --reload/--workers）。",
+      "tags": [
+        "兼容性",
+        "windows",
+        "asyncio",
+        "psycopg",
+        "跨平台陷阱"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:dependencies/auth.py",
+      "type": "file",
+      "name": "dependencies/auth.py",
+      "filePath": "dependencies/auth.py",
+      "summary": "鉴权依赖：用 HTTPBearer(auto_error=False) 取 Bearer 令牌，get_current_user 校验后返回当前用户，并暴露 CurrentUser 注入别名。",
+      "tags": [
+        "middleware",
+        "鉴权",
+        "jwt",
+        "依赖注入",
+        "tested"
+      ],
+      "complexity": "simple",
+      "languageNotes": "auto_error=False 让「没带令牌」也走自定义 401 响应，错误结构与业务异常保持一致。"
+    },
+    {
+      "id": "function:dependencies/auth.py:get_current_user",
+      "type": "function",
+      "name": "get_current_user",
+      "filePath": "dependencies/auth.py",
+      "summary": "从 Bearer 令牌解析用户：decode_token 校验签名与类型 → 按 id 查库 → 校验 is_active；失败分别抛 401（无效令牌）与 403（用户被禁用）。",
+      "tags": [
+        "鉴权",
+        "依赖注入",
+        "jwt"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:routers/__init__.py",
+      "type": "file",
+      "name": "routers/__init__.py",
+      "filePath": "routers/__init__.py",
+      "summary": "路由包出口，转出 auth 路由模块，供 main.py 以 routers.auth.router 方式挂载。",
+      "tags": [
+        "barrel",
+        "routing"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:routers/auth.py",
+      "type": "file",
+      "name": "routers/auth.py",
+      "filePath": "routers/auth.py",
+      "summary": "鉴权路由：/auth 前缀下定义注册、登录、刷新、登出、当前用户五个端点，并声明请求/响应 pydantic 模型，业务逻辑全部委托 AuthService。",
+      "tags": [
+        "api-handler",
+        "routing",
+        "鉴权",
+        "type-definition",
+        "tested"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "路由函数只做「收参 → 调 service → 包响应」，登出用 response_class=Response 才能真正返回 204 空体。"
+    },
+    {
+      "id": "endpoint:routers/auth.py:POST /auth/register",
+      "type": "endpoint",
+      "name": "POST /auth/register",
+      "filePath": "routers/auth.py",
+      "summary": "注册端点：校验账号/邮箱/密码格式后创建用户，成功返回 201 与用户信息（不含任何密码字段），账号或邮箱重复返回 409。",
+      "tags": [
+        "api-handler",
+        "端点",
+        "鉴权"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "endpoint:routers/auth.py:POST /auth/login",
+      "type": "endpoint",
+      "name": "POST /auth/login",
+      "filePath": "routers/auth.py",
+      "summary": "登录端点：账号或邮箱 + 密码换 access/refresh 双令牌，refresh token 同时落库，失败统一 401、被禁用 403。",
+      "tags": [
+        "api-handler",
+        "端点",
+        "鉴权",
+        "jwt"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "endpoint:routers/auth.py:POST /auth/refresh",
+      "type": "endpoint",
+      "name": "POST /auth/refresh",
+      "filePath": "routers/auth.py",
+      "summary": "刷新端点：用 refresh token 换新的一对令牌并轮换，旧 refresh token 立即失效。",
+      "tags": [
+        "api-handler",
+        "端点",
+        "鉴权",
+        "jwt"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "endpoint:routers/auth.py:POST /auth/logout",
+      "type": "endpoint",
+      "name": "POST /auth/logout",
+      "filePath": "routers/auth.py",
+      "summary": "登出端点：清空库中 refresh token 并返回 204；access token 保持无状态，靠短有效期自然失效。",
+      "tags": [
+        "api-handler",
+        "端点",
+        "鉴权"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "endpoint:routers/auth.py:GET /auth/me",
+      "type": "endpoint",
+      "name": "GET /auth/me",
+      "filePath": "routers/auth.py",
+      "summary": "当前用户端点：直接返回经 get_current_user 校验过的用户对象。",
+      "tags": [
+        "api-handler",
+        "端点",
+        "鉴权"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/auth.py:RegisterRequest",
+      "type": "class",
+      "name": "RegisterRequest",
+      "filePath": "routers/auth.py",
+      "summary": "注册请求体模型：账号 3–50 位受限字符集、邮箱正则、密码 8–72 位，不满足直接由 FastAPI 返回 422。",
+      "tags": [
+        "type-definition",
+        "serialization",
+        "校验"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/auth.py:LoginRequest",
+      "type": "class",
+      "name": "LoginRequest",
+      "filePath": "routers/auth.py",
+      "summary": "登录请求体模型：account 字段既可以填登录账号也可以填邮箱。",
+      "tags": [
+        "type-definition",
+        "serialization",
+        "校验"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/auth.py:RefreshRequest",
+      "type": "class",
+      "name": "RefreshRequest",
+      "filePath": "routers/auth.py",
+      "summary": "刷新请求体模型：只包含一个非空 refresh_token 字段。",
+      "tags": [
+        "type-definition",
+        "serialization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/auth.py:TokenPair",
+      "type": "class",
+      "name": "TokenPair",
+      "filePath": "routers/auth.py",
+      "summary": "令牌响应模型：access_token + refresh_token + token_type + expires_in（秒，来自配置）。",
+      "tags": [
+        "type-definition",
+        "serialization",
+        "jwt"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/auth.py:UserOut",
+      "type": "class",
+      "name": "UserOut",
+      "filePath": "routers/auth.py",
+      "summary": "用户响应模型：靠 from_attributes=True 直接从 ORM 对象序列化，只暴露 id/account/email/is_active/created_at。",
+      "tags": [
+        "type-definition",
+        "serialization",
+        "鉴权"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:routers/auth.py:_token_pair",
+      "type": "function",
+      "name": "_token_pair",
+      "filePath": "routers/auth.py",
+      "summary": "把 service 返回的令牌串组装成 TokenPair，并按配置算出 expires_in 秒数。",
+      "tags": [
+        "工具函数",
+        "jwt"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:services/__init__.py",
+      "type": "file",
+      "name": "services/__init__.py",
+      "filePath": "services/__init__.py",
+      "summary": "业务层出口，转出 AuthService 与密码/令牌工具函数，路由与依赖层都从 services 包导入。",
+      "tags": [
+        "barrel",
+        "service"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:migrations/env.py",
+      "type": "file",
+      "name": "migrations/env.py",
+      "filePath": "migrations/env.py",
+      "summary": "alembic 迁移环境：连接串不写在 alembic.ini，而是从 config.yaml 的 postgresql.user 段注入，保证应用与迁移用同一份配置；用同步引擎跑 online/offline 两种模式。",
+      "tags": [
+        "database",
+        "migration",
+        "config",
+        "infrastructure"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "用 fileConfig(..., disable_existing_loggers=False) 保留 loguru 对标准库 logging 的接管；连接串写入前把 % 转义成 %%，避免 configparser 当插值符处理。"
+    },
+    {
+      "id": "function:migrations/env.py:run_migrations_offline",
+      "type": "function",
+      "name": "run_migrations_offline",
+      "filePath": "migrations/env.py",
+      "summary": "离线模式：只根据 url 生成 SQL 文本、不连库，literal_binds 让参数直接内联进 SQL。",
+      "tags": [
+        "migration",
+        "database"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:migrations/env.py:run_migrations_online",
+      "type": "function",
+      "name": "run_migrations_online",
+      "filePath": "migrations/env.py",
+      "summary": "在线模式：用 NullPool 建同步连接执行迁移，并开启 compare_type 让字段类型变化也能被 autogenerate 发现。",
+      "tags": [
+        "migration",
+        "database"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:models/__init__.py",
+      "type": "file",
+      "name": "models/__init__.py",
+      "filePath": "models/__init__.py",
+      "summary": "ORM 基类定义：Base 带统一约束命名约定，BaseModel 提供 id（uuid hex）与 created_at/updated_at 公共字段，文件末尾导入各表模型以便迁移发现。",
+      "tags": [
+        "data-model",
+        "base-class",
+        "orm"
+      ],
+      "complexity": "simple",
+      "languageNotes": "用 DeclarativeBase 而非 declarative_base()；把所有表模型放在包末尾导入，是 SQLAlchemy 里避免循环导入的常见做法（模型反过来 import Base）。"
+    },
+    {
+      "id": "class:models/__init__.py:Base",
+      "type": "class",
+      "name": "Base",
+      "filePath": "models/__init__.py",
+      "summary": "SQLAlchemy 声明式基类，挂上命名约定（pk_/ix_/uq_/fk_/ck_），让索引与约束名字可预期、迁移脚本稳定。",
+      "tags": [
+        "data-model",
+        "orm",
+        "base-class"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:models/__init__.py:BaseModel",
+      "type": "class",
+      "name": "BaseModel",
+      "filePath": "models/__init__.py",
+      "summary": "抽象基类：业务表继承它即自带 32 位主键 id 与带时区的 created_at/updated_at（onupdate 自动刷新）。",
+      "tags": [
+        "data-model",
+        "orm",
+        "base-class"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:models/user.py",
+      "type": "file",
+      "name": "models/user.py",
+      "filePath": "models/user.py",
+      "summary": "用户表 ORM 模型：account/email 唯一索引、bcrypt 哈希、当前 refresh token、is_active 开关；表名用 users 规避 PostgreSQL 保留字 user。",
+      "tags": [
+        "data-model",
+        "orm",
+        "鉴权"
+      ],
+      "complexity": "simple",
+      "languageNotes": "列上带 comment= 让注释随迁移一起建到数据库里；服务器默认值用 sa.true() 保证纯 SQL 插入也有默认值。"
+    },
+    {
+      "id": "class:models/user.py:User",
+      "type": "class",
+      "name": "User",
+      "filePath": "models/user.py",
+      "summary": "用户实体：登录账号、邮箱、密码哈希、当前 refresh token 与启用状态，是鉴权链路的数据载体。",
+      "tags": [
+        "data-model",
+        "entity",
+        "鉴权"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:repositories/__init__.py",
+      "type": "file",
+      "name": "repositories/__init__.py",
+      "filePath": "repositories/__init__.py",
+      "summary": "仓库层出口，转出 UserRepository，service 层通过包名导入而不直接依赖具体模块路径。",
+      "tags": [
+        "barrel",
+        "data-model"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:repositories/user.py",
+      "type": "file",
+      "name": "repositories/user.py",
+      "filePath": "repositories/user.py",
+      "summary": "用户表数据访问：唯一写 SQL 的地方，提供按 id/账号（或邮箱）查询、创建用户、写入或清空 refresh token 四类操作。",
+      "tags": [
+        "data-model",
+        "crud",
+        "database"
+      ],
+      "complexity": "simple",
+      "languageNotes": "create/update 内部直接 commit + refresh，把事务边界收在仓库层，service 不需要并发管理 session。"
+    },
+    {
+      "id": "class:repositories/user.py:UserRepository",
+      "type": "class",
+      "name": "UserRepository",
+      "filePath": "repositories/user.py",
+      "summary": "User 的增删改查仓库，构造时注入 AsyncSession，上层 service 不直接写 select/add。",
+      "tags": [
+        "data-model",
+        "crud",
+        "repository"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:repositories/user.py:UserRepository.get_by_id",
+      "type": "function",
+      "name": "UserRepository.get_by_id",
+      "filePath": "repositories/user.py",
+      "summary": "按主键取用户（走 session.get，命中身份映射时不再发 SQL），供鉴权与刷新令牌使用。",
+      "tags": [
+        "crud",
+        "database"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:repositories/user.py:UserRepository.get_by_account",
+      "type": "function",
+      "name": "UserRepository.get_by_account",
+      "filePath": "repositories/user.py",
+      "summary": "按传入字符串匹配 account 或 email（or_ 条件），因此登录入口两种标识共用一条查询。",
+      "tags": [
+        "crud",
+        "database"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:repositories/user.py:UserRepository.create",
+      "type": "function",
+      "name": "UserRepository.create",
+      "filePath": "repositories/user.py",
+      "summary": "新增用户：add → commit → refresh，返回带数据库默认值的完整实体。",
+      "tags": [
+        "crud",
+        "database"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:repositories/user.py:UserRepository.update_refresh_token",
+      "type": "function",
+      "name": "UserRepository.update_refresh_token",
+      "filePath": "repositories/user.py",
+      "summary": "写入新的 refresh token 或传 None 清空（登出），一次提交完成轮换。",
+      "tags": [
+        "crud",
+        "database",
+        "jwt"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:services/auth.py",
+      "type": "file",
+      "name": "services/auth.py",
+      "filePath": "services/auth.py",
+      "summary": "认证服务：bcrypt 密码哈希与校验、JWT 签发与解码、注册/登录/刷新/登出业务流程，是鉴权规则唯一的落点。",
+      "tags": [
+        "service",
+        "鉴权",
+        "jwt",
+        "业务逻辑",
+        "tested"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "刷新令牌用 hmac.compare_digest 做定时安全比较；bcrypt 只处理前 72 字节，超长直接 422 而不静默截断。"
+    },
+    {
+      "id": "function:services/auth.py:_encode_password",
+      "type": "function",
+      "name": "_encode_password",
+      "filePath": "services/auth.py",
+      "summary": "把明文密码编成 UTF-8 字节，超过 72 字节（bcrypt 上限）时抛 422，避免出现「前 72 字节相同即通过」的弱密码。",
+      "tags": [
+        "工具函数",
+        "鉴权",
+        "校验"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/auth.py:hash_password",
+      "type": "function",
+      "name": "hash_password",
+      "filePath": "services/auth.py",
+      "summary": "用 bcrypt（cost=12）加盐哈希密码，返回可直接入库的 60 字节字符串。",
+      "tags": [
+        "工具函数",
+        "鉴权",
+        "安全"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/auth.py:verify_password",
+      "type": "function",
+      "name": "verify_password",
+      "filePath": "services/auth.py",
+      "summary": "校验明文与哈希是否匹配；哈希串损坏时按不匹配处理，不把 500 抛给调用方。",
+      "tags": [
+        "工具函数",
+        "鉴权",
+        "安全"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/auth.py:create_token",
+      "type": "function",
+      "name": "create_token",
+      "filePath": "services/auth.py",
+      "summary": "签发 JWT：sub 为用户 id，type 区分 access/refresh，附带 jti 与 iat/exp，密钥与算法取自配置。",
+      "tags": [
+        "工具函数",
+        "jwt",
+        "鉴权"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/auth.py:decode_token",
+      "type": "function",
+      "name": "decode_token",
+      "filePath": "services/auth.py",
+      "summary": "校验 JWT 签名、有效期与 type 后返回 sub；任何异常都归一成 401 + WWW-Authenticate 头。",
+      "tags": [
+        "工具函数",
+        "jwt",
+        "鉴权"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:services/auth.py:AuthService",
+      "type": "class",
+      "name": "AuthService",
+      "filePath": "services/auth.py",
+      "summary": "业务逻辑聚合：持有 AsyncSession 与 UserRepository，对外提供 register/authenticate/login/refresh/logout，路由层只负责收参与返回。",
+      "tags": [
+        "service",
+        "鉴权",
+        "业务逻辑"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:services/auth.py:AuthService.register",
+      "type": "function",
+      "name": "AuthService.register",
+      "filePath": "services/auth.py",
+      "summary": "注册：先查账号或邮箱是否已存在（冲突抛 409），再哈希密码并落库。",
+      "tags": [
+        "service",
+        "业务逻辑",
+        "鉴权"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/auth.py:AuthService.authenticate",
+      "type": "function",
+      "name": "AuthService.authenticate",
+      "filePath": "services/auth.py",
+      "summary": "账号/邮箱 + 密码换用户，账号不存在与密码错误统一 401（不泄漏账号是否存在），并校验账号启用状态。",
+      "tags": [
+        "service",
+        "业务逻辑",
+        "鉴权"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/auth.py:AuthService.login",
+      "type": "function",
+      "name": "AuthService.login",
+      "filePath": "services/auth.py",
+      "summary": "登录：鉴权通过后签发 access/refresh 双令牌，并把 refresh token 落库以便后续轮换与登出。",
+      "tags": [
+        "service",
+        "业务逻辑",
+        "jwt"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/auth.py:AuthService.refresh",
+      "type": "function",
+      "name": "AuthService.refresh",
+      "filePath": "services/auth.py",
+      "summary": "刷新：解码 refresh token → 与库中保存值做定时安全比较 → 校验启用状态 → 轮换出一对新令牌（旧令牌立即失效）。",
+      "tags": [
+        "service",
+        "业务逻辑",
+        "jwt",
+        "安全"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:services/auth.py:AuthService.logout",
+      "type": "function",
+      "name": "AuthService.logout",
+      "filePath": "services/auth.py",
+      "summary": "登出：把用户库中的 refresh token 置空，使该令牌无法再刷新。",
+      "tags": [
+        "service",
+        "业务逻辑",
+        "鉴权"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/auth.py:AuthService._issue_tokens",
+      "type": "function",
+      "name": "AuthService._issue_tokens",
+      "filePath": "services/auth.py",
+      "summary": "按配置的有效期签发 access/refresh 两个 JWT，并原子性地把 refresh token 写回用户行。",
+      "tags": [
+        "service",
+        "jwt",
+        "工具函数"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/auth.py:AuthService._ensure_active",
+      "type": "function",
+      "name": "AuthService._ensure_active",
+      "filePath": "services/auth.py",
+      "summary": "统一的启用状态检查：is_active 为假时抛 403（区别于令牌无效的 401）。",
+      "tags": [
+        "service",
+        "鉴权",
+        "校验"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:config/__init__.py",
+      "type": "file",
+      "name": "config/__init__.py",
+      "filePath": "config/__init__.py",
+      "summary": "配置包出口：只暴露 app_config 单例、load_config 与各段配置模型，其它模块统一 from config import app_config。",
+      "tags": [
+        "barrel",
+        "配置"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:config/config.py",
+      "type": "file",
+      "name": "config/config.py",
+      "filePath": "config/config.py",
+      "summary": "配置加载核心：OmegaConf 读 config.yaml → 应用 APP_* 环境变量覆盖 → pydantic 校验 → 生成 app_config 单例；模型用 extra=\"forbid\" 让写错键名直接报错。",
+      "tags": [
+        "配置",
+        "validation",
+        "singleton"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "用 pydantic 的 @property 在模型上派生 uri/sqlalchemy_uri/log_dir，避免把可计算的连接串写进 yaml；单例在模块导入时创建，配置错误会在启动瞬间暴露。"
+    },
+    {
+      "id": "class:config/config.py:_Strict",
+      "type": "class",
+      "name": "_Strict",
+      "filePath": "config/config.py",
+      "summary": "所有配置模型的基类，只做一件事：开启 extra=\"forbid\"，嵌套段同样拒绝未知键。",
+      "tags": [
+        "配置",
+        "base-class",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:config/config.py:PostgreConfig",
+      "type": "class",
+      "name": "PostgreConfig",
+      "filePath": "config/config.py",
+      "summary": "单个 PostgreSQL 库的连接参数（host/port/user/password/db_name），并派生出 psycopg 与 SQLAlchemy 两种连接串。",
+      "tags": [
+        "配置",
+        "database"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config/config.py:PostgreConfig.uri",
+      "type": "function",
+      "name": "PostgreConfig.uri",
+      "filePath": "config/config.py",
+      "summary": "生成 postgresql:// 原生连接串（供 psycopg 连接池与 langgraph checkpointer 使用），账号密码做 URL 转义。",
+      "tags": [
+        "配置",
+        "database",
+        "工具函数"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config/config.py:PostgreConfig.sqlalchemy_uri",
+      "type": "function",
+      "name": "PostgreConfig.sqlalchemy_uri",
+      "filePath": "config/config.py",
+      "summary": "生成 postgresql+psycopg:// 连接串，psycopg3 方言同步（alembic）与异步（FastAPI）通用。",
+      "tags": [
+        "配置",
+        "database",
+        "工具函数"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:config/config.py:PostgresConfig",
+      "type": "class",
+      "name": "PostgresConfig",
+      "filePath": "config/config.py",
+      "summary": "postgresql 配置段：把业务用户库（user）与 deepagents 的检查点/长期记忆库（deepagent）分开配置，将来拆库只改 yaml。",
+      "tags": [
+        "配置",
+        "database"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:config/config.py:LoggerConfig",
+      "type": "class",
+      "name": "LoggerConfig",
+      "filePath": "config/config.py",
+      "summary": "loguru 配置段：level、dir、rotation、retention、backtrace、diagnose，并提供 log_dir 解析出绝对路径。",
+      "tags": [
+        "配置",
+        "日志"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config/config.py:LoggerConfig.log_dir",
+      "type": "function",
+      "name": "LoggerConfig.log_dir",
+      "filePath": "config/config.py",
+      "summary": "把相对日志目录按项目根目录解析成绝对路径，避免受启动时工作目录影响。",
+      "tags": [
+        "配置",
+        "日志",
+        "工具函数"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:config/config.py:AuthConfig",
+      "type": "class",
+      "name": "AuthConfig",
+      "filePath": "config/config.py",
+      "summary": "鉴权配置段：secret_key（强制 ≥32 字节）、algorithm 与 access/refresh 的有效期。",
+      "tags": [
+        "配置",
+        "鉴权",
+        "jwt"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:config/config.py:AppConfig",
+      "type": "class",
+      "name": "AppConfig",
+      "filePath": "config/config.py",
+      "summary": "应用总配置：与 config.yaml 顶层键一一对应（postgresql / logger / auth），是校验与类型转换的入口。",
+      "tags": [
+        "配置",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:config/config.py:_apply_env_overrides",
+      "type": "function",
+      "name": "_apply_env_overrides",
+      "filePath": "config/config.py",
+      "summary": "把 APP_ 前缀、__ 分层级的环境变量写进 OmegaConf 配置，且只覆盖 yaml 中已存在的键，避免无关变量触发 extra=\"forbid\"。",
+      "tags": [
+        "配置",
+        "工具函数",
+        "环境变量"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:config/config.py:load_config",
+      "type": "function",
+      "name": "load_config",
+      "filePath": "config/config.py",
+      "summary": "配置加载流程：OmegaConf.load → 环境变量覆盖 → 解析插值 → AppConfig.model_validate，可传入自定义 yaml 路径。",
+      "tags": [
+        "配置",
+        "factory"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:logger/__init__.py",
+      "type": "file",
+      "name": "logger/__init__.py",
+      "filePath": "logger/__init__.py",
+      "summary": "日志基础设施：按配置初始化 loguru 的控制台与滚动文件 sink（logs/app_YYYY-MM-DD.log），并用 InterceptHandler 接管 uvicorn/sqlalchemy/alembic 等标准库 logger。",
+      "tags": [
+        "日志",
+        "middleware",
+        "infrastructure"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "InterceptHandler 通过向上遍历调用栈计算 depth，让 loguru 输出的 name/function/line 指向真正打日志的代码而不是 logging 内部帧。"
+    },
+    {
+      "id": "class:logger/__init__.py:InterceptHandler",
+      "type": "class",
+      "name": "InterceptHandler",
+      "filePath": "logger/__init__.py",
+      "summary": "标准库 logging 的 Handler 子类，把每条 LogRecord 转交给 loguru，从而统一第三方库与应用日志的格式。",
+      "tags": [
+        "日志",
+        "middleware",
+        "interceptor"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:logger/__init__.py:InterceptHandler.emit",
+      "type": "function",
+      "name": "InterceptHandler.emit",
+      "filePath": "logger/__init__.py",
+      "summary": "接管单条日志：映射 level、计算真实调用帧的 depth、带上异常信息转发给 loguru。",
+      "tags": [
+        "日志",
+        "middleware"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:logger/__init__.py:setup_logger",
+      "type": "function",
+      "name": "setup_logger",
+      "filePath": "logger/__init__.py",
+      "summary": "按配置重建 sink：先移除 loguru 默认输出，再加控制台（带颜色）与文件（rotation/retention/UTF-8）两个 sink，最后替换被接管的标准库 logger。",
+      "tags": [
+        "日志",
+        "配置",
+        "初始化"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:main.py",
+      "type": "file",
+      "name": "main.py",
+      "filePath": "main.py",
+      "summary": "应用入口：创建 FastAPI 实例、挂载 auth 路由、用 lifespan 管理数据库连接池、暴露 /health，并在 __main__ 里固化 uvicorn 启动参数（含 Windows 的 SelectorEventLoop）。",
+      "tags": [
+        "entry-point",
+        "fastapi",
+        "配置",
+        "tested"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "用 lifespan 异步上下文管理器替代已废弃的 on_event；uvicorn.run(log_config=None) 把日志完全交给 loguru，避免两套日志格式打架。"
+    },
+    {
+      "id": "function:main.py:lifespan",
+      "type": "function",
+      "name": "lifespan",
+      "filePath": "main.py",
+      "summary": "应用生命周期：启动时按配置打印业务库连接信息，退出时 dispose 连接池并记录日志。",
+      "tags": [
+        "生命周期",
+        "fastapi",
+        "日志"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:main.py:health",
+      "type": "function",
+      "name": "health",
+      "filePath": "main.py",
+      "summary": "健康检查处理函数，固定返回 {\"status\": \"ok\"}，可直接作为容器/负载均衡探针。",
+      "tags": [
+        "api-handler",
+        "健康检查"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "endpoint:main.py:GET /health",
+      "type": "endpoint",
+      "name": "GET /health",
+      "filePath": "main.py",
+      "summary": "健康检查端点，不查库、不鉴权，仅确认进程与事件循环正常。",
+      "tags": [
+        "端点",
+        "健康检查"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:tests/test_auth.py",
+      "type": "file",
+      "name": "tests/test_auth.py",
+      "filePath": "tests/test_auth.py",
+      "summary": "端到端自检脚本（无需 pytest）：用 TestClient 跑完注册/登录/鉴权/刷新/登出/禁用用户共 18 项断言，并直连数据库核对密码哈希与 refresh token 落库情况，结束时清理测试数据。",
+      "tags": [
+        "测试",
+        "e2e",
+        "鉴权"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "用断言失败即非 0 退出的脚本式测试替代 pytest，降低模板依赖；sys.path 前置项目根目录以便直接 python tests/test_auth.py 运行。"
+    },
+    {
+      "id": "function:tests/test_auth.py:main",
+      "type": "function",
+      "name": "main",
+      "filePath": "tests/test_auth.py",
+      "summary": "自检主流程：按「健康检查 → 注册 → 登录 → 鉴权 → 刷新与登出 → 禁用用户」顺序断言状态码与响应体，并校验库中数据。",
+      "tags": [
+        "测试",
+        "e2e"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:tests/test_auth.py:step",
+      "type": "function",
+      "name": "step",
+      "filePath": "tests/test_auth.py",
+      "summary": "打印带序号的自检项并计数，用于输出总共通过了多少项检查。",
+      "tags": [
+        "测试",
+        "工具函数"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:tests/test_auth.py:db_execute",
+      "type": "function",
+      "name": "db_execute",
+      "filePath": "tests/test_auth.py",
+      "summary": "用 psycopg 直连业务库执行原生 SQL 并返回结果（无结果集时返回空列表），用于绕过 API 校验数据库真实状态。",
+      "tags": [
+        "测试",
+        "database",
+        "工具函数"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:tests/test_auth.py:cleanup",
+      "type": "function",
+      "name": "cleanup",
+      "filePath": "tests/test_auth.py",
+      "summary": "清理 tester_ 前缀的测试用户，保证自检可重复运行且不污染其它数据。",
+      "tags": [
+        "测试",
+        "工具函数"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:README.md",
+      "type": "document",
+      "name": "README.md",
+      "filePath": "README.md",
+      "summary": "项目主文档：环境要求、目录结构、首次运行、启动方式（含 Windows 事件循环坑）、迁移流程、生产部署要点、接口清单、配置项与常见问题。",
+      "tags": [
+        "文档",
+        "指南",
+        "onboarding"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:AGENTS.md",
+      "type": "document",
+      "name": "AGENTS.md",
+      "filePath": "AGENTS.md",
+      "summary": "协作约定：长任务先规划并产出简报、安装新依赖前询问用户、遇新技术先联网搜索，并规定各目录（config/dependencies/models/repositories/routers/service）的职责边界。",
+      "tags": [
+        "文档",
+        "协作规范",
+        "约定"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:alembic.ini",
+      "type": "config",
+      "name": "alembic.ini",
+      "filePath": "alembic.ini",
+      "summary": "alembic 基础配置：script_location 指向 %(here)s/migrations、prepend_sys_path 设成项目根，日志段只保留 WARNING 级；数据库 URL 由 env.py 注入，这里的占位值不生效。",
+      "tags": [
+        "配置",
+        "migration",
+        "database"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:pyproject.toml",
+      "type": "config",
+      "name": "pyproject.toml",
+      "filePath": "pyproject.toml",
+      "summary": "项目元数据与依赖声明：锁定 Python >=3.14,<3.15，声明 fastapi、sqlalchemy[asyncio]、psycopg[binary]、alembic、loguru、omegaconf、pyjwt、bcrypt 与 deepagents 等运行依赖。",
+      "tags": [
+        "配置",
+        "构建系统",
+        "依赖管理",
+        "uv"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:config/config.yaml",
+      "type": "config",
+      "name": "config/config.yaml",
+      "filePath": "config/config.yaml",
+      "summary": "应用唯一配置源：postgresql（分 user/deepagent 两套库）、logger（loguru）、auth（JWT 密钥与有效期）三段，由 config.py 用 OmegaConf 加载并允许 APP_* 环境变量按层级覆盖。",
+      "tags": [
+        "配置",
+        "database",
+        "日志",
+        "鉴权"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:agents/__init__.py",
+      "type": "file",
+      "name": "agents/__init__.py",
+      "filePath": "agents/__init__.py",
+      "summary": "deepagents 的装配占位包：目前为空，等待接线 LangGraph 检查点（AsyncPostgresSaver）与长期记忆（AsyncPostgresStore）时使用 config.yaml 的 postgresql.deepagent 段。",
+      "tags": [
+        "占位",
+        "agent",
+        "装配位"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "concept:deepagents-wiring",
+      "type": "concept",
+      "name": "deepagents 接线位",
+      "filePath": "agents/__init__.py",
+      "summary": "模板为 deepagents 预留的接入点：依赖已声明（deepagents / langgraph-checkpoint-postgres），配置段 postgresql.deepagent 已就绪，agents/ 包待写入 create_deep_agent 与 checkpointer/store 装配代码。",
+      "tags": [
+        "agent",
+        "deepagents",
+        "待办",
+        "langgraph"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:migrations/script.py.mako",
+      "type": "file",
+      "name": "migrations/script.py.mako",
+      "filePath": "migrations/script.py.mako",
+      "summary": "alembic 迁移脚本模板：新版本号、upgrade()/downgrade() 骨架与 revision 标识都由它生成，保证每条迁移都自带回滚入口。",
+      "tags": [
+        "migration",
+        "模板",
+        "代码生成"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:migrations/versions/ce9e484f27fb_create_users_table.py",
+      "type": "file",
+      "name": "ce9e484f27fb_create_users_table.py",
+      "filePath": "migrations/versions/ce9e484f27fb_create_users_table.py",
+      "summary": "首个迁移版本：autogenerate 生成的建表脚本，创建 users 表（含 account/email 唯一索引）并提供完整的 downgrade 回滚。",
+      "tags": [
+        "migration",
+        "database",
+        "schema"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "table:migrations/versions/ce9e484f27fb_create_users_table.py:users",
+      "type": "table",
+      "name": "users",
+      "filePath": "migrations/versions/ce9e484f27fb_create_users_table.py",
+      "summary": "业务用户表：主键 id 与 account/email（均唯一索引）、bcrypt 哈希、当前 refresh token、is_active 与创建/更新时间戳。",
+      "tags": [
+        "data-model",
+        "database",
+        "schema"
+      ],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:dependencies/__init__.py",
+      "target": "file:dependencies/database.py",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:dependencies/database.py",
+      "target": "function:dependencies/database.py:get_session",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:dependencies/database.py",
+      "target": "file:config/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:dependencies/database.py",
+      "target": "concept:windows-proactor-eventloop",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:dependencies/auth.py",
+      "target": "function:dependencies/auth.py:get_current_user",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:dependencies/auth.py",
+      "target": "file:dependencies/database.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:dependencies/auth.py",
+      "target": "file:models/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:dependencies/auth.py",
+      "target": "file:repositories/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:dependencies/auth.py",
+      "target": "file:services/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "function:dependencies/auth.py:get_current_user",
+      "target": "function:services/auth.py:decode_token",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:dependencies/auth.py:get_current_user",
+      "target": "function:repositories/user.py:UserRepository.get_by_id",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/__init__.py",
+      "target": "file:routers/auth.py",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "endpoint:routers/auth.py:POST /auth/register",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "endpoint:routers/auth.py:POST /auth/login",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "endpoint:routers/auth.py:POST /auth/refresh",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "endpoint:routers/auth.py:POST /auth/logout",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "endpoint:routers/auth.py:GET /auth/me",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "class:routers/auth.py:RegisterRequest",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "class:routers/auth.py:LoginRequest",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "class:routers/auth.py:RefreshRequest",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "class:routers/auth.py:TokenPair",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "class:routers/auth.py:UserOut",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "function:routers/auth.py:_token_pair",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "file:config/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "file:dependencies/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "file:dependencies/auth.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "file:models/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "file:services/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/auth.py:POST /auth/register",
+      "target": "function:services/auth.py:AuthService.register",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/auth.py:POST /auth/login",
+      "target": "function:services/auth.py:AuthService.login",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/auth.py:POST /auth/refresh",
+      "target": "function:services/auth.py:AuthService.refresh",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/auth.py:POST /auth/logout",
+      "target": "function:services/auth.py:AuthService.logout",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/auth.py:POST /auth/register",
+      "target": "function:dependencies/database.py:get_session",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/auth.py:POST /auth/login",
+      "target": "function:dependencies/database.py:get_session",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/auth.py:POST /auth/refresh",
+      "target": "function:dependencies/database.py:get_session",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/auth.py:POST /auth/logout",
+      "target": "function:dependencies/database.py:get_session",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/auth.py:GET /auth/me",
+      "target": "function:dependencies/auth.py:get_current_user",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/auth.py:POST /auth/logout",
+      "target": "function:dependencies/auth.py:get_current_user",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "class:routers/auth.py:UserOut",
+      "target": "class:models/user.py:User",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "function:routers/auth.py:_token_pair",
+      "target": "config:config/config.yaml",
+      "type": "reads_from",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/__init__.py",
+      "target": "file:services/auth.py",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:migrations/env.py",
+      "target": "function:migrations/env.py:run_migrations_offline",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:migrations/env.py",
+      "target": "function:migrations/env.py:run_migrations_online",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:migrations/env.py",
+      "target": "file:config/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:migrations/env.py",
+      "target": "file:models/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:migrations/env.py",
+      "target": "config:config/config.yaml",
+      "type": "reads_from",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:models/__init__.py",
+      "target": "class:models/__init__.py:Base",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:models/__init__.py",
+      "target": "class:models/__init__.py:BaseModel",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:models/__init__.py:BaseModel",
+      "target": "class:models/__init__.py:Base",
+      "type": "inherits",
+      "weight": 0.9,
+      "direction": "forward"
+    },
+    {
+      "source": "file:models/__init__.py",
+      "target": "file:models/user.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:models/user.py",
+      "target": "class:models/user.py:User",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:models/user.py:User",
+      "target": "class:models/__init__.py:BaseModel",
+      "type": "inherits",
+      "weight": 0.9,
+      "direction": "forward"
+    },
+    {
+      "source": "file:models/user.py",
+      "target": "file:models/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:repositories/__init__.py",
+      "target": "file:repositories/user.py",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:repositories/user.py",
+      "target": "class:repositories/user.py:UserRepository",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/user.py:UserRepository",
+      "target": "function:repositories/user.py:UserRepository.get_by_id",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/user.py:UserRepository",
+      "target": "function:repositories/user.py:UserRepository.get_by_account",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/user.py:UserRepository",
+      "target": "function:repositories/user.py:UserRepository.create",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/user.py:UserRepository",
+      "target": "function:repositories/user.py:UserRepository.update_refresh_token",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:repositories/user.py",
+      "target": "file:models/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/user.py:UserRepository",
+      "target": "table:migrations/versions/ce9e484f27fb_create_users_table.py:users",
+      "type": "reads_from",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/user.py:UserRepository",
+      "target": "table:migrations/versions/ce9e484f27fb_create_users_table.py:users",
+      "type": "writes_to",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/auth.py",
+      "target": "function:services/auth.py:_encode_password",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/auth.py",
+      "target": "function:services/auth.py:hash_password",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/auth.py",
+      "target": "function:services/auth.py:verify_password",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/auth.py",
+      "target": "function:services/auth.py:create_token",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/auth.py",
+      "target": "function:services/auth.py:decode_token",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/auth.py",
+      "target": "class:services/auth.py:AuthService",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/auth.py:AuthService",
+      "target": "function:services/auth.py:AuthService.register",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/auth.py:AuthService",
+      "target": "function:services/auth.py:AuthService.authenticate",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/auth.py:AuthService",
+      "target": "function:services/auth.py:AuthService.login",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/auth.py:AuthService",
+      "target": "function:services/auth.py:AuthService.refresh",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/auth.py:AuthService",
+      "target": "function:services/auth.py:AuthService.logout",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/auth.py:AuthService",
+      "target": "function:services/auth.py:AuthService._issue_tokens",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/auth.py:AuthService",
+      "target": "function:services/auth.py:AuthService._ensure_active",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/auth.py",
+      "target": "file:config/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/auth.py",
+      "target": "file:models/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/auth.py",
+      "target": "file:repositories/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:hash_password",
+      "target": "function:services/auth.py:_encode_password",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:verify_password",
+      "target": "function:services/auth.py:_encode_password",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService.register",
+      "target": "function:repositories/user.py:UserRepository.get_by_account",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService.register",
+      "target": "function:repositories/user.py:UserRepository.create",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService.register",
+      "target": "function:services/auth.py:hash_password",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService.authenticate",
+      "target": "function:repositories/user.py:UserRepository.get_by_account",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService.authenticate",
+      "target": "function:services/auth.py:verify_password",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService.authenticate",
+      "target": "function:services/auth.py:AuthService._ensure_active",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService.login",
+      "target": "function:services/auth.py:AuthService.authenticate",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService.login",
+      "target": "function:services/auth.py:AuthService._issue_tokens",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService.refresh",
+      "target": "function:repositories/user.py:UserRepository.get_by_id",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService.refresh",
+      "target": "function:services/auth.py:decode_token",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService.refresh",
+      "target": "function:services/auth.py:AuthService._ensure_active",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService.refresh",
+      "target": "function:services/auth.py:AuthService._issue_tokens",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService.logout",
+      "target": "function:repositories/user.py:UserRepository.update_refresh_token",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService._issue_tokens",
+      "target": "function:services/auth.py:create_token",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/auth.py:AuthService._issue_tokens",
+      "target": "function:repositories/user.py:UserRepository.update_refresh_token",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/auth.py:AuthService",
+      "target": "class:repositories/user.py:UserRepository",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/auth.py:AuthService",
+      "target": "class:models/user.py:User",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "file:config/__init__.py",
+      "target": "file:config/config.py",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:config/config.py",
+      "target": "class:config/config.py:_Strict",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:config/config.py",
+      "target": "class:config/config.py:PostgreConfig",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:config/config.py",
+      "target": "class:config/config.py:PostgresConfig",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:config/config.py",
+      "target": "class:config/config.py:LoggerConfig",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:config/config.py",
+      "target": "class:config/config.py:AuthConfig",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:config/config.py",
+      "target": "class:config/config.py:AppConfig",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:config/config.py",
+      "target": "function:config/config.py:load_config",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:config/config.py",
+      "target": "function:config/config.py:_apply_env_overrides",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:config/config.py:PostgreConfig",
+      "target": "function:config/config.py:PostgreConfig.uri",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:config/config.py:PostgreConfig",
+      "target": "function:config/config.py:PostgreConfig.sqlalchemy_uri",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:config/config.py:LoggerConfig",
+      "target": "function:config/config.py:LoggerConfig.log_dir",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:config/config.py:PostgreConfig",
+      "target": "class:config/config.py:_Strict",
+      "type": "inherits",
+      "weight": 0.9,
+      "direction": "forward"
+    },
+    {
+      "source": "class:config/config.py:PostgresConfig",
+      "target": "class:config/config.py:_Strict",
+      "type": "inherits",
+      "weight": 0.9,
+      "direction": "forward"
+    },
+    {
+      "source": "class:config/config.py:LoggerConfig",
+      "target": "class:config/config.py:_Strict",
+      "type": "inherits",
+      "weight": 0.9,
+      "direction": "forward"
+    },
+    {
+      "source": "class:config/config.py:AuthConfig",
+      "target": "class:config/config.py:_Strict",
+      "type": "inherits",
+      "weight": 0.9,
+      "direction": "forward"
+    },
+    {
+      "source": "class:config/config.py:AppConfig",
+      "target": "class:config/config.py:_Strict",
+      "type": "inherits",
+      "weight": 0.9,
+      "direction": "forward"
+    },
+    {
+      "source": "class:config/config.py:PostgresConfig",
+      "target": "class:config/config.py:PostgreConfig",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "class:config/config.py:AppConfig",
+      "target": "class:config/config.py:PostgresConfig",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "class:config/config.py:AppConfig",
+      "target": "class:config/config.py:LoggerConfig",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "class:config/config.py:AppConfig",
+      "target": "class:config/config.py:AuthConfig",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "function:config/config.py:load_config",
+      "target": "function:config/config.py:_apply_env_overrides",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:config/config.py",
+      "target": "config:config/config.yaml",
+      "type": "reads_from",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:logger/__init__.py",
+      "target": "class:logger/__init__.py:InterceptHandler",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:logger/__init__.py",
+      "target": "function:logger/__init__.py:setup_logger",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:logger/__init__.py:InterceptHandler",
+      "target": "function:logger/__init__.py:InterceptHandler.emit",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "function:logger/__init__.py:setup_logger",
+      "target": "class:logger/__init__.py:InterceptHandler",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:logger/__init__.py",
+      "target": "file:config/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "function:main.py:lifespan",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "function:main.py:health",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "endpoint:main.py:GET /health",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:config/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:dependencies/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:logger/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:routers/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:routers/auth.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "function:main.py:lifespan",
+      "target": "file:dependencies/database.py",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "concept:windows-proactor-eventloop",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:tests/test_auth.py",
+      "target": "function:tests/test_auth.py:main",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:tests/test_auth.py",
+      "target": "function:tests/test_auth.py:step",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:tests/test_auth.py",
+      "target": "function:tests/test_auth.py:db_execute",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:tests/test_auth.py",
+      "target": "function:tests/test_auth.py:cleanup",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:tests/test_auth.py",
+      "target": "file:config/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:tests/test_auth.py",
+      "target": "file:main.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "function:tests/test_auth.py:main",
+      "target": "function:tests/test_auth.py:step",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:tests/test_auth.py:main",
+      "target": "function:tests/test_auth.py:db_execute",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:tests/test_auth.py:main",
+      "target": "function:tests/test_auth.py:cleanup",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:tests/test_auth.py:cleanup",
+      "target": "function:tests/test_auth.py:db_execute",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:tests/test_auth.py",
+      "type": "tested_by",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "file:tests/test_auth.py",
+      "type": "tested_by",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/auth.py",
+      "target": "file:tests/test_auth.py",
+      "type": "tested_by",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:dependencies/auth.py",
+      "target": "file:tests/test_auth.py",
+      "type": "tested_by",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:README.md",
+      "target": "file:main.py",
+      "type": "documents",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:README.md",
+      "target": "file:routers/auth.py",
+      "type": "documents",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:README.md",
+      "target": "file:services/auth.py",
+      "type": "documents",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:README.md",
+      "target": "file:logger/__init__.py",
+      "type": "documents",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:README.md",
+      "target": "file:migrations/env.py",
+      "type": "documents",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:README.md",
+      "target": "file:tests/test_auth.py",
+      "type": "documents",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:README.md",
+      "target": "config:config/config.yaml",
+      "type": "documents",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:README.md",
+      "target": "concept:windows-proactor-eventloop",
+      "type": "documents",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:AGENTS.md",
+      "target": "document:README.md",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:AGENTS.md",
+      "target": "file:config/config.py",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:AGENTS.md",
+      "target": "file:dependencies/__init__.py",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:AGENTS.md",
+      "target": "file:models/__init__.py",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:AGENTS.md",
+      "target": "file:repositories/user.py",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:AGENTS.md",
+      "target": "file:routers/auth.py",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "document:AGENTS.md",
+      "target": "file:services/auth.py",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "config:alembic.ini",
+      "target": "file:migrations/env.py",
+      "type": "configures",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "config:alembic.ini",
+      "target": "file:migrations/script.py.mako",
+      "type": "configures",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "config:pyproject.toml",
+      "target": "file:main.py",
+      "type": "configures",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "config:pyproject.toml",
+      "target": "concept:deepagents-wiring",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "config:config/config.yaml",
+      "target": "file:config/config.py",
+      "type": "configures",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "config:config/config.yaml",
+      "target": "file:logger/__init__.py",
+      "type": "configures",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "config:config/config.yaml",
+      "target": "file:dependencies/database.py",
+      "type": "configures",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "config:config/config.yaml",
+      "target": "file:main.py",
+      "type": "configures",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "config:config/config.yaml",
+      "target": "file:migrations/env.py",
+      "type": "configures",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "config:config/config.yaml",
+      "target": "file:services/auth.py",
+      "type": "configures",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "config:config/config.yaml",
+      "target": "concept:deepagents-wiring",
+      "type": "configures",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "file:agents/__init__.py",
+      "target": "concept:deepagents-wiring",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:migrations/script.py.mako",
+      "target": "file:migrations/versions/ce9e484f27fb_create_users_table.py",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:migrations/versions/ce9e484f27fb_create_users_table.py",
+      "target": "table:migrations/versions/ce9e484f27fb_create_users_table.py:users",
+      "type": "migrates",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "class:models/user.py:User",
+      "target": "table:migrations/versions/ce9e484f27fb_create_users_table.py:users",
+      "type": "defines_schema",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:config/__init__.py",
+      "target": "file:config/config.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7,
+      "recoveredFromImportMap": true
+    },
+    {
+      "source": "file:dependencies/__init__.py",
+      "target": "file:dependencies/database.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7,
+      "recoveredFromImportMap": true
+    },
+    {
+      "source": "file:repositories/__init__.py",
+      "target": "file:repositories/user.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7,
+      "recoveredFromImportMap": true
+    },
+    {
+      "source": "file:routers/__init__.py",
+      "target": "file:routers/auth.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7,
+      "recoveredFromImportMap": true
+    },
+    {
+      "source": "file:services/__init__.py",
+      "target": "file:services/auth.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7,
+      "recoveredFromImportMap": true
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:api",
+      "name": "接口层：路由与依赖注入",
+      "description": "FastAPI 路由模块与 /auth/* 端点，以及依赖注入模块（请求级数据库会话、Bearer 令牌到当前用户的解析）。",
+      "nodeIds": [
+        "file:routers/__init__.py",
+        "file:routers/auth.py",
+        "endpoint:routers/auth.py:POST /auth/register",
+        "endpoint:routers/auth.py:POST /auth/login",
+        "endpoint:routers/auth.py:POST /auth/refresh",
+        "endpoint:routers/auth.py:POST /auth/logout",
+        "endpoint:routers/auth.py:GET /auth/me",
+        "file:dependencies/__init__.py",
+        "file:dependencies/database.py",
+        "file:dependencies/auth.py"
+      ]
+    },
+    {
+      "id": "layer:data",
+      "name": "数据层：模型、仓库与迁移",
+      "description": "SQLAlchemy ORM 模型与公共基类、唯一写 SQL 的仓库类，以及 alembic 迁移环境与版本脚本（含 users 表定义）。",
+      "nodeIds": [
+        "file:models/__init__.py",
+        "file:models/user.py",
+        "file:repositories/__init__.py",
+        "file:repositories/user.py",
+        "file:migrations/env.py",
+        "file:migrations/script.py.mako",
+        "file:migrations/versions/ce9e484f27fb_create_users_table.py",
+        "table:migrations/versions/ce9e484f27fb_create_users_table.py:users",
+        "config:alembic.ini"
+      ]
+    },
+    {
+      "id": "layer:docs",
+      "name": "文档与协作规范",
+      "description": "项目使用文档（环境、启动、迁移、部署、配置、接口）与代理协作约定（目录职责、长任务规划要求）。",
+      "nodeIds": [
+        "document:README.md",
+        "document:AGENTS.md"
+      ]
+    },
+    {
+      "id": "layer:entry",
+      "name": "应用入口与装配",
+      "description": "FastAPI 实例创建、路由挂载、生命周期钩子、健康检查与 uvicorn 启动参数，以及为 deepagents 预留的装配包。",
+      "nodeIds": [
+        "file:main.py",
+        "endpoint:main.py:GET /health",
+        "file:agents/__init__.py"
+      ]
+    },
+    {
+      "id": "layer:infra",
+      "name": "基础设施：配置与日志",
+      "description": "配置加载（OmegaConf + pydantic + 环境变量覆盖）与日志基础设施（loguru sink、标准库 logging 接管），以及依赖与运行环境声明。所有其它层都从这里取配置。",
+      "nodeIds": [
+        "file:config/config.py",
+        "file:config/__init__.py",
+        "config:config/config.yaml",
+        "config:pyproject.toml",
+        "file:logger/__init__.py"
+      ]
+    },
+    {
+      "id": "layer:service",
+      "name": "服务层：业务逻辑",
+      "description": "路由功能的具体实现：密码哈希与校验、JWT 签发与解码、注册/登录/刷新/登出的业务规则，不感知 HTTP 细节。",
+      "nodeIds": [
+        "file:services/__init__.py",
+        "file:services/auth.py"
+      ]
+    },
+    {
+      "id": "layer:test",
+      "name": "测试与自检",
+      "description": "端到端验证脚本：覆盖全部鉴权端点与数据库落库行为，跑完自动清理测试数据。",
+      "nodeIds": [
+        "file:tests/test_auth.py"
+      ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "项目总览：这是一个什么模板",
+      "description": "先读 README 的目录结构与分层约定，再看 AGENTS.md 规定的各目录职责（config/dependencies/models/repositories/routers/services），建立「配置在 yaml、读配置用 app_config、业务分四层」的整体印象。",
+      "nodeIds": [
+        "document:README.md",
+        "document:AGENTS.md"
+      ]
+    },
+    {
+      "order": 2,
+      "title": "配置：OmegaConf 读 yaml + pydantic 校验",
+      "description": "config.yaml 是唯一配置源，config.py 负责「加载 → 应用 APP_* 环境变量覆盖 → 校验」，最后生成 app_config 单例；extra=\"forbid\" 让写错键名在启动瞬间报错而不是被静默忽略。",
+      "nodeIds": [
+        "config:config/config.yaml",
+        "file:config/config.py",
+        "class:config/config.py:AppConfig",
+        "function:config/config.py:load_config",
+        "function:config/config.py:_apply_env_overrides",
+        "file:config/__init__.py"
+      ],
+      "languageLesson": "配置模型把可推导的值做成 @property（uri / sqlalchemy_uri / log_dir），yaml 里只留真正需要人工填的字段；环境变量覆盖刻意只作用于 yaml 已存在的键，避免无关 APP_* 变量触发 extra=\"forbid\" 校验失败。"
+    },
+    {
+      "order": 3,
+      "title": "日志：loguru 接管全部输出",
+      "description": "logger 包按配置初始化控制台与滚动文件两个 sink，并用 InterceptHandler 把 uvicorn/sqlalchemy/alembic 的标准库日志转发给 loguru，因此全项目（含第三方库）日志格式一致。",
+      "nodeIds": [
+        "file:logger/__init__.py",
+        "class:logger/__init__.py:InterceptHandler",
+        "function:logger/__init__.py:InterceptHandler.emit",
+        "function:logger/__init__.py:setup_logger"
+      ],
+      "languageLesson": "InterceptHandler 的关键是从 emit 帧向上回溯，跳过 logging 与本文件自身的帧，把跳过的层数当作 loguru 的 depth，日志里的 name/function/line 才会指向真正的调用点。"
+    },
+    {
+      "order": 4,
+      "title": "数据模型：Base 命名约定与 BaseModel 公共字段",
+      "description": "models/__init__.py 定义声明式基类 Base（统一 pk_/ix_/uq_/fk_ 命名约定）与抽象 BaseModel（32 位 uuid 主键 + 带时区的创建/更新时间），业务表继承 BaseModel 即可，users 表就是范例。",
+      "nodeIds": [
+        "file:models/__init__.py",
+        "class:models/__init__.py:Base",
+        "class:models/__init__.py:BaseModel",
+        "file:models/user.py",
+        "class:models/user.py:User"
+      ],
+      "languageLesson": "模型定义放在包末尾 import（from .user import User），是 SQLAlchemy 中「模型反向 import 基类」时的标准解法，同时让 alembic 的 target_metadata 能看见所有表。"
+    },
+    {
+      "order": 5,
+      "title": "数据库会话：engine、连接池与请求级 Session",
+      "description": "dependencies/database.py 在导入时创建异步 engine（连接池 10+20、pre_ping、recycle）与 AsyncSessionFactory，并暴露 yield 型依赖 get_session；dependencies/__init__.py 把它打包成 SessionDep 供路由使用。",
+      "nodeIds": [
+        "file:dependencies/database.py",
+        "function:dependencies/database.py:get_session",
+        "file:dependencies/__init__.py"
+      ],
+      "languageLesson": "FastAPI 的 yield 依赖等价于「请求级上下文管理器」：yield 之前的代码在进入路由前执行，yield 之后的代码在响应结束后执行（含异常路径），所以会话不需要手动关闭。"
+    },
+    {
+      "order": 6,
+      "title": "仓库层：唯一写 SQL 的地方",
+      "description": "UserRepository 用 AsyncSession 完成按 id 查询、按账号或邮箱查询、创建用户、写入/清空 refresh token，上层 service 只调用方法、不拼 SQL。",
+      "nodeIds": [
+        "file:repositories/user.py",
+        "class:repositories/user.py:UserRepository",
+        "function:repositories/user.py:UserRepository.get_by_account",
+        "function:repositories/user.py:UserRepository.create",
+        "file:repositories/__init__.py",
+        "table:migrations/versions/ce9e484f27fb_create_users_table.py:users"
+      ]
+    },
+    {
+      "order": 7,
+      "title": "业务逻辑：bcrypt 密码与 JWT 双令牌",
+      "description": "AuthService 是鉴权规则唯一的落点：注册前查重、bcrypt(cost=12) 加盐哈希、登录签发 access/refresh 双令牌并落库、刷新时用定时安全比较做轮换（旧令牌立即失效）、登出清空 refresh token。",
+      "nodeIds": [
+        "file:services/auth.py",
+        "class:services/auth.py:AuthService",
+        "function:services/auth.py:hash_password",
+        "function:services/auth.py:verify_password",
+        "function:services/auth.py:create_token",
+        "function:services/auth.py:decode_token",
+        "function:services/auth.py:AuthService.refresh",
+        "file:services/__init__.py"
+      ],
+      "languageLesson": "两个安全细节值得记住：① bcrypt 只取前 72 字节，本项目对超长密码直接返回 422 而不是静默截断；② 比较库中保存的 refresh token 用 hmac.compare_digest 而非 ==，避免定时攻击。"
+    },
+    {
+      "order": 8,
+      "title": "接口层：/auth 五个端点",
+      "description": "routers/auth.py 用 APIRouter(prefix=\"/auth\") 声明注册（201）、登录、刷新、登出（204）与当前用户五个端点，配合 pydantic 请求/响应模型；处理函数只做收参与返回，逻辑全在 AuthService。",
+      "nodeIds": [
+        "file:routers/auth.py",
+        "endpoint:routers/auth.py:POST /auth/register",
+        "endpoint:routers/auth.py:POST /auth/login",
+        "endpoint:routers/auth.py:POST /auth/refresh",
+        "endpoint:routers/auth.py:POST /auth/logout",
+        "endpoint:routers/auth.py:GET /auth/me",
+        "class:routers/auth.py:RegisterRequest",
+        "class:routers/auth.py:TokenPair",
+        "class:routers/auth.py:UserOut",
+        "file:routers/__init__.py"
+      ],
+      "languageLesson": "入参模型负责 422 校验（账号字符集、密码长度、邮箱正则），出参模型负责脱敏：UserOut 只声明 id/account/email/is_active/created_at，密码哈希字段永远不会出现在响应里。"
+    },
+    {
+      "order": 9,
+      "title": "鉴权依赖：从 Bearer 令牌到当前用户",
+      "description": "dependencies/auth.py 用 HTTPBearer(auto_error=False) 取出令牌，get_current_user 校验 JWT 类型与签名、按 id 查库、检查 is_active，把失败分成 401（令牌无效）与 403（用户被禁用）两种；路由写 current_user: CurrentUser 即可。",
+      "nodeIds": [
+        "file:dependencies/auth.py",
+        "function:dependencies/auth.py:get_current_user"
+      ]
+    },
+    {
+      "order": 10,
+      "title": "应用入口与启动：lifespan、/health 与事件循环坑",
+      "description": "main.py 创建 FastAPI 实例、挂载 auth 路由、用 lifespan 管理连接池并在退出时 dispose，暴露 /health；__main__ 里固化了 uvicorn 参数，Windows 上还显式指定 SelectorEventLoop 以兼容 psycopg 异步驱动。",
+      "nodeIds": [
+        "file:main.py",
+        "function:main.py:lifespan",
+        "endpoint:main.py:GET /health",
+        "concept:windows-proactor-eventloop"
+      ],
+      "languageLesson": "uvicorn.run(..., log_config=None) 关掉 uvicorn 自带的日志配置，让全部输出走 loguru；Windows 的 ProactorEventLoop 事件循环是 psycopg 异步驱动的硬限制，属于「代码里兜底 + 文档里说明」的跨平台陷阱范例。"
+    },
+    {
+      "order": 11,
+      "title": "数据库迁移：连接串来自配置文件",
+      "description": "alembic.ini 只配置 script_location 与日志，真正的连接串由 migrations/env.py 从 config.yaml 的 postgresql.user 段注入，保证应用与迁移永远同一份配置；首个版本 ce9e484f27fb 由 autogenerate 生成，创建 users 表并带回滚。",
+      "nodeIds": [
+        "config:alembic.ini",
+        "file:migrations/env.py",
+        "file:migrations/script.py.mako",
+        "file:migrations/versions/ce9e484f27fb_create_users_table.py",
+        "table:migrations/versions/ce9e484f27fb_create_users_table.py:users"
+      ]
+    },
+    {
+      "order": 12,
+      "title": "端到端自检：不需要 pytest 的 18 项检查",
+      "description": "tests/test_auth.py 用 TestClient 串起健康检查、注册、登录、鉴权、刷新轮换、登出与禁用用户，并直连数据库核对「存的是哈希不是明文」「refresh token 真的落库/置空」，最后清理 tester_ 前缀数据。",
+      "nodeIds": [
+        "file:tests/test_auth.py",
+        "function:tests/test_auth.py:main",
+        "function:tests/test_auth.py:db_execute"
+      ]
+    },
+    {
+      "order": 13,
+      "title": "下一个装配位：接入 deepagents",
+      "description": "agents/ 包目前为空，但依赖（deepagents、langgraph-checkpoint-postgres）与 postgresql.deepagent 配置段都已就绪——按 README 的约定，这里将是 create_deep_agent 与 AsyncPostgresSaver/AsyncPostgresStore 的落点。",
+      "nodeIds": [
+        "file:agents/__init__.py",
+        "concept:deepagents-wiring",
+        "config:pyproject.toml"
+      ]
+    }
+  ]
+}

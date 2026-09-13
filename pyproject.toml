@@ -1,0 +1,19 @@
+[project]
+name = "deepagents-template"
+version = "0.1.0"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "alembic>=1.20.0",
+    "bcrypt>=5.0.0",
+    "deepagents>=0.7.13",
+    "fastapi>=0.141.1",
+    "langgraph-checkpoint-postgres>=3.1.2",
+    "loguru>=0.7.3",
+    "omegaconf>=2.3.1",
+    "psycopg[binary]>=3.3.5",
+    "pydantic-settings>=2.15.0",
+    "pyjwt>=2.14.0",
+    "python-multipart>=0.0.32",
+    "sqlalchemy[asyncio]>=2.0",
+    "uvicorn[standard]>=0.52.4",
+]

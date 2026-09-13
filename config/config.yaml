@@ -1,0 +1,43 @@
+# 由 config/config.py 用 OmegaConf 加载，再用 pydantic 校验（extra="forbid"，写错键会直接报错）。
+# 环境变量优先级更高，前缀 APP_，层级用 __ 分隔，但只能覆盖这里已存在的键：
+#   APP_POSTGRESQL__USER__PASSWORD=xxx   APP_LOGGER__LEVEL=DEBUG
+# 也可以用 OmegaConf 插值直接引用环境变量：password: ${oc.env:PG_PASSWORD,1234}
+# password 必须加引号：YAML 会把 1234 解析成 int，pydantic 的 str 字段直接拒收
+# （ValidationError: Input should be a valid string）。
+
+postgresql:
+  # deepagent 的 state（检查点）与 store（长期记忆）共用这一份连接参数
+  deepagent:
+    host: 127.0.0.1
+    port: 5432
+    user: postgres
+    password: "1234"
+    db_name: deepagent
+
+  # 业务用户表：账号 / 邮箱 / 密码哈希 / refresh token。将来拆库只改这五行
+  user:
+    host: 127.0.0.1
+    port: 5432
+    user: postgres
+    password: "1234"
+    db_name: deepagent
+
+logger:
+  # 日志目录（相对项目根，也可写绝对路径）
+  level: INFO
+  dir: logs
+  # 单文件切分条件 / 历史保留时长，loguru 语法
+  rotation: "10 MB"
+  retention: "7 days"
+  backtrace: true
+  # 打印异常时附带变量值，生产建议关闭
+  diagnose: false
+
+auth:
+  # 生产环境务必用 APP_AUTH__SECRET_KEY 覆盖；HMAC-SHA256 要求至少 32 字节
+  secret_key: "dev-only-secret-key-change-me-before-prod"
+  algorithm: HS256
+  # access token 有效期：30 分钟
+  access_token_expire_minutes: 30
+  # refresh token 有效期：7 天
+  refresh_token_expire_days: 7

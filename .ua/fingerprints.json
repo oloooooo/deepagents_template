@@ -1,0 +1,1312 @@
+{
+  "version": "1.0.0",
+  "gitCommitHash": "2c908daf852472d162a2341e08ddf78091a433d6",
+  "generatedAt": "2026-09-13T12:20:05.014Z",
+  "files": {
+    "AGENTS.md": {
+      "filePath": "AGENTS.md",
+      "contentHash": "478efb5b16232a3420da655c89ce0de6d7c7f1b02c5130937268e5adf71c6bef",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 15,
+      "hasStructuralAnalysis": false
+    },
+    "README.md": {
+      "filePath": "README.md",
+      "contentHash": "89c837acfbcfe5bd5bbf32f0e3fba93849d1f41a5d01a91be866abfd44cdaffa",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 321,
+      "hasStructuralAnalysis": false
+    },
+    "agents/__init__.py": {
+      "filePath": "agents/__init__.py",
+      "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1,
+      "hasStructuralAnalysis": true
+    },
+    "alembic.ini": {
+      "filePath": "alembic.ini",
+      "contentHash": "f10b9a2a01455c95876ed71236ed970a3f80e248596470a6ba315aa28c1c8a12",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 150,
+      "hasStructuralAnalysis": false
+    },
+    "config/__init__.py": {
+      "filePath": "config/__init__.py",
+      "contentHash": "d86db57790bf543caea2989cc6d66bbf06c6363eee110f02c9bec17c91c044b1",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": ".config",
+          "specifiers": [
+            "BASE_DIR",
+            "CONFIG_FILE",
+            "AppConfig",
+            "AuthConfig",
+            "LoggerConfig",
+            "PostgreConfig",
+            "PostgresConfig",
+            "app_config",
+            "load_config"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 26,
+      "hasStructuralAnalysis": true
+    },
+    "config/config.py": {
+      "filePath": "config/config.py",
+      "contentHash": "0d664b5043767d3f98ef765ab8fd4983ba685eb376b9b4eb7cca5857ed87adf5",
+      "functions": [
+        {
+          "name": "_apply_env_overrides",
+          "params": [
+            "cfg",
+            "env"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "load_config",
+          "params": [
+            "config_file"
+          ],
+          "returnType": "AppConfig",
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [
+        {
+          "name": "_Strict",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "PostgreConfig",
+          "methods": [
+            "uri",
+            "sqlalchemy_uri"
+          ],
+          "properties": [
+            "host",
+            "port",
+            "user",
+            "password",
+            "db_name"
+          ],
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "PostgresConfig",
+          "methods": [],
+          "properties": [
+            "deepagent",
+            "user"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "LoggerConfig",
+          "methods": [
+            "log_dir"
+          ],
+          "properties": [
+            "level",
+            "dir",
+            "rotation",
+            "retention",
+            "backtrace",
+            "diagnose"
+          ],
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "AuthConfig",
+          "methods": [],
+          "properties": [
+            "secret_key",
+            "algorithm",
+            "access_token_expire_minutes",
+            "refresh_token_expire_days"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "AppConfig",
+          "methods": [],
+          "properties": [
+            "postgresql",
+            "logger",
+            "auth"
+          ],
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "collections.abc",
+          "specifiers": [
+            "Mapping"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "urllib.parse",
+          "specifiers": [
+            "quote"
+          ]
+        },
+        {
+          "source": "omegaconf",
+          "specifiers": [
+            "DictConfig",
+            "OmegaConf"
+          ]
+        },
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel",
+            "ConfigDict",
+            "Field"
+          ]
+        }
+      ],
+      "exports": [
+        "_Strict",
+        "PostgreConfig",
+        "PostgresConfig",
+        "LoggerConfig",
+        "AuthConfig",
+        "AppConfig",
+        "_apply_env_overrides",
+        "load_config"
+      ],
+      "totalLines": 145,
+      "hasStructuralAnalysis": true
+    },
+    "config/config.yaml": {
+      "filePath": "config/config.yaml",
+      "contentHash": "51eee2f542e93392586d1189f97a7780e09c11654595a164ed0b21350b336ea8",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 44,
+      "hasStructuralAnalysis": false
+    },
+    "dependencies/__init__.py": {
+      "filePath": "dependencies/__init__.py",
+      "contentHash": "cc46f1dc78cfa3b864b6ef56c19203858502963a98317c9213e1246537bc8c51",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "Annotated"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "Depends"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": ".database",
+          "specifiers": [
+            "AsyncSessionFactory",
+            "engine",
+            "get_session"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 14,
+      "hasStructuralAnalysis": true
+    },
+    "dependencies/auth.py": {
+      "filePath": "dependencies/auth.py",
+      "contentHash": "977b703900fe06971e98f348d25a3af7e338d1eb50a04630800347cd1a3da722",
+      "functions": [
+        {
+          "name": "get_current_user",
+          "params": [
+            "credentials",
+            "session"
+          ],
+          "returnType": "User",
+          "exported": true,
+          "lineCount": 23
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "Annotated"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "Depends",
+            "HTTPException",
+            "status"
+          ]
+        },
+        {
+          "source": "fastapi.security",
+          "specifiers": [
+            "HTTPAuthorizationCredentials",
+            "HTTPBearer"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": "dependencies.database",
+          "specifiers": [
+            "get_session"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "User"
+          ]
+        },
+        {
+          "source": "repositories",
+          "specifiers": [
+            "UserRepository"
+          ]
+        },
+        {
+          "source": "services",
+          "specifiers": [
+            "ACCESS_TOKEN_TYPE",
+            "decode_token"
+          ]
+        }
+      ],
+      "exports": [
+        "get_current_user"
+      ],
+      "totalLines": 46,
+      "hasStructuralAnalysis": true
+    },
+    "dependencies/database.py": {
+      "filePath": "dependencies/database.py",
+      "contentHash": "415daaa4b92e8c814cbf0b57fa0ea4be2c28e92d146c2366de282f6c73a37704",
+      "functions": [
+        {
+          "name": "get_session",
+          "params": [],
+          "returnType": "AsyncGenerator[AsyncSession, None]",
+          "exported": true,
+          "lineCount": 4
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "collections.abc",
+          "specifiers": [
+            "AsyncGenerator"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession",
+            "async_sessionmaker",
+            "create_async_engine"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        }
+      ],
+      "exports": [
+        "get_session"
+      ],
+      "totalLines": 49,
+      "hasStructuralAnalysis": true
+    },
+    "logger/__init__.py": {
+      "filePath": "logger/__init__.py",
+      "contentHash": "203397bd5f6faf289dcd7d90b981774cf346214ac5923c77441bf82de02989ff",
+      "functions": [
+        {
+          "name": "setup_logger",
+          "params": [],
+          "exported": true,
+          "lineCount": 35
+        }
+      ],
+      "classes": [
+        {
+          "name": "InterceptHandler",
+          "methods": [
+            "emit"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 19
+        }
+      ],
+      "imports": [
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "loguru",
+          "specifiers": [
+            "_logger"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        }
+      ],
+      "exports": [
+        "InterceptHandler",
+        "setup_logger"
+      ],
+      "totalLines": 99,
+      "hasStructuralAnalysis": true
+    },
+    "main.py": {
+      "filePath": "main.py",
+      "contentHash": "b4e65ee8806d8a65dea3010bc9ce0cdb9b8f98c60529a8f2d31d0c82f05cfa51",
+      "functions": [
+        {
+          "name": "lifespan",
+          "params": [
+            "app"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "health",
+          "params": [],
+          "returnType": "dict[str, str]",
+          "exported": true,
+          "lineCount": 2
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "contextlib",
+          "specifiers": [
+            "asynccontextmanager"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "FastAPI"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        },
+        {
+          "source": "dependencies",
+          "specifiers": [
+            "engine"
+          ]
+        },
+        {
+          "source": "logger",
+          "specifiers": [
+            "logger"
+          ]
+        },
+        {
+          "source": "routers",
+          "specifiers": [
+            "auth"
+          ]
+        }
+      ],
+      "exports": [
+        "lifespan",
+        "health"
+      ],
+      "totalLines": 55,
+      "hasStructuralAnalysis": true
+    },
+    "migrations/env.py": {
+      "filePath": "migrations/env.py",
+      "contentHash": "75f49871d381c14457fceb3185ffe906a1eabfdf783c1faebce5222d16f931c0",
+      "functions": [
+        {
+          "name": "run_migrations_offline",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "run_migrations_online",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 17
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "logging.config",
+          "specifiers": [
+            "fileConfig"
+          ]
+        },
+        {
+          "source": "alembic",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "engine_from_config",
+            "pool"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "Base"
+          ]
+        }
+      ],
+      "exports": [
+        "run_migrations_offline",
+        "run_migrations_online"
+      ],
+      "totalLines": 66,
+      "hasStructuralAnalysis": true
+    },
+    "migrations/script.py.mako": {
+      "filePath": "migrations/script.py.mako",
+      "contentHash": "d38920781b4d31ae1c0a71bc09f41c2ade8feab9e5a087e3f30cb4bbf0c1c9d3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 29,
+      "hasStructuralAnalysis": false
+    },
+    "migrations/versions/ce9e484f27fb_create_users_table.py": {
+      "filePath": "migrations/versions/ce9e484f27fb_create_users_table.py",
+      "contentHash": "3e3207d8cdb58f24b77feea9c4e022c2564e3fa909e98b1f97a5dd42e10a5bf9",
+      "functions": [
+        {
+          "name": "upgrade",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "downgrade",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "Sequence",
+            "Union"
+          ]
+        },
+        {
+          "source": "alembic",
+          "specifiers": [
+            "op"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "sa"
+          ]
+        }
+      ],
+      "exports": [
+        "upgrade",
+        "downgrade"
+      ],
+      "totalLines": 47,
+      "hasStructuralAnalysis": true
+    },
+    "models/__init__.py": {
+      "filePath": "models/__init__.py",
+      "contentHash": "c9c2e4a137882da05af87a0d1bae2808c580400e14aacfb1f3ecd14f25f78ce1",
+      "functions": [],
+      "classes": [
+        {
+          "name": "Base",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "BaseModel",
+          "methods": [],
+          "properties": [
+            "id",
+            "created_at",
+            "updated_at"
+          ],
+          "exported": true,
+          "lineCount": 16
+        }
+      ],
+      "imports": [
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime",
+            "timezone"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "DateTime",
+            "MetaData",
+            "String"
+          ]
+        },
+        {
+          "source": "sqlalchemy.orm",
+          "specifiers": [
+            "DeclarativeBase",
+            "Mapped",
+            "mapped_column"
+          ]
+        },
+        {
+          "source": ".user",
+          "specifiers": [
+            "User"
+          ]
+        }
+      ],
+      "exports": [
+        "Base",
+        "BaseModel"
+      ],
+      "totalLines": 45,
+      "hasStructuralAnalysis": true
+    },
+    "models/user.py": {
+      "filePath": "models/user.py",
+      "contentHash": "492142cf141931b4426c189052b96650ca6f0d81f62f3bc46dd03a36e9ca0ac8",
+      "functions": [],
+      "classes": [
+        {
+          "name": "User",
+          "methods": [
+            "__repr__"
+          ],
+          "properties": [
+            "account",
+            "email",
+            "hashed_password",
+            "refresh_token",
+            "is_active"
+          ],
+          "exported": true,
+          "lineCount": 26
+        }
+      ],
+      "imports": [
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "Boolean",
+            "String",
+            "true"
+          ]
+        },
+        {
+          "source": "sqlalchemy.orm",
+          "specifiers": [
+            "Mapped",
+            "mapped_column"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "BaseModel"
+          ]
+        }
+      ],
+      "exports": [
+        "User"
+      ],
+      "totalLines": 37,
+      "hasStructuralAnalysis": true
+    },
+    "pyproject.toml": {
+      "filePath": "pyproject.toml",
+      "contentHash": "210d45501c1478263f6e2cd4fee46e84d7b0e6bc57dc2583ed07113e873f17af",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 20,
+      "hasStructuralAnalysis": false
+    },
+    "repositories/__init__.py": {
+      "filePath": "repositories/__init__.py",
+      "contentHash": "38d808364692e1667c70d7fed63c03b26532f78acffd0f7668557b375f8be392",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": ".user",
+          "specifiers": [
+            "UserRepository"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 6,
+      "hasStructuralAnalysis": true
+    },
+    "repositories/user.py": {
+      "filePath": "repositories/user.py",
+      "contentHash": "c5463b5a98089c8481b6b48af5698df09685c0bbd2f32baadbafa49e4f04a0a3",
+      "functions": [],
+      "classes": [
+        {
+          "name": "UserRepository",
+          "methods": [
+            "__init__",
+            "get_by_id",
+            "get_by_account",
+            "create",
+            "update_refresh_token"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 25
+        }
+      ],
+      "imports": [
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "or_",
+            "select"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "User"
+          ]
+        }
+      ],
+      "exports": [
+        "UserRepository"
+      ],
+      "totalLines": 36,
+      "hasStructuralAnalysis": true
+    },
+    "routers/__init__.py": {
+      "filePath": "routers/__init__.py",
+      "contentHash": "2c571d0d19ba0853a9f089978835cc7403bb5db40d54789f0a94a94c5c583405",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": ".",
+          "specifiers": [
+            "auth"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 6,
+      "hasStructuralAnalysis": true
+    },
+    "routers/auth.py": {
+      "filePath": "routers/auth.py",
+      "contentHash": "1e225cd417c727057337a1101bcede7f5c9c31a9fcdc8effbf982e8ef35dee48",
+      "functions": [
+        {
+          "name": "_token_pair",
+          "params": [
+            "access_token",
+            "refresh_token"
+          ],
+          "returnType": "TokenPair",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "register",
+          "params": [
+            "payload",
+            "session"
+          ],
+          "returnType": "User",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "login",
+          "params": [
+            "payload",
+            "session"
+          ],
+          "returnType": "TokenPair",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "refresh",
+          "params": [
+            "payload",
+            "session"
+          ],
+          "returnType": "TokenPair",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "logout",
+          "params": [
+            "current_user",
+            "session"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "me",
+          "params": [
+            "current_user"
+          ],
+          "returnType": "User",
+          "exported": true,
+          "lineCount": 2
+        }
+      ],
+      "classes": [
+        {
+          "name": "RegisterRequest",
+          "methods": [],
+          "properties": [
+            "account",
+            "email",
+            "password"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "LoginRequest",
+          "methods": [],
+          "properties": [
+            "account",
+            "password"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "RefreshRequest",
+          "methods": [],
+          "properties": [
+            "refresh_token"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "TokenPair",
+          "methods": [],
+          "properties": [
+            "access_token",
+            "refresh_token",
+            "token_type",
+            "expires_in"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "UserOut",
+          "methods": [],
+          "properties": [
+            "id",
+            "account",
+            "email",
+            "is_active",
+            "created_at"
+          ],
+          "exported": true,
+          "lineCount": 8
+        }
+      ],
+      "imports": [
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "APIRouter",
+            "Response",
+            "status"
+          ]
+        },
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel",
+            "ConfigDict",
+            "Field"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        },
+        {
+          "source": "dependencies",
+          "specifiers": [
+            "SessionDep"
+          ]
+        },
+        {
+          "source": "dependencies.auth",
+          "specifiers": [
+            "CurrentUser"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "User"
+          ]
+        },
+        {
+          "source": "services",
+          "specifiers": [
+            "AuthService"
+          ]
+        }
+      ],
+      "exports": [
+        "RegisterRequest",
+        "LoginRequest",
+        "RefreshRequest",
+        "TokenPair",
+        "UserOut",
+        "_token_pair",
+        "register",
+        "login",
+        "refresh",
+        "logout",
+        "me"
+      ],
+      "totalLines": 105,
+      "hasStructuralAnalysis": true
+    },
+    "services/__init__.py": {
+      "filePath": "services/__init__.py",
+      "contentHash": "c95b0cb699b89142edbd8795fa9fd07a24cf57cf2e7e98aace6f09eb107873df",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": ".auth",
+          "specifiers": [
+            "ACCESS_TOKEN_TYPE",
+            "REFRESH_TOKEN_TYPE",
+            "AuthService",
+            "decode_token",
+            "hash_password",
+            "verify_password"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 20,
+      "hasStructuralAnalysis": true
+    },
+    "services/auth.py": {
+      "filePath": "services/auth.py",
+      "contentHash": "63dac8733e84bb894b64119d6911ea0468905d57ef53babedd3cbd1947583856",
+      "functions": [
+        {
+          "name": "_encode_password",
+          "params": [
+            "password"
+          ],
+          "returnType": "bytes",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "hash_password",
+          "params": [
+            "password"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "verify_password",
+          "params": [
+            "password",
+            "hashed_password"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "create_token",
+          "params": [
+            "user_id",
+            "token_type",
+            "expires"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "decode_token",
+          "params": [
+            "token",
+            "expected_type"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 14
+        }
+      ],
+      "classes": [
+        {
+          "name": "AuthService",
+          "methods": [
+            "__init__",
+            "register",
+            "authenticate",
+            "login",
+            "refresh",
+            "logout",
+            "_issue_tokens",
+            "_ensure_active"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 71
+        }
+      ],
+      "imports": [
+        {
+          "source": "hmac",
+          "specifiers": [
+            "hmac"
+          ]
+        },
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime",
+            "timedelta",
+            "timezone"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "bcrypt",
+          "specifiers": [
+            "bcrypt"
+          ]
+        },
+        {
+          "source": "jwt",
+          "specifiers": [
+            "jwt"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "HTTPException",
+            "status"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "User"
+          ]
+        },
+        {
+          "source": "repositories",
+          "specifiers": [
+            "UserRepository"
+          ]
+        }
+      ],
+      "exports": [
+        "_encode_password",
+        "hash_password",
+        "verify_password",
+        "create_token",
+        "decode_token",
+        "AuthService"
+      ],
+      "totalLines": 158,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_auth.py": {
+      "filePath": "tests/test_auth.py",
+      "contentHash": "19af654e3f0e5d75f97a20cba76a3470c28b8ba2d5c3946ecd99fed4e4a29167",
+      "functions": [
+        {
+          "name": "step",
+          "params": [
+            "name"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "db_execute",
+          "params": [
+            "sql",
+            "params"
+          ],
+          "returnType": "list[tuple]",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "cleanup",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 94
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "bcrypt",
+          "specifiers": [
+            "bcrypt"
+          ]
+        },
+        {
+          "source": "psycopg",
+          "specifiers": [
+            "psycopg"
+          ]
+        },
+        {
+          "source": "fastapi.testclient",
+          "specifiers": [
+            "TestClient"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        },
+        {
+          "source": "main",
+          "specifiers": [
+            "app"
+          ]
+        }
+      ],
+      "exports": [
+        "step",
+        "db_execute",
+        "cleanup",
+        "main"
+      ],
+      "totalLines": 146,
+      "hasStructuralAnalysis": true
+    }
+  }
+}
