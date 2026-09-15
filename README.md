@@ -1,7 +1,7 @@
 # deepagents_template
 
 FastAPI + PostgreSQL + loguru 的后端模板：配置文件（OmegaConf + pydantic）、loguru 日志、
-用户注册登录与 JWT 鉴权、alembic 数据库迁移。
+用户注册登录与 JWT 鉴权、业务空间与成员权限（super 才能写）、alembic 数据库迁移。
 
 目录：[1 环境要求](#1-环境要求) · [2 项目结构](#2-项目结构) · [3 首次运行](#3-首次运行) ·
 [4 运行项目](#4-运行项目) · [5 数据库迁移与新增表](#5-数据库迁移与新增表) ·
@@ -36,24 +36,27 @@ uv sync --frozen      # 按 uv.lock 精确安装依赖（新增依赖用 uv add�
 ├── logger/__init__.py       # loguru 控制台 + 滚动文件 sink；接管标准库 logging
 ├── dependencies/
 │   ├── database.py          #   异步 engine / AsyncSessionFactory / get_session（请求级会话）
-│   └── auth.py              #   get_current_user（Bearer → JWT → User），CurrentUser 注入类型
+│   └── auth.py              #   get_current_user（Bearer → JWT → User）、CurrentUser / SuperUser 注入类型
 ├── models/                  # SQLAlchemy ORM
 │   ├── __init__.py          #   Base（命名约定）/ BaseModel（id+时间戳）；末尾 import 各表模型
-│   └── user.py              #   users 表：account / email / hashed_password / refresh_token
-├── repositories/            # 数据库读写类（UserRepository）
-├── services/                # 路由功能实现（AuthService：bcrypt + JWT 签发校验）
-├── routers/                 # FastAPI 路由（auth.py → /auth/*）
+│   ├── user.py              #   users 表：account / email / hashed_password / refresh_token / is_super
+│   ├── workspace.py         #   workspaces 表：name（唯一）/ path
+│   └── user_workspace.py    #   user_workspaces 关联表：多对多 + permission（默认 viewer）
+├── repositories/            # 数据库读写类（UserRepository / WorkspaceRepository / UserWorkspaceRepository）
+├── services/                # 路由功能实现（AuthService、WorkspaceService）
+├── routers/                 # FastAPI 路由（auth.py → /auth/*，workspace.py → /workspaces/*）
+│   └── schemas/             #   请求/响应模型：auth.py、workspace.py（路由里不再内联定义）
 ├── main.py                  # 应用入口：app / lifespan / /health / 事件循环与 uvicorn 启动参数
 ├── migrations/              # alembic 迁移（连接串来自 config.yaml 的 postgresql.user 段）
 │   ├── env.py
-│   └── versions/*.py        #   已包含 ce9e484f27fb 建 users 表
-├── tests/test_auth.py       # 端到端自检脚本（18 项，无需 pytest）
+│   └── versions/*.py        #   users、workspaces、user_workspaces、is_super 等 4 个迁移
+├── tests/                   # 端到端自检脚本（4 个，均无需 pytest，跑完自清理）
 ├── alembic.ini              # 只配 script_location / 日志，URL 由 env.py 注入
 └── agents/                  # deepagents 的装配位置（当前为空，尚未接线）
 ```
 
-分层约定：**routers 只收参/返回 → services 写业务逻辑 → repositories 只做数据库读写 → models 定义表**。
-配置一律 `from config import app_config`，日志一律 `from logger import logger`。
+分层约定：**routers 只收参/返回 → services 写业务逻辑 → repositories 只做数据库读写 → models 定义表**；
+请求/响应模型放 `routers/schemas/`。配置一律 `from config import app_config`，日志一律 `from logger import logger`。
 
 ---
 
@@ -66,7 +69,7 @@ uv sync --frozen
 # 2) 改 config/config.yaml 里 postgresql.user / postgresql.deepagent 的连接信息
 #    （本机就是 PostgreSQL 的话，通常只改 user/password/db_name）
 
-# 3) 建业务库的表（users + alembic_version）
+# 3) 建业务库的表（users / workspaces / user_workspaces + alembic_version）
 uv run alembic upgrade head
 
 # 4) 启动
@@ -74,6 +77,9 @@ uv run python main.py         # http://127.0.0.1:8000 ，Swagger 在 /docs
 
 # 5) 自检（注册/登录/me/刷新/登出/禁用用户，共 18 项，跑完自动清理测试数据）
 uv run python tests/test_auth.py
+
+# 6) 把自己设成 super，否则建不了空间（super 只能在数据库里改，见 7.3）
+psql -d <库名> -c "update users set is_super = true where account = 'admin'"
 ```
 
 ---
@@ -241,14 +247,51 @@ WantedBy=multi-user.target
 
 ## 7. 接口
 
+约定：**一个操作一条独立路径**，动作词写进路径（如 `/workspaces/create`、`/workspaces/grant/{id}`），
+不用不同 HTTP 方法复用同一条路径；请求/响应模型在 `routers/schemas/`，路由参数顺序统一为「路径 → 请求体 → 当前用户 → session」。
+
+### 7.1 认证
+
 | 方法 | 路径 | 说明 | 需要鉴权 |
 | --- | --- | --- | --- |
 | POST | `/auth/register` | 注册（账号 3–50 位、邮箱、密码 ≥8 位） | 否 |
 | POST | `/auth/login` | 登录，返回 access + refresh 双令牌（账号或邮箱都可） | 否 |
 | POST | `/auth/refresh` | 用 refresh token 换新令牌（轮换，旧 refresh 立即失效） | 否 |
 | POST | `/auth/logout` | 登出，清空库中 refresh token | Bearer |
-| GET | `/auth/me` | 当前登录用户 | Bearer |
+| GET | `/auth/me` | 当前登录用户（含只读字段 `is_super`） | Bearer |
 | GET | `/health` | 健康检查 | 否 |
+
+### 7.2 业务空间
+
+| 方法 | 路径 | 说明 | 权限 |
+| --- | --- | --- | --- |
+| POST | `/workspaces/create` | 建空间（name 3–100 位、path）；创建者自动成为该空间 admin，重名 409 | **super** |
+| GET | `/workspaces/mine` | 我参与的空间列表，每项带 `permission` | 成员 |
+| GET | `/workspaces/detail/{workspace_id}` | 空间详情 | 成员 |
+| PATCH | `/workspaces/update/{workspace_id}` | 改 name / path（只改传了的字段） | **super** |
+| DELETE | `/workspaces/delete/{workspace_id}` | 删空间（成员关联级联清理，204） | **super** |
+| GET | `/workspaces/members/{workspace_id}` | 成员列表（account / email / 权限） | 成员 |
+| POST | `/workspaces/grant/{workspace_id}` | 加成员或改权限，body `{"user_id":"…","permission":"admin / editor / viewer"}`；重复授权即更新 | **super** |
+| DELETE | `/workspaces/revoke/{workspace_id}/{user_id}` | 移除成员（204） | **super** |
+
+### 7.3 权限模型（重要）
+
+- **`users.is_super` 只能直接改数据库**：没有 API、也没有 repository 写入口，注册/登录碰不到它
+  （注册请求里塞 `is_super: true` 也无效）。
+- **写操作一律要求 super**（建/改/删空间、增删成员），在路由层用 `SuperUser` 依赖拦成 403，
+  早于任何数据库读写；空间内的 `admin` 也不能改空间或成员。
+- **读操作要求是成员**；不是成员一律 404（不泄露空间是否存在）。
+- **`user_workspaces.permission`（admin/editor/viewer，默认 viewer）目前只描述成员身份，不参与鉴权**，
+  留给以后空间内的功能（跑 agent、写文件等）。
+
+```sql
+-- 授权 super（唯一途径）
+update users set is_super = true where account = 'admin';
+```
+
+标志**不写进 JWT**，每个请求都回库现查，所以改完立刻生效，**升权/降权都不必重新登录**。
+
+### 7.4 curl 示例
 
 ```bash
 BASE=http://127.0.0.1:8000
@@ -257,6 +300,19 @@ curl -s -X POST $BASE/auth/register -H 'Content-Type: application/json' \
 TOKEN=$(curl -s -X POST $BASE/auth/login -H 'Content-Type: application/json' \
         -d '{"account":"admin","password":"Passw0rd!123"}' | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
 curl -s $BASE/auth/me -H "Authorization: Bearer $TOKEN"
+
+# 建空间（需已 update users set is_super = true）
+WS=$(curl -s -X POST $BASE/workspaces/create -H "Authorization: Bearer $TOKEN" \
+     -H 'Content-Type: application/json' -d '{"name":"proj-a","path":"/srv/ws/a"}' \
+     | python -c "import sys,json;print(json.load(sys.stdin)['id'])")
+
+# 把另一个用户加成 viewer（user_id 从 /auth/me 或成员列表拿）
+curl -s -X POST $BASE/workspaces/grant/$WS -H "Authorization: Bearer $TOKEN" \
+     -H 'Content-Type: application/json' -d '{"user_id":"<32位用户id>","permission":"viewer"}'
+
+# 我参与的空间 / 成员列表
+curl -s $BASE/workspaces/mine -H "Authorization: Bearer $TOKEN"
+curl -s $BASE/workspaces/members/$WS -H "Authorization: Bearer $TOKEN"
 ```
 
 启动后 Swagger 文档在 `/docs`，OpenAPI JSON 在 `/openapi.json`。
@@ -284,14 +340,23 @@ yaml 里写错键名会**直接报错**，不会被静默忽略）：
 
 ## 9. 测试
 
+四个端到端自检脚本，都不需要 pytest，失败即非 0 退出，跑完自动清理测试数据：
+
 ```bash
-uv run python tests/test_auth.py     # 需要 PostgreSQL 可用且已 alembic upgrade head
+uv run python tests/test_auth.py                      # 18 项，需 PostgreSQL
+uv run python tests/test_workspace_api.py             # 21 项，需 PostgreSQL
+uv run python tests/test_user_workspace_repository.py # 需 PostgreSQL
+uv run python tests/test_user_workspace.py            # 内存 SQLite，无需数据库
 ```
 
-覆盖：注册 201 / 重复注册 409 / 非法输入 422 / 密码错误 401 / 登录返回双令牌 /
-库中存 bcrypt 哈希而非明文 / `me` 200 / 无令牌·乱码令牌·拿 refresh 当 access 401 /
-刷新轮换且旧 refresh 失效 401 / 登出 204 且库中 refresh_token 置空 / 禁用用户 403。
-脚本用 `tester_*` 前缀账号并在结束时清理，不影响其他数据。
+| 脚本 | 覆盖 |
+| --- | --- |
+| `test_auth.py` | 注册 201 / 重复注册 409 / 非法输入 422 / 密码错误 401 / 双令牌 / 库中存 bcrypt 哈希 / `me` 200 / 无令牌·乱码·拿 refresh 当 access 401 / 刷新轮换且旧 refresh 失效 / 登出 204 且置空 / 禁用用户 403 |
+| `test_workspace_api.py` | 非 super 建空间 403 / 未登录 401 / 非法入参 422 / 重名 409 / 创建者自动 admin（同一事务）/ 非成员看不见（空列表与 404）/ 成员可见 / admin 也改不了（403）/ 授权与改权限 upsert / 成员列表 / 移除成员 / 改名 / 级联删除；`is_super` 只用裸 SQL 改，顺便证明没有写入口 |
+| `test_user_workspace_repository.py` | 仓储层：grant 改权限行数仍为 1 / 查权限 / 列我的空间 / 空结果 / 撤销 True·False / 删空间级联清关联 |
+| `test_user_workspace.py` | 关联表：默认 viewer / 入库存小写 / CHECK 拒非法值 / 双向只读关系 / 重复授权被唯一约束拒 |
+
+前三个脚本用 `tester_*` / `wsroot_*` / `wsuser_*` 前缀账号并在结束时清理，不影响其他数据。
 
 ---
 
@@ -315,6 +380,19 @@ bcrypt 只处理前 72 字节，本项目对超长密码直接拒绝（不静默
 
 **Q：`/auth/me` 返回 403 而不是 401？**
 401 = 没有/无效令牌；403 = 令牌有效但用户被禁用（`users.is_active = false`）。
+
+**Q：建空间/改空间返回 403？**
+写操作（建/改/删空间、增删成员）只允许 super —— `update users set is_super = true where account = '你的账号'`，
+改完立即生效、不用重新登录（见 [7.3](#73-权限模型重要)）。空间内的 admin 也不行。
+
+**Q：空间详情返回 404，但我当然是管理员？**
+读操作先看 `user_workspaces` 里的成员关系；不是成员就统一 404（不泄露空间是否存在）。
+super 本身不会自动成为成员，但建空间时会被自动写成 admin。
+
+**Q：怎么给用户加/改权限？**
+`POST /workspaces/grant/{workspace_id}`，body `{"user_id":"…","permission":"admin|editor|viewer"}`，
+同一个人重复提交就是改权限（内部是 PG `ON CONFLICT DO UPDATE`，并发下不会撞唯一约束）。
+想“踢出空间”用 `DELETE /workspaces/revoke/{workspace_id}/{user_id}`——那是真删关联行，不是降级成 viewer。
 
 **Q：怎么切到另一个数据库？**
 只改 `config/config.yaml`（或对应环境变量），应用与 alembic 都用同一份配置，无需改代码。

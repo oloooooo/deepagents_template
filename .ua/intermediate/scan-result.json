@@ -1,11 +1,10 @@
 {
-  "scriptCompleted": true,
-  "contentDigest": "b98e3961564851a241591018bf6fa93c3b2a2edb7492afab207c11e85528f916",
+  "contentDigest": "c5a8e7202ca411addbceb950135bdd3f17ff7e0ed89ae5536c4fc25ad6866625",
   "files": [
     {
       "path": "AGENTS.md",
       "language": "markdown",
-      "sizeLines": 14,
+      "sizeLines": 17,
       "fileCategory": "docs"
     },
     {
@@ -53,7 +52,7 @@
     {
       "path": "dependencies/auth.py",
       "language": "python",
-      "sizeLines": 45,
+      "sizeLines": 63,
       "fileCategory": "code"
     },
     {
@@ -71,7 +70,7 @@
     {
       "path": "main.py",
       "language": "python",
-      "sizeLines": 54,
+      "sizeLines": 55,
       "fileCategory": "code"
     },
     {
@@ -87,21 +86,51 @@
       "fileCategory": "code"
     },
     {
+      "path": "migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py",
+      "language": "python",
+      "sizeLines": 58,
+      "fileCategory": "code"
+    },
+    {
+      "path": "migrations/versions/636fdf346107_add_users_is_super.py",
+      "language": "python",
+      "sizeLines": 32,
+      "fileCategory": "code"
+    },
+    {
       "path": "migrations/versions/ce9e484f27fb_create_users_table.py",
       "language": "python",
       "sizeLines": 46,
       "fileCategory": "code"
     },
     {
+      "path": "migrations/versions/ed40a1145bb5_user_workspaces_permission_default_.py",
+      "language": "python",
+      "sizeLines": 52,
+      "fileCategory": "code"
+    },
+    {
       "path": "models/__init__.py",
       "language": "python",
-      "sizeLines": 44,
+      "sizeLines": 46,
       "fileCategory": "code"
     },
     {
       "path": "models/user.py",
       "language": "python",
-      "sizeLines": 36,
+      "sizeLines": 52,
+      "fileCategory": "code"
+    },
+    {
+      "path": "models/user_workspace.py",
+      "language": "python",
+      "sizeLines": 62,
+      "fileCategory": "code"
+    },
+    {
+      "path": "models/workspace.py",
+      "language": "python",
+      "sizeLines": 32,
       "fileCategory": "code"
     },
     {
@@ -113,13 +142,25 @@
     {
       "path": "repositories/__init__.py",
       "language": "python",
-      "sizeLines": 5,
+      "sizeLines": 7,
       "fileCategory": "code"
     },
     {
       "path": "repositories/user.py",
       "language": "python",
       "sizeLines": 35,
+      "fileCategory": "code"
+    },
+    {
+      "path": "repositories/user_workspace.py",
+      "language": "python",
+      "sizeLines": 87,
+      "fileCategory": "code"
+    },
+    {
+      "path": "repositories/workspace.py",
+      "language": "python",
+      "sizeLines": 57,
       "fileCategory": "code"
     },
     {
@@ -131,13 +172,37 @@
     {
       "path": "routers/auth.py",
       "language": "python",
-      "sizeLines": 104,
+      "sizeLines": 75,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/schemas/__init__.py",
+      "language": "python",
+      "sizeLines": 31,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/schemas/auth.py",
+      "language": "python",
+      "sizeLines": 52,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/schemas/workspace.py",
+      "language": "python",
+      "sizeLines": 84,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/workspace.py",
+      "language": "python",
+      "sizeLines": 140,
       "fileCategory": "code"
     },
     {
       "path": "services/__init__.py",
       "language": "python",
-      "sizeLines": 19,
+      "sizeLines": 21,
       "fileCategory": "code"
     },
     {
@@ -147,32 +212,40 @@
       "fileCategory": "code"
     },
     {
+      "path": "services/workspace.py",
+      "language": "python",
+      "sizeLines": 137,
+      "fileCategory": "code"
+    },
+    {
       "path": "tests/test_auth.py",
       "language": "python",
       "sizeLines": 145,
       "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_user_workspace.py",
+      "language": "python",
+      "sizeLines": 77,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_user_workspace_repository.py",
+      "language": "python",
+      "sizeLines": 83,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_workspace_api.py",
+      "language": "python",
+      "sizeLines": 222,
+      "fileCategory": "code"
     }
   ],
-  "totalFiles": 25,
-  "filteredByIgnore": 56,
-  "estimatedComplexity": "small",
+  "totalFiles": 40,
+  "filteredByIgnore": 54,
+  "estimatedComplexity": "moderate",
   "failures": [],
-  "stats": {
-    "filesScanned": 25,
-    "byCategory": {
-      "docs": 2,
-      "code": 20,
-      "config": 3
-    },
-    "byLanguage": {
-      "markdown": 2,
-      "python": 19,
-      "config": 1,
-      "yaml": 1,
-      "mako": 1,
-      "toml": 1
-    }
-  },
   "importMap": {
     "AGENTS.md": [],
     "README.md": [],
@@ -203,46 +276,99 @@
       "dependencies/__init__.py",
       "logger/__init__.py",
       "routers/__init__.py",
-      "routers/auth.py"
+      "routers/auth.py",
+      "routers/workspace.py"
     ],
     "migrations/env.py": [
       "config/__init__.py",
       "models/__init__.py"
     ],
     "migrations/script.py.mako": [],
+    "migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py": [],
+    "migrations/versions/636fdf346107_add_users_is_super.py": [],
     "migrations/versions/ce9e484f27fb_create_users_table.py": [],
+    "migrations/versions/ed40a1145bb5_user_workspaces_permission_default_.py": [],
     "models/__init__.py": [
-      "models/user.py"
+      "models/user.py",
+      "models/user_workspace.py",
+      "models/workspace.py"
     ],
     "models/user.py": [
       "models/__init__.py"
     ],
+    "models/user_workspace.py": [
+      "models/__init__.py"
+    ],
+    "models/workspace.py": [
+      "models/__init__.py"
+    ],
     "pyproject.toml": [],
     "repositories/__init__.py": [
-      "repositories/user.py"
+      "repositories/user.py",
+      "repositories/user_workspace.py",
+      "repositories/workspace.py"
     ],
     "repositories/user.py": [
       "models/__init__.py"
     ],
+    "repositories/user_workspace.py": [
+      "models/__init__.py"
+    ],
+    "repositories/workspace.py": [
+      "models/__init__.py"
+    ],
     "routers/__init__.py": [
-      "routers/auth.py"
+      "routers/auth.py",
+      "routers/workspace.py"
     ],
     "routers/auth.py": [
       "config/__init__.py",
       "dependencies/__init__.py",
       "dependencies/auth.py",
       "models/__init__.py",
+      "routers/schemas/__init__.py",
+      "services/__init__.py"
+    ],
+    "routers/schemas/__init__.py": [
+      "routers/schemas/auth.py",
+      "routers/schemas/workspace.py"
+    ],
+    "routers/schemas/auth.py": [],
+    "routers/schemas/workspace.py": [
+      "models/__init__.py"
+    ],
+    "routers/workspace.py": [
+      "dependencies/__init__.py",
+      "dependencies/auth.py",
+      "routers/schemas/__init__.py",
       "services/__init__.py"
     ],
     "services/__init__.py": [
-      "services/auth.py"
+      "services/auth.py",
+      "services/workspace.py"
     ],
     "services/auth.py": [
       "config/__init__.py",
       "models/__init__.py",
       "repositories/__init__.py"
     ],
+    "services/workspace.py": [
+      "models/__init__.py",
+      "repositories/__init__.py"
+    ],
     "tests/test_auth.py": [
+      "config/__init__.py",
+      "main.py"
+    ],
+    "tests/test_user_workspace.py": [
+      "models/__init__.py"
+    ],
+    "tests/test_user_workspace_repository.py": [
+      "dependencies/__init__.py",
+      "models/__init__.py",
+      "repositories/__init__.py"
+    ],
+    "tests/test_workspace_api.py": [
       "config/__init__.py",
       "main.py"
     ]
@@ -265,5 +391,7 @@
     "Loguru",
     "OmegaConf",
     "uvicorn"
-  ]
+  ],
+  "name": "deepagents_template",
+  "description": "No description available"
 }

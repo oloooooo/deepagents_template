@@ -1,21 +1,21 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "2c908daf852472d162a2341e08ddf78091a433d6",
-  "generatedAt": "2026-09-13T12:20:05.014Z",
+  "gitCommitHash": "295775ef5f0fbfebd957314f4625535b2b6bbffa",
+  "generatedAt": "2026-09-15T13:31:17.534Z",
   "files": {
     "AGENTS.md": {
       "filePath": "AGENTS.md",
-      "contentHash": "478efb5b16232a3420da655c89ce0de6d7c7f1b02c5130937268e5adf71c6bef",
+      "contentHash": "c42a2a724c4141be9f50971b87129c59c3e37c9be211f1ba6ff5ac1c24c5e4a6",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 15,
+      "totalLines": 18,
       "hasStructuralAnalysis": false
     },
     "README.md": {
       "filePath": "README.md",
-      "contentHash": "89c837acfbcfe5bd5bbf32f0e3fba93849d1f41a5d01a91be866abfd44cdaffa",
+      "contentHash": "764836215954bc2ca3ec20963fa116677cd267feb4538fdb1961f865dbd0f27e",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -45,7 +45,7 @@
     },
     "config/__init__.py": {
       "filePath": "config/__init__.py",
-      "contentHash": "d86db57790bf543caea2989cc6d66bbf06c6363eee110f02c9bec17c91c044b1",
+      "contentHash": "112df5ae5cb5fb748e75104118b8e34d8a2ab22539f742ed5c52b10b8b90fdc6",
       "functions": [],
       "classes": [],
       "imports": [
@@ -70,7 +70,7 @@
     },
     "config/config.py": {
       "filePath": "config/config.py",
-      "contentHash": "0d664b5043767d3f98ef765ab8fd4983ba685eb376b9b4eb7cca5857ed87adf5",
+      "contentHash": "3e81320ddc6566ada4ce74ce428ebb2e6772dbce210fc29df8ed8ceed87378c0",
       "functions": [
         {
           "name": "_apply_env_overrides",
@@ -120,7 +120,6 @@
           "name": "PostgresConfig",
           "methods": [],
           "properties": [
-            "deepagent",
             "user"
           ],
           "exported": true,
@@ -222,7 +221,7 @@
     },
     "config/config.yaml": {
       "filePath": "config/config.yaml",
-      "contentHash": "51eee2f542e93392586d1189f97a7780e09c11654595a164ed0b21350b336ea8",
+      "contentHash": "5297d5b33b0471ec9c988622b28c0f5bb93ec46d9f4ddcfdfacb88e867205fd5",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -232,7 +231,7 @@
     },
     "dependencies/__init__.py": {
       "filePath": "dependencies/__init__.py",
-      "contentHash": "cc46f1dc78cfa3b864b6ef56c19203858502963a98317c9213e1246537bc8c51",
+      "contentHash": "0d59a9986e6ed6f5601988b008aa40158ee437b32124966f048600d142d592f4",
       "functions": [],
       "classes": [],
       "imports": [
@@ -269,7 +268,7 @@
     },
     "dependencies/auth.py": {
       "filePath": "dependencies/auth.py",
-      "contentHash": "977b703900fe06971e98f348d25a3af7e338d1eb50a04630800347cd1a3da722",
+      "contentHash": "09ac8b399bd8b3070d597e21e4767674b308c205157b3e761e65dbd38d455cc6",
       "functions": [
         {
           "name": "get_current_user",
@@ -280,6 +279,15 @@
           "returnType": "User",
           "exported": true,
           "lineCount": 23
+        },
+        {
+          "name": "get_super_user",
+          "params": [
+            "user"
+          ],
+          "returnType": "User",
+          "exported": true,
+          "lineCount": 10
         }
       ],
       "classes": [],
@@ -338,9 +346,10 @@
         }
       ],
       "exports": [
-        "get_current_user"
+        "get_current_user",
+        "get_super_user"
       ],
-      "totalLines": 46,
+      "totalLines": 64,
       "hasStructuralAnalysis": true
     },
     "dependencies/database.py": {
@@ -453,7 +462,7 @@
     },
     "main.py": {
       "filePath": "main.py",
-      "contentHash": "b4e65ee8806d8a65dea3010bc9ce0cdb9b8f98c60529a8f2d31d0c82f05cfa51",
+      "contentHash": "5d7e91a3acb61fa32b5c397dcda2aeed308dffa89e33f9a16c813f98ff08b718",
       "functions": [
         {
           "name": "lifespan",
@@ -512,7 +521,8 @@
         {
           "source": "routers",
           "specifiers": [
-            "auth"
+            "auth",
+            "workspace"
           ]
         }
       ],
@@ -520,12 +530,12 @@
         "lifespan",
         "health"
       ],
-      "totalLines": 55,
+      "totalLines": 56,
       "hasStructuralAnalysis": true
     },
     "migrations/env.py": {
       "filePath": "migrations/env.py",
-      "contentHash": "75f49871d381c14457fceb3185ffe906a1eabfdf783c1faebce5222d16f931c0",
+      "contentHash": "daca991c49ffbb9993d6e4823c62254323ff6f2d409afbea721775769afdd115",
       "functions": [
         {
           "name": "run_migrations_offline",
@@ -593,6 +603,102 @@
       "totalLines": 29,
       "hasStructuralAnalysis": false
     },
+    "migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py": {
+      "filePath": "migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py",
+      "contentHash": "26bf1d55268702c17af6272f03bf0cc243553fbf987305ecde20f682a5d362c4",
+      "functions": [
+        {
+          "name": "upgrade",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "downgrade",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 9
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "Sequence",
+            "Union"
+          ]
+        },
+        {
+          "source": "alembic",
+          "specifiers": [
+            "op"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "sa"
+          ]
+        }
+      ],
+      "exports": [
+        "upgrade",
+        "downgrade"
+      ],
+      "totalLines": 59,
+      "hasStructuralAnalysis": true
+    },
+    "migrations/versions/636fdf346107_add_users_is_super.py": {
+      "filePath": "migrations/versions/636fdf346107_add_users_is_super.py",
+      "contentHash": "3c2bc368b8d3631bf73f020059e8c018b3df9ce692098556df7598497025c7c9",
+      "functions": [
+        {
+          "name": "upgrade",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "downgrade",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "Sequence",
+            "Union"
+          ]
+        },
+        {
+          "source": "alembic",
+          "specifiers": [
+            "op"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "sa"
+          ]
+        }
+      ],
+      "exports": [
+        "upgrade",
+        "downgrade"
+      ],
+      "totalLines": 33,
+      "hasStructuralAnalysis": true
+    },
     "migrations/versions/ce9e484f27fb_create_users_table.py": {
       "filePath": "migrations/versions/ce9e484f27fb_create_users_table.py",
       "contentHash": "3e3207d8cdb58f24b77feea9c4e022c2564e3fa909e98b1f97a5dd42e10a5bf9",
@@ -641,9 +747,57 @@
       "totalLines": 47,
       "hasStructuralAnalysis": true
     },
+    "migrations/versions/ed40a1145bb5_user_workspaces_permission_default_.py": {
+      "filePath": "migrations/versions/ed40a1145bb5_user_workspaces_permission_default_.py",
+      "contentHash": "3fd187d05cc98b8ca5c87fad573f9c85028ab191f2411c9e0cf74c7c67f5ed9b",
+      "functions": [
+        {
+          "name": "upgrade",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "downgrade",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 14
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "Sequence",
+            "Union"
+          ]
+        },
+        {
+          "source": "alembic",
+          "specifiers": [
+            "op"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "sa"
+          ]
+        }
+      ],
+      "exports": [
+        "upgrade",
+        "downgrade"
+      ],
+      "totalLines": 53,
+      "hasStructuralAnalysis": true
+    },
     "models/__init__.py": {
       "filePath": "models/__init__.py",
-      "contentHash": "c9c2e4a137882da05af87a0d1bae2808c580400e14aacfb1f3ecd14f25f78ce1",
+      "contentHash": "4d9f28ed38751feb8b9cda7e52b04e3600551a5ffe6a6f2d4b535a224a7cb6c2",
       "functions": [],
       "classes": [
         {
@@ -700,18 +854,31 @@
           "specifiers": [
             "User"
           ]
+        },
+        {
+          "source": ".user_workspace",
+          "specifiers": [
+            "UserWorkspace",
+            "WorkspacePermission"
+          ]
+        },
+        {
+          "source": ".workspace",
+          "specifiers": [
+            "Workspace"
+          ]
         }
       ],
       "exports": [
         "Base",
         "BaseModel"
       ],
-      "totalLines": 45,
+      "totalLines": 47,
       "hasStructuralAnalysis": true
     },
     "models/user.py": {
       "filePath": "models/user.py",
-      "contentHash": "492142cf141931b4426c189052b96650ca6f0d81f62f3bc46dd03a36e9ca0ac8",
+      "contentHash": "41875999e272d75ed54f705a052e7c4c7cc7a951d9b6e2bea2d67b894afabd51",
       "functions": [],
       "classes": [
         {
@@ -724,19 +891,92 @@
             "email",
             "hashed_password",
             "refresh_token",
-            "is_active"
+            "is_active",
+            "is_super",
+            "workspaces"
           ],
           "exported": true,
-          "lineCount": 26
+          "lineCount": 35
         }
       ],
       "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "TYPE_CHECKING"
+          ]
+        },
         {
           "source": "sqlalchemy",
           "specifiers": [
             "Boolean",
             "String",
+            "false",
             "true"
+          ]
+        },
+        {
+          "source": "sqlalchemy.orm",
+          "specifiers": [
+            "Mapped",
+            "mapped_column",
+            "relationship"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "BaseModel"
+          ]
+        }
+      ],
+      "exports": [
+        "User"
+      ],
+      "totalLines": 53,
+      "hasStructuralAnalysis": true
+    },
+    "models/user_workspace.py": {
+      "filePath": "models/user_workspace.py",
+      "contentHash": "b3416df9b9b3642eb762ff23dabe57afc89fca3f6e58863468112ded931253f5",
+      "functions": [],
+      "classes": [
+        {
+          "name": "WorkspacePermission",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "UserWorkspace",
+          "methods": [
+            "__repr__"
+          ],
+          "properties": [
+            "user_id",
+            "workspace_id",
+            "permission"
+          ],
+          "exported": true,
+          "lineCount": 42
+        }
+      ],
+      "imports": [
+        {
+          "source": "enum",
+          "specifiers": [
+            "StrEnum"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "Enum",
+            "ForeignKey",
+            "String",
+            "UniqueConstraint",
+            "text"
           ]
         },
         {
@@ -754,14 +994,68 @@
         }
       ],
       "exports": [
-        "User"
+        "WorkspacePermission",
+        "UserWorkspace"
       ],
-      "totalLines": 37,
+      "totalLines": 63,
+      "hasStructuralAnalysis": true
+    },
+    "models/workspace.py": {
+      "filePath": "models/workspace.py",
+      "contentHash": "15ed57246db951f91ed1148c01395b81274cd1e7161446eb160d0194ef25ea40",
+      "functions": [],
+      "classes": [
+        {
+          "name": "Workspace",
+          "methods": [
+            "__repr__"
+          ],
+          "properties": [
+            "name",
+            "path",
+            "users"
+          ],
+          "exported": true,
+          "lineCount": 16
+        }
+      ],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "TYPE_CHECKING"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "String"
+          ]
+        },
+        {
+          "source": "sqlalchemy.orm",
+          "specifiers": [
+            "Mapped",
+            "mapped_column",
+            "relationship"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "BaseModel"
+          ]
+        }
+      ],
+      "exports": [
+        "Workspace"
+      ],
+      "totalLines": 33,
       "hasStructuralAnalysis": true
     },
     "pyproject.toml": {
       "filePath": "pyproject.toml",
-      "contentHash": "210d45501c1478263f6e2cd4fee46e84d7b0e6bc57dc2583ed07113e873f17af",
+      "contentHash": "f052fa4bc816ae6771e21ef2f2824bd2c7f8c549c875e68167924b9964d36581",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -771,7 +1065,7 @@
     },
     "repositories/__init__.py": {
       "filePath": "repositories/__init__.py",
-      "contentHash": "38d808364692e1667c70d7fed63c03b26532f78acffd0f7668557b375f8be392",
+      "contentHash": "44c604250c55c1423aeec6d918ff59e77edc68c72bf584e46640b8283e8e8831",
       "functions": [],
       "classes": [],
       "imports": [
@@ -780,10 +1074,22 @@
           "specifiers": [
             "UserRepository"
           ]
+        },
+        {
+          "source": ".user_workspace",
+          "specifiers": [
+            "UserWorkspaceRepository"
+          ]
+        },
+        {
+          "source": ".workspace",
+          "specifiers": [
+            "WorkspaceRepository"
+          ]
         }
       ],
       "exports": [],
-      "totalLines": 6,
+      "totalLines": 8,
       "hasStructuralAnalysis": true
     },
     "repositories/user.py": {
@@ -832,16 +1138,127 @@
       "totalLines": 36,
       "hasStructuralAnalysis": true
     },
+    "repositories/user_workspace.py": {
+      "filePath": "repositories/user_workspace.py",
+      "contentHash": "51cbd07e215a5ade0b9602f73e691e7a3c1268314e8c355ca2f86945c46da431",
+      "functions": [],
+      "classes": [
+        {
+          "name": "UserWorkspaceRepository",
+          "methods": [
+            "__init__",
+            "grant",
+            "get_permission",
+            "list_by_user",
+            "list_members",
+            "revoke"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 74
+        }
+      ],
+      "imports": [
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime",
+            "timezone"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "delete",
+            "select"
+          ]
+        },
+        {
+          "source": "sqlalchemy.dialects.postgresql",
+          "specifiers": [
+            "insert"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "User",
+            "UserWorkspace",
+            "Workspace",
+            "WorkspacePermission"
+          ]
+        }
+      ],
+      "exports": [
+        "UserWorkspaceRepository"
+      ],
+      "totalLines": 88,
+      "hasStructuralAnalysis": true
+    },
+    "repositories/workspace.py": {
+      "filePath": "repositories/workspace.py",
+      "contentHash": "2aff0b98f01bb4575cf6d04ba535cc6e2bce375516743295682c3349ca5f7e11",
+      "functions": [],
+      "classes": [
+        {
+          "name": "WorkspaceRepository",
+          "methods": [
+            "__init__",
+            "get_by_id",
+            "get_by_name",
+            "list_all",
+            "create",
+            "update",
+            "delete"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 47
+        }
+      ],
+      "imports": [
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "select"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "Workspace"
+          ]
+        }
+      ],
+      "exports": [
+        "WorkspaceRepository"
+      ],
+      "totalLines": 58,
+      "hasStructuralAnalysis": true
+    },
     "routers/__init__.py": {
       "filePath": "routers/__init__.py",
-      "contentHash": "2c571d0d19ba0853a9f089978835cc7403bb5db40d54789f0a94a94c5c583405",
+      "contentHash": "03092295d6f7843035ae800da49b5c21d2c61fad8f475ba061bc45d1bf1bad33",
       "functions": [],
       "classes": [],
       "imports": [
         {
           "source": ".",
           "specifiers": [
-            "auth"
+            "auth",
+            "workspace"
           ]
         }
       ],
@@ -851,7 +1268,7 @@
     },
     "routers/auth.py": {
       "filePath": "routers/auth.py",
-      "contentHash": "1e225cd417c727057337a1101bcede7f5c9c31a9fcdc8effbf982e8ef35dee48",
+      "contentHash": "f194426d8bbdea3f31c163266c886088fdb96dd8245ebd2e7434c5fb58cc9d97",
       "functions": [
         {
           "name": "_token_pair",
@@ -894,6 +1311,15 @@
           "lineCount": 5
         },
         {
+          "name": "me",
+          "params": [
+            "current_user"
+          ],
+          "returnType": "User",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
           "name": "logout",
           "params": [
             "current_user",
@@ -902,17 +1328,106 @@
           "returnType": "None",
           "exported": true,
           "lineCount": 2
-        },
-        {
-          "name": "me",
-          "params": [
-            "current_user"
-          ],
-          "returnType": "User",
-          "exported": true,
-          "lineCount": 2
         }
       ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "APIRouter",
+            "Response",
+            "status"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        },
+        {
+          "source": "dependencies",
+          "specifiers": [
+            "SessionDep"
+          ]
+        },
+        {
+          "source": "dependencies.auth",
+          "specifiers": [
+            "CurrentUser"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "User"
+          ]
+        },
+        {
+          "source": "routers.schemas",
+          "specifiers": [
+            "LoginRequest",
+            "RefreshRequest",
+            "RegisterRequest",
+            "TokenPair",
+            "UserOut"
+          ]
+        },
+        {
+          "source": "services",
+          "specifiers": [
+            "AuthService"
+          ]
+        }
+      ],
+      "exports": [
+        "_token_pair",
+        "register",
+        "login",
+        "refresh",
+        "me",
+        "logout"
+      ],
+      "totalLines": 76,
+      "hasStructuralAnalysis": true
+    },
+    "routers/schemas/__init__.py": {
+      "filePath": "routers/schemas/__init__.py",
+      "contentHash": "815eac3638ddbbff82c63f4477d664eb4d5109362474f32186943c04accf8759",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": ".auth",
+          "specifiers": [
+            "LoginRequest",
+            "RefreshRequest",
+            "RegisterRequest",
+            "TokenPair",
+            "UserOut"
+          ]
+        },
+        {
+          "source": ".workspace",
+          "specifiers": [
+            "MemberGrant",
+            "MemberOut",
+            "MyWorkspaceOut",
+            "WorkspaceCreate",
+            "WorkspaceOut",
+            "WorkspaceUpdate"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 32,
+      "hasStructuralAnalysis": true
+    },
+    "routers/schemas/auth.py": {
+      "filePath": "routers/schemas/auth.py",
+      "contentHash": "a963b330cfd040ca170e5fa9ccce30f2a22ace0aefbacd3846a5e58e4f950219",
+      "functions": [],
       "classes": [
         {
           "name": "RegisterRequest",
@@ -964,10 +1479,11 @@
             "account",
             "email",
             "is_active",
+            "is_super",
             "created_at"
           ],
           "exported": true,
-          "lineCount": 8
+          "lineCount": 10
         }
       ],
       "imports": [
@@ -978,11 +1494,103 @@
           ]
         },
         {
-          "source": "fastapi",
+          "source": "pydantic",
           "specifiers": [
-            "APIRouter",
-            "Response",
-            "status"
+            "BaseModel",
+            "ConfigDict",
+            "Field"
+          ]
+        }
+      ],
+      "exports": [
+        "RegisterRequest",
+        "LoginRequest",
+        "RefreshRequest",
+        "TokenPair",
+        "UserOut"
+      ],
+      "totalLines": 53,
+      "hasStructuralAnalysis": true
+    },
+    "routers/schemas/workspace.py": {
+      "filePath": "routers/schemas/workspace.py",
+      "contentHash": "78df5d50e0a068af5bd2f6c2190f21574a59aff082870193db8aec36ace9a7a0",
+      "functions": [],
+      "classes": [
+        {
+          "name": "WorkspaceCreate",
+          "methods": [],
+          "properties": [
+            "name",
+            "path"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "WorkspaceUpdate",
+          "methods": [],
+          "properties": [
+            "name",
+            "path"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "WorkspaceOut",
+          "methods": [],
+          "properties": [
+            "id",
+            "name",
+            "path",
+            "created_at",
+            "updated_at"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "MyWorkspaceOut",
+          "methods": [
+            "of"
+          ],
+          "properties": [
+            "permission"
+          ],
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "MemberGrant",
+          "methods": [],
+          "properties": [
+            "user_id",
+            "permission"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "MemberOut",
+          "methods": [
+            "of"
+          ],
+          "properties": [
+            "user_id",
+            "account",
+            "email",
+            "permission"
+          ],
+          "exported": true,
+          "lineCount": 14
+        }
+      ],
+      "imports": [
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime"
           ]
         },
         {
@@ -994,9 +1602,123 @@
           ]
         },
         {
-          "source": "config",
+          "source": "models",
           "specifiers": [
-            "app_config"
+            "User",
+            "Workspace",
+            "WorkspacePermission"
+          ]
+        }
+      ],
+      "exports": [
+        "WorkspaceCreate",
+        "WorkspaceUpdate",
+        "WorkspaceOut",
+        "MyWorkspaceOut",
+        "MemberGrant",
+        "MemberOut"
+      ],
+      "totalLines": 85,
+      "hasStructuralAnalysis": true
+    },
+    "routers/workspace.py": {
+      "filePath": "routers/workspace.py",
+      "contentHash": "08bc89dcaca8c74efc97ddc95a0f624d6586398b19b1a293b91c7a559493c832",
+      "functions": [
+        {
+          "name": "list_my_workspaces",
+          "params": [
+            "current_user",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "create_workspace",
+          "params": [
+            "payload",
+            "current_user",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "get_workspace",
+          "params": [
+            "workspace_id",
+            "current_user",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "update_workspace",
+          "params": [
+            "workspace_id",
+            "payload",
+            "current_user",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "delete_workspace",
+          "params": [
+            "workspace_id",
+            "current_user",
+            "session"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "list_members",
+          "params": [
+            "workspace_id",
+            "current_user",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "grant_member",
+          "params": [
+            "workspace_id",
+            "payload",
+            "current_user",
+            "session"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "revoke_member",
+          "params": [
+            "workspace_id",
+            "user_id",
+            "current_user",
+            "session"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "APIRouter",
+            "Response",
+            "status"
           ]
         },
         {
@@ -1008,41 +1730,44 @@
         {
           "source": "dependencies.auth",
           "specifiers": [
-            "CurrentUser"
+            "CurrentUser",
+            "SuperUser"
           ]
         },
         {
-          "source": "models",
+          "source": "routers.schemas",
           "specifiers": [
-            "User"
+            "MemberGrant",
+            "MemberOut",
+            "MyWorkspaceOut",
+            "WorkspaceCreate",
+            "WorkspaceOut",
+            "WorkspaceUpdate"
           ]
         },
         {
           "source": "services",
           "specifiers": [
-            "AuthService"
+            "WorkspaceService"
           ]
         }
       ],
       "exports": [
-        "RegisterRequest",
-        "LoginRequest",
-        "RefreshRequest",
-        "TokenPair",
-        "UserOut",
-        "_token_pair",
-        "register",
-        "login",
-        "refresh",
-        "logout",
-        "me"
+        "list_my_workspaces",
+        "create_workspace",
+        "get_workspace",
+        "update_workspace",
+        "delete_workspace",
+        "list_members",
+        "grant_member",
+        "revoke_member"
       ],
-      "totalLines": 105,
+      "totalLines": 141,
       "hasStructuralAnalysis": true
     },
     "services/__init__.py": {
       "filePath": "services/__init__.py",
-      "contentHash": "c95b0cb699b89142edbd8795fa9fd07a24cf57cf2e7e98aace6f09eb107873df",
+      "contentHash": "4d9bae8b9347b6fabb57d40100b191e82ff868a9701378a23c2ade9db42e096b",
       "functions": [],
       "classes": [],
       "imports": [
@@ -1056,10 +1781,16 @@
             "hash_password",
             "verify_password"
           ]
+        },
+        {
+          "source": ".workspace",
+          "specifiers": [
+            "WorkspaceService"
+          ]
         }
       ],
       "exports": [],
-      "totalLines": 20,
+      "totalLines": 22,
       "hasStructuralAnalysis": true
     },
     "services/auth.py": {
@@ -1210,6 +1941,69 @@
       "totalLines": 158,
       "hasStructuralAnalysis": true
     },
+    "services/workspace.py": {
+      "filePath": "services/workspace.py",
+      "contentHash": "ee1350e704a8af6e440d6cc6fa59b13847ad6c4379d896c97ae096b378fdcd69",
+      "functions": [],
+      "classes": [
+        {
+          "name": "WorkspaceService",
+          "methods": [
+            "__init__",
+            "create",
+            "get",
+            "list_mine",
+            "update",
+            "delete",
+            "list_members",
+            "grant_member",
+            "revoke_member",
+            "_get_or_404",
+            "_access"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 112
+        }
+      ],
+      "imports": [
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "HTTPException",
+            "status"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "User",
+            "UserWorkspace",
+            "Workspace",
+            "WorkspacePermission"
+          ]
+        },
+        {
+          "source": "repositories",
+          "specifiers": [
+            "UserRepository",
+            "UserWorkspaceRepository",
+            "WorkspaceRepository"
+          ]
+        }
+      ],
+      "exports": [
+        "WorkspaceService"
+      ],
+      "totalLines": 138,
+      "hasStructuralAnalysis": true
+    },
     "tests/test_auth.py": {
       "filePath": "tests/test_auth.py",
       "contentHash": "19af654e3f0e5d75f97a20cba76a3470c28b8ba2d5c3946ecd99fed4e4a29167",
@@ -1306,6 +2100,243 @@
         "main"
       ],
       "totalLines": 146,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_user_workspace.py": {
+      "filePath": "tests/test_user_workspace.py",
+      "contentHash": "5ed54b4b5ab7183c97aa15832d5658b38cbc618b8bbbfc4fe38211c1bf338b1b",
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 54
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "create_engine",
+            "select",
+            "text"
+          ]
+        },
+        {
+          "source": "sqlalchemy.exc",
+          "specifiers": [
+            "IntegrityError"
+          ]
+        },
+        {
+          "source": "sqlalchemy.orm",
+          "specifiers": [
+            "Session"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "Base",
+            "User",
+            "UserWorkspace",
+            "Workspace",
+            "WorkspacePermission"
+          ]
+        }
+      ],
+      "exports": [
+        "main"
+      ],
+      "totalLines": 78,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_user_workspace_repository.py": {
+      "filePath": "tests/test_user_workspace_repository.py",
+      "contentHash": "a74f7100ec445bc79918acdf2ac4069647b4fac36eab0f60b724a72854b28428",
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 55
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "delete",
+            "func",
+            "select"
+          ]
+        },
+        {
+          "source": "dependencies",
+          "specifiers": [
+            "AsyncSessionFactory"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "User",
+            "UserWorkspace",
+            "Workspace",
+            "WorkspacePermission"
+          ]
+        },
+        {
+          "source": "repositories",
+          "specifiers": [
+            "UserRepository",
+            "UserWorkspaceRepository",
+            "WorkspaceRepository"
+          ]
+        }
+      ],
+      "exports": [
+        "main"
+      ],
+      "totalLines": 84,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_workspace_api.py": {
+      "filePath": "tests/test_workspace_api.py",
+      "contentHash": "602dd1fb3829fd5ca9cbd55ce722e181016521781629935b8e2890e30f725319",
+      "functions": [
+        {
+          "name": "step",
+          "params": [
+            "name"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "db_execute",
+          "params": [
+            "sql",
+            "params"
+          ],
+          "returnType": "list[tuple]",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "cleanup",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 164
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "psycopg",
+          "specifiers": [
+            "psycopg"
+          ]
+        },
+        {
+          "source": "fastapi.testclient",
+          "specifiers": [
+            "TestClient"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        },
+        {
+          "source": "main",
+          "specifiers": [
+            "app"
+          ]
+        }
+      ],
+      "exports": [
+        "step",
+        "db_execute",
+        "cleanup",
+        "main"
+      ],
+      "totalLines": 223,
       "hasStructuralAnalysis": true
     }
   }

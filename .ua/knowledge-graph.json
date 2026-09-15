@@ -20,8 +20,8 @@
       "uvicorn"
     ],
     "description": "FastAPI + PostgreSQL 后端模板：OmegaConf+pydantic 配置、loguru 日志、用户注册登录与 JWT 鉴权、alembic 迁移，并为 deepagents（LangGraph 检查点/长期记忆）预留装配位。",
-    "analyzedAt": "2026-09-13T12:19:57.183529Z",
-    "gitCommitHash": "2c908daf852472d162a2341e08ddf78091a433d6"
+    "analyzedAt": "2026-09-15T13:31:14.380976Z",
+    "gitCommitHash": "295775ef5f0fbfebd957314f4625535b2b6bbffa"
   },
   "nodes": [
     {
@@ -115,7 +115,7 @@
       "type": "file",
       "name": "routers/__init__.py",
       "filePath": "routers/__init__.py",
-      "summary": "路由包出口，转出 auth 路由模块，供 main.py 以 routers.auth.router 方式挂载。",
+      "summary": "路由统一出口：导出 auth 与 workspace 两个模块。",
       "tags": [
         "barrel",
         "routing"
@@ -127,7 +127,7 @@
       "type": "file",
       "name": "routers/auth.py",
       "filePath": "routers/auth.py",
-      "summary": "鉴权路由：/auth 前缀下定义注册、登录、刷新、登出、当前用户五个端点，并声明请求/响应 pydantic 模型，业务逻辑全部委托 AuthService。",
+      "summary": "登录鉴权路由：注册 / 登录 / 刷新 / 登出 / 当前用户五个接口；只收参、调 service、返回，请求/响应模型已抽到 routers/schemas/auth.py。",
       "tags": [
         "api-handler",
         "routing",
@@ -206,70 +206,6 @@
       "complexity": "simple"
     },
     {
-      "id": "class:routers/auth.py:RegisterRequest",
-      "type": "class",
-      "name": "RegisterRequest",
-      "filePath": "routers/auth.py",
-      "summary": "注册请求体模型：账号 3–50 位受限字符集、邮箱正则、密码 8–72 位，不满足直接由 FastAPI 返回 422。",
-      "tags": [
-        "type-definition",
-        "serialization",
-        "校验"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "class:routers/auth.py:LoginRequest",
-      "type": "class",
-      "name": "LoginRequest",
-      "filePath": "routers/auth.py",
-      "summary": "登录请求体模型：account 字段既可以填登录账号也可以填邮箱。",
-      "tags": [
-        "type-definition",
-        "serialization",
-        "校验"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "class:routers/auth.py:RefreshRequest",
-      "type": "class",
-      "name": "RefreshRequest",
-      "filePath": "routers/auth.py",
-      "summary": "刷新请求体模型：只包含一个非空 refresh_token 字段。",
-      "tags": [
-        "type-definition",
-        "serialization"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "class:routers/auth.py:TokenPair",
-      "type": "class",
-      "name": "TokenPair",
-      "filePath": "routers/auth.py",
-      "summary": "令牌响应模型：access_token + refresh_token + token_type + expires_in（秒，来自配置）。",
-      "tags": [
-        "type-definition",
-        "serialization",
-        "jwt"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "class:routers/auth.py:UserOut",
-      "type": "class",
-      "name": "UserOut",
-      "filePath": "routers/auth.py",
-      "summary": "用户响应模型：靠 from_attributes=True 直接从 ORM 对象序列化，只暴露 id/account/email/is_active/created_at。",
-      "tags": [
-        "type-definition",
-        "serialization",
-        "鉴权"
-      ],
-      "complexity": "simple"
-    },
-    {
       "id": "function:routers/auth.py:_token_pair",
       "type": "function",
       "name": "_token_pair",
@@ -286,7 +222,7 @@
       "type": "file",
       "name": "services/__init__.py",
       "filePath": "services/__init__.py",
-      "summary": "业务层出口，转出 AuthService 与密码/令牌工具函数，路由与依赖层都从 services 包导入。",
+      "summary": "服务统一出口：导出 AuthService 与 WorkspaceService，以及认证相关工具函数/常量。",
       "tags": [
         "barrel",
         "service"
@@ -337,7 +273,7 @@
       "type": "file",
       "name": "models/__init__.py",
       "filePath": "models/__init__.py",
-      "summary": "ORM 基类定义：Base 带统一约束命名约定，BaseModel 提供 id（uuid hex）与 created_at/updated_at 公共字段，文件末尾导入各表模型以便迁移发现。",
+      "summary": "ORM 基类与公共字段（id 用 uuid4 hex、created_at/updated_at 带时区）外加统一约束命名；末尾导入 User / Workspace / UserWorkspace / WorkspacePermission 注册到 metadata。",
       "tags": [
         "data-model",
         "base-class",
@@ -391,7 +327,7 @@
       "type": "class",
       "name": "User",
       "filePath": "models/user.py",
-      "summary": "用户实体：登录账号、邮箱、密码哈希、当前 refresh token 与启用状态，是鉴权链路的数据载体。",
+      "summary": "账号 / 邮箱 / 密码哈希 / refresh token / is_active，另有 is_super（超级用户，只能直接改库，没有 repository/API 写入口）与只读的 workspaces 多对多视图。",
       "tags": [
         "data-model",
         "entity",
@@ -404,7 +340,7 @@
       "type": "file",
       "name": "repositories/__init__.py",
       "filePath": "repositories/__init__.py",
-      "summary": "仓库层出口，转出 UserRepository，service 层通过包名导入而不直接依赖具体模块路径。",
+      "summary": "仓储统一出口：导出 UserRepository、WorkspaceRepository、UserWorkspaceRepository。",
       "tags": [
         "barrel",
         "data-model"
@@ -894,7 +830,7 @@
       "type": "file",
       "name": "main.py",
       "filePath": "main.py",
-      "summary": "应用入口：创建 FastAPI 实例、挂载 auth 路由、用 lifespan 管理数据库连接池、暴露 /health，并在 __main__ 里固化 uvicorn 启动参数（含 Windows 的 SelectorEventLoop）。",
+      "summary": "FastAPI 入口：lifespan 里打点/释放连接池，挂载 auth 与 workspace 两个 router，另有 /health；Windows 下显式指定 SelectorEventLoop（psycopg 异步驱动不兼容 Proactor）。",
       "tags": [
         "entry-point",
         "fastapi",
@@ -1022,7 +958,7 @@
       "type": "document",
       "name": "AGENTS.md",
       "filePath": "AGENTS.md",
-      "summary": "协作约定：长任务先规划并产出简报、安装新依赖前询问用户、遇新技术先联网搜索，并规定各目录（config/dependencies/models/repositories/routers/service）的职责边界。",
+      "summary": "给 AI 协作者的项目约定：长任务先规划并出简报、装依赖先问、新问题先联网搜索；各目录职责（含 routers/schemas 放输入输出模型）；以及「一个操作一条独立路由路径」的约定。",
       "tags": [
         "文档",
         "协作规范",
@@ -1136,9 +1072,882 @@
         "schema"
       ],
       "complexity": "simple"
+    },
+    {
+      "id": "class:routers/schemas/auth.py:RegisterRequest",
+      "type": "class",
+      "name": "RegisterRequest",
+      "filePath": "routers/schemas/auth.py",
+      "summary": "注册请求体模型：账号 3–50 位受限字符集、邮箱正则、密码 8–72 位，不满足直接由 FastAPI 返回 422。",
+      "tags": [
+        "type-definition",
+        "serialization",
+        "校验"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/schemas/auth.py:LoginRequest",
+      "type": "class",
+      "name": "LoginRequest",
+      "filePath": "routers/schemas/auth.py",
+      "summary": "登录请求体模型：account 字段既可以填登录账号也可以填邮箱。",
+      "tags": [
+        "type-definition",
+        "serialization",
+        "校验"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/schemas/auth.py:RefreshRequest",
+      "type": "class",
+      "name": "RefreshRequest",
+      "filePath": "routers/schemas/auth.py",
+      "summary": "刷新请求体模型：只包含一个非空 refresh_token 字段。",
+      "tags": [
+        "type-definition",
+        "serialization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/schemas/auth.py:TokenPair",
+      "type": "class",
+      "name": "TokenPair",
+      "filePath": "routers/schemas/auth.py",
+      "summary": "令牌响应模型：access_token + refresh_token + token_type + expires_in（秒，来自配置）。",
+      "tags": [
+        "type-definition",
+        "serialization",
+        "jwt"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/schemas/auth.py:UserOut",
+      "type": "class",
+      "name": "UserOut",
+      "filePath": "routers/schemas/auth.py",
+      "summary": "用户响应模型：靠 from_attributes=True 直接从 ORM 对象序列化，只暴露 id/account/email/is_active/created_at。",
+      "tags": [
+        "type-definition",
+        "serialization",
+        "鉴权"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:models/workspace.py",
+      "type": "file",
+      "name": "models/workspace.py",
+      "filePath": "models/workspace.py",
+      "summary": "业务空间 ORM 模型：name 全局唯一且带索引、path 指向工作目录；继承 BaseModel 自带 id/时间戳，与 User 通过 user_workspaces 多对多（只读视图）。",
+      "tags": [
+        "data-model",
+        "orm",
+        "workspace",
+        "tested"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:models/user_workspace.py",
+      "type": "file",
+      "name": "models/user_workspace.py",
+      "filePath": "models/user_workspace.py",
+      "summary": "用户-业务空间关联表：多对多 + 权限字段。WorkspacePermission 只有 admin/editor/viewer，permission 默认 viewer（库侧也有默认值和 CHECK），唯一约束 (user_id, workspace_id) 防重复授权。",
+      "tags": [
+        "data-model",
+        "orm",
+        "权限",
+        "tested"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:repositories/workspace.py",
+      "type": "file",
+      "name": "repositories/workspace.py",
+      "filePath": "repositories/workspace.py",
+      "summary": "业务空间仓储：按 id/name 取、按创建时间分页列、建、改、删，方法内 commit；name 唯一冲突不预检，交给数据库抛。",
+      "tags": [
+        "repository",
+        "crud",
+        "database",
+        "tested"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:repositories/user_workspace.py",
+      "type": "file",
+      "name": "repositories/user_workspace.py",
+      "filePath": "repositories/user_workspace.py",
+      "summary": "成员关系仓储：grant 用 PG ON CONFLICT 一条语句完成「授权或改权限」，另有查权限、列我的空间、列成员、revoke；仓储层不含业务规则。",
+      "tags": [
+        "repository",
+        "权限",
+        "upsert",
+        "tested"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:services/workspace.py",
+      "type": "file",
+      "name": "services/workspace.py",
+      "filePath": "services/workspace.py",
+      "summary": "业务空间服务：建空间时同一事务把创建者写成 admin；读操作校验成员身份（非成员 404）；写操作的 super 判断已上移到路由层 SuperUser 依赖。",
+      "tags": [
+        "service",
+        "权限",
+        "事务",
+        "tested"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:routers/workspace.py",
+      "type": "file",
+      "name": "routers/workspace.py",
+      "filePath": "routers/workspace.py",
+      "summary": "业务空间路由：/workspaces/* 八个接口，一个操作一条独立路径；写接口声明 SuperUser、读接口声明 CurrentUser，参数顺序统一为「路径 → 请求体 → 当前用户 → session」。",
+      "tags": [
+        "api-handler",
+        "路由",
+        "权限",
+        "tested"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:routers/schemas/__init__.py",
+      "type": "file",
+      "name": "routers/schemas/__init__.py",
+      "filePath": "routers/schemas/__init__.py",
+      "summary": "路由请求/响应模型汇总导出：按资源分文件（auth / workspace），路由统一从 routers.schemas 取。",
+      "tags": [
+        "barrel",
+        "schema",
+        "fastapi"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:routers/schemas/auth.py",
+      "type": "file",
+      "name": "routers/schemas/auth.py",
+      "filePath": "routers/schemas/auth.py",
+      "summary": "认证相关请求/响应模型：注册、登录、刷新、双令牌、当前用户输出（含只读 is_super）；密码/邮箱校验常量也在这里。",
+      "tags": [
+        "schema",
+        "serialization",
+        "校验"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:routers/schemas/workspace.py",
+      "type": "file",
+      "name": "routers/schemas/workspace.py",
+      "filePath": "routers/schemas/workspace.py",
+      "summary": "业务空间请求/响应模型：建/改空间、空间输出、带「我的权限」的空间、授权入参、成员输出。",
+      "tags": [
+        "schema",
+        "serialization",
+        "workspace"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:tests/test_user_workspace.py",
+      "type": "file",
+      "name": "tests/test_user_workspace.py",
+      "filePath": "tests/test_user_workspace.py",
+      "summary": "关联表最小验证（内存 SQLite，无需 PG）：默认 viewer、入库存小写、CHECK 拒非法值、双向只读关系、唯一约束。",
+      "tags": [
+        "test",
+        "sqlite",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:tests/test_user_workspace_repository.py",
+      "type": "file",
+      "name": "tests/test_user_workspace_repository.py",
+      "filePath": "tests/test_user_workspace_repository.py",
+      "summary": "成员仓储端到端验证（真实 PG，自建自清）：grant upsert 改权限、查权限、列我的空间、撤销 True/False、删空间级联清关联。",
+      "tags": [
+        "test",
+        "repository",
+        "权限"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:tests/test_workspace_api.py",
+      "type": "file",
+      "name": "tests/test_workspace_api.py",
+      "filePath": "tests/test_workspace_api.py",
+      "summary": "空间接口端到端验证（21 项检查）：super 才能写、成员才能读、401/403/404/409/422 错误码、改名、级联删除；is_super 只用裸 SQL 改，证明没有写入口。",
+      "tags": [
+        "test",
+        "api-handler",
+        "权限"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py",
+      "type": "file",
+      "name": "migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py",
+      "filePath": "migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py",
+      "summary": "建 workspaces 与 user_workspaces 两张表的迁移。",
+      "tags": [
+        "migration",
+        "database",
+        "schema"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:migrations/versions/ed40a1145bb5_user_workspaces_permission_default_.py",
+      "type": "file",
+      "name": "migrations/versions/ed40a1145bb5_user_workspaces_permission_default_.py",
+      "filePath": "migrations/versions/ed40a1145bb5_user_workspaces_permission_default_.py",
+      "summary": "给 user_workspaces.permission 加数据库默认值 'viewer' 与三值 CHECK 约束的迁移；约束名由 alembic naming_convention 补全。",
+      "tags": [
+        "migration",
+        "database",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:migrations/versions/636fdf346107_add_users_is_super.py",
+      "type": "file",
+      "name": "migrations/versions/636fdf346107_add_users_is_super.py",
+      "filePath": "migrations/versions/636fdf346107_add_users_is_super.py",
+      "summary": "给 users 加 is_super 列的迁移（server_default false，非空）。",
+      "tags": [
+        "migration",
+        "database",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:models/workspace.py:Workspace",
+      "type": "class",
+      "name": "Workspace",
+      "filePath": "models/workspace.py",
+      "summary": "业务空间实体：name（唯一+索引）与 path；users 是只读多对多视图，写入要走 UserWorkspace。",
+      "tags": [
+        "data-model",
+        "orm",
+        "workspace"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:models/user_workspace.py:WorkspacePermission",
+      "type": "class",
+      "name": "WorkspacePermission",
+      "filePath": "models/user_workspace.py",
+      "summary": "成员权限枚举（StrEnum）：admin/editor/viewer，成员名即入库小写值；目前不参与鉴权，只描述身份。",
+      "tags": [
+        "enum",
+        "权限",
+        "类型定义"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:models/user_workspace.py:UserWorkspace",
+      "type": "class",
+      "name": "UserWorkspace",
+      "filePath": "models/user_workspace.py",
+      "summary": "关联实体：两个外键带 ON DELETE CASCADE，permission 默认 viewer 且有 CHECK；native_enum=False 让权限存 varchar，加值不必 ALTER TYPE。",
+      "tags": [
+        "data-model",
+        "orm",
+        "权限"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "class:repositories/workspace.py:WorkspaceRepository",
+      "type": "class",
+      "name": "WorkspaceRepository",
+      "filePath": "repositories/workspace.py",
+      "summary": "空间仓储：get_by_id / get_by_name / list_all / create / update / delete，风格与 UserRepository 一致（session 注入、方法内 commit）。",
+      "tags": [
+        "repository",
+        "crud",
+        "database"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:repositories/workspace.py:WorkspaceRepository.get_by_id",
+      "type": "function",
+      "name": "WorkspaceRepository.get_by_id",
+      "filePath": "repositories/workspace.py",
+      "summary": "按主键取空间，未命中返回 None。",
+      "tags": [
+        "repository",
+        "crud"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:repositories/workspace.py:WorkspaceRepository.get_by_name",
+      "type": "function",
+      "name": "WorkspaceRepository.get_by_name",
+      "filePath": "repositories/workspace.py",
+      "summary": "按唯一空间名取，建/改空间时用于重名预检。",
+      "tags": [
+        "repository",
+        "crud"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:repositories/workspace.py:WorkspaceRepository.list_all",
+      "type": "function",
+      "name": "WorkspaceRepository.list_all",
+      "filePath": "repositories/workspace.py",
+      "summary": "按创建时间倒序分页列出空间（offset/limit）。",
+      "tags": [
+        "repository",
+        "crud"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:repositories/workspace.py:WorkspaceRepository.create",
+      "type": "function",
+      "name": "WorkspaceRepository.create",
+      "filePath": "repositories/workspace.py",
+      "summary": "建空间并提交，refresh 后返回带 id/时间戳的实体。",
+      "tags": [
+        "repository",
+        "crud"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:repositories/workspace.py:WorkspaceRepository.update",
+      "type": "function",
+      "name": "WorkspaceRepository.update",
+      "filePath": "repositories/workspace.py",
+      "summary": "只改传了的字段（None 表示不动），提交后 refresh。",
+      "tags": [
+        "repository",
+        "crud"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:repositories/workspace.py:WorkspaceRepository.delete",
+      "type": "function",
+      "name": "WorkspaceRepository.delete",
+      "filePath": "repositories/workspace.py",
+      "summary": "delete 空间并提交，成员关联由外键级联清理。",
+      "tags": [
+        "repository",
+        "crud"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:repositories/user_workspace.py:UserWorkspaceRepository",
+      "type": "class",
+      "name": "UserWorkspaceRepository",
+      "filePath": "repositories/user_workspace.py",
+      "summary": "成员关系仓储：授权走 PG upsert，读走 join 查询，撤销返回 bool；不放任何业务规则。",
+      "tags": [
+        "repository",
+        "权限",
+        "upsert"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:repositories/user_workspace.py:UserWorkspaceRepository.grant",
+      "type": "function",
+      "name": "UserWorkspaceRepository.grant",
+      "filePath": "repositories/user_workspace.py",
+      "summary": "INSERT ... ON CONFLICT (user_id, workspace_id) DO UPDATE：一条语句完成授权/改权限，updated_at 手动写进 set_（Core 语句不走 ORM onupdate）。",
+      "tags": [
+        "repository",
+        "权限",
+        "upsert"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:repositories/user_workspace.py:UserWorkspaceRepository.get_permission",
+      "type": "function",
+      "name": "UserWorkspaceRepository.get_permission",
+      "filePath": "repositories/user_workspace.py",
+      "summary": "查某人在某空间的权限，没有关联返回 None（调用方据此决定 403 还是 404）。",
+      "tags": [
+        "repository",
+        "权限",
+        "read"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:repositories/user_workspace.py:UserWorkspaceRepository.list_by_user",
+      "type": "function",
+      "name": "UserWorkspaceRepository.list_by_user",
+      "filePath": "repositories/user_workspace.py",
+      "summary": "某人可访问的空间 + 各自权限，按空间创建时间倒序。",
+      "tags": [
+        "repository",
+        "权限",
+        "read"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:repositories/user_workspace.py:UserWorkspaceRepository.list_members",
+      "type": "function",
+      "name": "UserWorkspaceRepository.list_members",
+      "filePath": "repositories/user_workspace.py",
+      "summary": "某空间的成员（User）与各自权限，按加入时间排序。",
+      "tags": [
+        "repository",
+        "权限",
+        "read"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:repositories/user_workspace.py:UserWorkspaceRepository.revoke",
+      "type": "function",
+      "name": "UserWorkspaceRepository.revoke",
+      "filePath": "repositories/user_workspace.py",
+      "summary": "删除关联行，返回 bool 表示是否真的删掉了（False = 本来就没关联）。",
+      "tags": [
+        "repository",
+        "权限",
+        "write"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:services/workspace.py:WorkspaceService",
+      "type": "class",
+      "name": "WorkspaceService",
+      "filePath": "services/workspace.py",
+      "summary": "业务空间服务：写操作由路由层把关，这里只做「空间/用户是否存在」与「是不是成员」的判断。",
+      "tags": [
+        "service",
+        "权限",
+        "业务逻辑"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:services/workspace.py:WorkspaceService.create",
+      "type": "function",
+      "name": "WorkspaceService.create",
+      "filePath": "services/workspace.py",
+      "summary": "重名 409；同一事务内写入空间与创建者的 admin 关联，commit 后 refresh（异步下过期属性会 MissingGreenlet）。",
+      "tags": [
+        "service",
+        "事务",
+        "权限"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:services/workspace.py:WorkspaceService.get",
+      "type": "function",
+      "name": "WorkspaceService.get",
+      "filePath": "services/workspace.py",
+      "summary": "成员才能读空间详情，非成员按 404 处理。",
+      "tags": [
+        "service",
+        "权限",
+        "read"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/workspace.py:WorkspaceService.list_mine",
+      "type": "function",
+      "name": "WorkspaceService.list_mine",
+      "filePath": "services/workspace.py",
+      "summary": "列出我参与的空间及各自权限。",
+      "tags": [
+        "service",
+        "read"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/workspace.py:WorkspaceService.update",
+      "type": "function",
+      "name": "WorkspaceService.update",
+      "filePath": "services/workspace.py",
+      "summary": "空间必须存在，改名撞车 409，只改传入字段。",
+      "tags": [
+        "service",
+        "write"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/workspace.py:WorkspaceService.delete",
+      "type": "function",
+      "name": "WorkspaceService.delete",
+      "filePath": "services/workspace.py",
+      "summary": "硬删空间，成员关联由外键级联清理。",
+      "tags": [
+        "service",
+        "write"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/workspace.py:WorkspaceService.list_members",
+      "type": "function",
+      "name": "WorkspaceService.list_members",
+      "filePath": "services/workspace.py",
+      "summary": "成员才能看成员列表（含 account/email/权限）。",
+      "tags": [
+        "service",
+        "权限",
+        "read"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/workspace.py:WorkspaceService.grant_member",
+      "type": "function",
+      "name": "WorkspaceService.grant_member",
+      "filePath": "services/workspace.py",
+      "summary": "空间与目标用户都要存在，重复授权即改权限（upsert）。",
+      "tags": [
+        "service",
+        "权限",
+        "write"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/workspace.py:WorkspaceService.revoke_member",
+      "type": "function",
+      "name": "WorkspaceService.revoke_member",
+      "filePath": "services/workspace.py",
+      "summary": "目标用户不在空间里返回 404，否则删除关联。",
+      "tags": [
+        "service",
+        "权限",
+        "write"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/workspace.py:WorkspaceService._get_or_404",
+      "type": "function",
+      "name": "WorkspaceService._get_or_404",
+      "filePath": "services/workspace.py",
+      "summary": "取空间，不存在统一 404（写接口用）。",
+      "tags": [
+        "service",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/workspace.py:WorkspaceService._access",
+      "type": "function",
+      "name": "WorkspaceService._access",
+      "filePath": "services/workspace.py",
+      "summary": "读权限校验：查关联得权限，没有关联就按「空间不存在」404，不泄露空间是否存在。",
+      "tags": [
+        "service",
+        "权限",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/schemas/workspace.py:WorkspaceCreate",
+      "type": "class",
+      "name": "WorkspaceCreate",
+      "filePath": "routers/schemas/workspace.py",
+      "summary": "建空间请求体：name 3–100 位且只允许字母数字._-，path 1–512 位。",
+      "tags": [
+        "schema",
+        "serialization",
+        "校验"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/schemas/workspace.py:WorkspaceUpdate",
+      "type": "class",
+      "name": "WorkspaceUpdate",
+      "filePath": "routers/schemas/workspace.py",
+      "summary": "改空间请求体：name/path 都可选，只改传了的字段。",
+      "tags": [
+        "schema",
+        "serialization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/schemas/workspace.py:WorkspaceOut",
+      "type": "class",
+      "name": "WorkspaceOut",
+      "filePath": "routers/schemas/workspace.py",
+      "summary": "空间输出模型：id/name/path + 时间戳，from_attributes 直接从 ORM 实体取。",
+      "tags": [
+        "schema",
+        "serialization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/schemas/workspace.py:MyWorkspaceOut",
+      "type": "class",
+      "name": "MyWorkspaceOut",
+      "filePath": "routers/schemas/workspace.py",
+      "summary": "空间 + 「我的权限」，用于 GET /workspaces/mine；of() 负责把 (空间, 权限) 组装成响应。",
+      "tags": [
+        "schema",
+        "serialization",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/schemas/workspace.py:MemberGrant",
+      "type": "class",
+      "name": "MemberGrant",
+      "filePath": "routers/schemas/workspace.py",
+      "summary": "授权请求体：user_id + permission（admin/editor/viewer），重复授权即改权限。",
+      "tags": [
+        "schema",
+        "serialization",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/schemas/workspace.py:MemberOut",
+      "type": "class",
+      "name": "MemberOut",
+      "filePath": "routers/schemas/workspace.py",
+      "summary": "成员输出模型：user_id/account/email/permission，of() 从 User + 权限组装。",
+      "tags": [
+        "schema",
+        "serialization",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:dependencies/auth.py:get_super_user",
+      "type": "function",
+      "name": "get_super_user",
+      "filePath": "dependencies/auth.py",
+      "summary": "在当前登录用户之上要求 users.is_super，不满足 403；标志不进 JWT，每次请求回库现查，所以数据库里改了立刻生效（升权/降权都不用重新登录）。",
+      "tags": [
+        "依赖注入",
+        "鉴权",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "concept:super 权限 + 空间成员模型",
+      "type": "concept",
+      "name": "super 权限 + 空间成员模型",
+      "filePath": null,
+      "summary": "写（建/改/删空间、增删成员）只认 users.is_super，且只能在数据库里改这个标志；读只认 user_workspaces 里的成员关系，非成员一律 404；permission 字段目前不参与鉴权。",
+      "tags": [
+        "权限",
+        "设计约定",
+        "workspace"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "table:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py:workspaces",
+      "type": "table",
+      "name": "workspaces",
+      "filePath": "migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py",
+      "summary": "业务空间表：id/name(唯一、索引)/path + 时间戳，空间名唯一是建空间 409 的依据。",
+      "tags": [
+        "data-model",
+        "database",
+        "workspace"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "table:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py:user_workspaces",
+      "type": "table",
+      "name": "user_workspaces",
+      "filePath": "migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py",
+      "summary": "用户-空间关联表：user_id/workspace_id（外键、ON DELETE CASCADE、各带索引）、permission（默认 'viewer' + CHECK）、唯一约束 (user_id, workspace_id)。",
+      "tags": [
+        "data-model",
+        "database",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "endpoint:routers/workspace.py:POST /workspaces/create",
+      "type": "endpoint",
+      "name": "POST /workspaces/create",
+      "filePath": "routers/workspace.py",
+      "summary": "建空间（需 super）：创建者自动成为该空间 admin，成功返回 201 与空间实体；重名 409。",
+      "tags": [
+        "api-handler",
+        "端点",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "endpoint:routers/workspace.py:GET /workspaces/mine",
+      "type": "endpoint",
+      "name": "GET /workspaces/mine",
+      "filePath": "routers/workspace.py",
+      "summary": "我参与的空间列表，每项带我的权限（非成员看到空列表）。",
+      "tags": [
+        "api-handler",
+        "端点",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "endpoint:routers/workspace.py:GET /workspaces/detail/{workspace_id}",
+      "type": "endpoint",
+      "name": "GET /workspaces/detail/{workspace_id}",
+      "filePath": "routers/workspace.py",
+      "summary": "空间详情（需成员）；不是成员或空间不存在都返回 404。",
+      "tags": [
+        "api-handler",
+        "端点",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "endpoint:routers/workspace.py:PATCH /workspaces/update/{workspace_id}",
+      "type": "endpoint",
+      "name": "PATCH /workspaces/update/{workspace_id}",
+      "filePath": "routers/workspace.py",
+      "summary": "改空间（需 super）：只改传入字段，改名撞车 409。",
+      "tags": [
+        "api-handler",
+        "端点",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "endpoint:routers/workspace.py:DELETE /workspaces/delete/{workspace_id}",
+      "type": "endpoint",
+      "name": "DELETE /workspaces/delete/{workspace_id}",
+      "filePath": "routers/workspace.py",
+      "summary": "删空间（需 super）：204，成员关联由外键级联清理。",
+      "tags": [
+        "api-handler",
+        "端点",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "endpoint:routers/workspace.py:GET /workspaces/members/{workspace_id}",
+      "type": "endpoint",
+      "name": "GET /workspaces/members/{workspace_id}",
+      "filePath": "routers/workspace.py",
+      "summary": "成员列表（需成员）：返回 account/email 与各自权限。",
+      "tags": [
+        "api-handler",
+        "端点",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "endpoint:routers/workspace.py:POST /workspaces/grant/{workspace_id}",
+      "type": "endpoint",
+      "name": "POST /workspaces/grant/{workspace_id}",
+      "filePath": "routers/workspace.py",
+      "summary": "加成员或改权限（需 super）：204；目标用户不存在 404。",
+      "tags": [
+        "api-handler",
+        "端点",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_id}",
+      "type": "endpoint",
+      "name": "DELETE /workspaces/revoke/{workspace_id}/{user_id}",
+      "filePath": "routers/workspace.py",
+      "summary": "移除成员（需 super）：204；目标不在空间里 404。",
+      "tags": [
+        "api-handler",
+        "端点",
+        "权限"
+      ],
+      "complexity": "simple"
     }
   ],
   "edges": [
+    {
+      "source": "file:routers/schemas/auth.py",
+      "target": "class:routers/schemas/auth.py:RegisterRequest",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/schemas/auth.py",
+      "target": "class:routers/schemas/auth.py:LoginRequest",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/schemas/auth.py",
+      "target": "class:routers/schemas/auth.py:RefreshRequest",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/schemas/auth.py",
+      "target": "class:routers/schemas/auth.py:TokenPair",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/schemas/auth.py",
+      "target": "class:routers/schemas/auth.py:UserOut",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
     {
       "source": "file:dependencies/__init__.py",
       "target": "file:dependencies/database.py",
@@ -1260,41 +2069,6 @@
     },
     {
       "source": "file:routers/auth.py",
-      "target": "class:routers/auth.py:RegisterRequest",
-      "type": "contains",
-      "weight": 1.0,
-      "direction": "forward"
-    },
-    {
-      "source": "file:routers/auth.py",
-      "target": "class:routers/auth.py:LoginRequest",
-      "type": "contains",
-      "weight": 1.0,
-      "direction": "forward"
-    },
-    {
-      "source": "file:routers/auth.py",
-      "target": "class:routers/auth.py:RefreshRequest",
-      "type": "contains",
-      "weight": 1.0,
-      "direction": "forward"
-    },
-    {
-      "source": "file:routers/auth.py",
-      "target": "class:routers/auth.py:TokenPair",
-      "type": "contains",
-      "weight": 1.0,
-      "direction": "forward"
-    },
-    {
-      "source": "file:routers/auth.py",
-      "target": "class:routers/auth.py:UserOut",
-      "type": "contains",
-      "weight": 1.0,
-      "direction": "forward"
-    },
-    {
-      "source": "file:routers/auth.py",
       "target": "function:routers/auth.py:_token_pair",
       "type": "contains",
       "weight": 1.0,
@@ -1403,13 +2177,6 @@
       "target": "function:dependencies/auth.py:get_current_user",
       "type": "depends_on",
       "weight": 0.6,
-      "direction": "forward"
-    },
-    {
-      "source": "class:routers/auth.py:UserOut",
-      "target": "class:models/user.py:User",
-      "type": "related",
-      "weight": 0.5,
       "direction": "forward"
     },
     {
@@ -2396,41 +3163,918 @@
       "source": "file:config/__init__.py",
       "target": "file:config/config.py",
       "type": "imports",
-      "direction": "forward",
       "weight": 0.7,
-      "recoveredFromImportMap": true
+      "direction": "forward"
     },
     {
       "source": "file:dependencies/__init__.py",
       "target": "file:dependencies/database.py",
       "type": "imports",
-      "direction": "forward",
       "weight": 0.7,
-      "recoveredFromImportMap": true
+      "direction": "forward"
     },
     {
       "source": "file:repositories/__init__.py",
       "target": "file:repositories/user.py",
       "type": "imports",
-      "direction": "forward",
       "weight": 0.7,
-      "recoveredFromImportMap": true
+      "direction": "forward"
     },
     {
       "source": "file:routers/__init__.py",
       "target": "file:routers/auth.py",
       "type": "imports",
-      "direction": "forward",
       "weight": 0.7,
-      "recoveredFromImportMap": true
+      "direction": "forward"
     },
     {
       "source": "file:services/__init__.py",
       "target": "file:services/auth.py",
       "type": "imports",
-      "direction": "forward",
       "weight": 0.7,
-      "recoveredFromImportMap": true
+      "direction": "forward"
+    },
+    {
+      "source": "file:models/workspace.py",
+      "target": "class:models/workspace.py:Workspace",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:models/user_workspace.py",
+      "target": "class:models/user_workspace.py:WorkspacePermission",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:models/user_workspace.py",
+      "target": "class:models/user_workspace.py:UserWorkspace",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:repositories/workspace.py",
+      "target": "class:repositories/workspace.py:WorkspaceRepository",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/workspace.py:WorkspaceRepository",
+      "target": "function:repositories/workspace.py:WorkspaceRepository.get_by_id",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/workspace.py:WorkspaceRepository",
+      "target": "function:repositories/workspace.py:WorkspaceRepository.get_by_name",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/workspace.py:WorkspaceRepository",
+      "target": "function:repositories/workspace.py:WorkspaceRepository.list_all",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/workspace.py:WorkspaceRepository",
+      "target": "function:repositories/workspace.py:WorkspaceRepository.create",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/workspace.py:WorkspaceRepository",
+      "target": "function:repositories/workspace.py:WorkspaceRepository.update",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/workspace.py:WorkspaceRepository",
+      "target": "function:repositories/workspace.py:WorkspaceRepository.delete",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:repositories/user_workspace.py",
+      "target": "class:repositories/user_workspace.py:UserWorkspaceRepository",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/user_workspace.py:UserWorkspaceRepository",
+      "target": "function:repositories/user_workspace.py:UserWorkspaceRepository.grant",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/user_workspace.py:UserWorkspaceRepository",
+      "target": "function:repositories/user_workspace.py:UserWorkspaceRepository.get_permission",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/user_workspace.py:UserWorkspaceRepository",
+      "target": "function:repositories/user_workspace.py:UserWorkspaceRepository.list_by_user",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/user_workspace.py:UserWorkspaceRepository",
+      "target": "function:repositories/user_workspace.py:UserWorkspaceRepository.list_members",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:repositories/user_workspace.py:UserWorkspaceRepository",
+      "target": "function:repositories/user_workspace.py:UserWorkspaceRepository.revoke",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/workspace.py",
+      "target": "class:services/workspace.py:WorkspaceService",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/workspace.py:WorkspaceService",
+      "target": "function:services/workspace.py:WorkspaceService.create",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/workspace.py:WorkspaceService",
+      "target": "function:services/workspace.py:WorkspaceService.get",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/workspace.py:WorkspaceService",
+      "target": "function:services/workspace.py:WorkspaceService.list_mine",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/workspace.py:WorkspaceService",
+      "target": "function:services/workspace.py:WorkspaceService.update",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/workspace.py:WorkspaceService",
+      "target": "function:services/workspace.py:WorkspaceService.delete",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/workspace.py:WorkspaceService",
+      "target": "function:services/workspace.py:WorkspaceService.list_members",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/workspace.py:WorkspaceService",
+      "target": "function:services/workspace.py:WorkspaceService.grant_member",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/workspace.py:WorkspaceService",
+      "target": "function:services/workspace.py:WorkspaceService.revoke_member",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/workspace.py:WorkspaceService",
+      "target": "function:services/workspace.py:WorkspaceService._get_or_404",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/workspace.py:WorkspaceService",
+      "target": "function:services/workspace.py:WorkspaceService._access",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/schemas/workspace.py",
+      "target": "class:routers/schemas/workspace.py:WorkspaceCreate",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/schemas/workspace.py",
+      "target": "class:routers/schemas/workspace.py:WorkspaceUpdate",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/schemas/workspace.py",
+      "target": "class:routers/schemas/workspace.py:WorkspaceOut",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/schemas/workspace.py",
+      "target": "class:routers/schemas/workspace.py:MyWorkspaceOut",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/schemas/workspace.py",
+      "target": "class:routers/schemas/workspace.py:MemberGrant",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/schemas/workspace.py",
+      "target": "class:routers/schemas/workspace.py:MemberOut",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:dependencies/auth.py",
+      "target": "function:dependencies/auth.py:get_super_user",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py",
+      "target": "table:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py:workspaces",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py",
+      "target": "table:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py:user_workspaces",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:POST /workspaces/create",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:GET /workspaces/mine",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:GET /workspaces/detail/{workspace_id}",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:PATCH /workspaces/update/{workspace_id}",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:DELETE /workspaces/delete/{workspace_id}",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:GET /workspaces/members/{workspace_id}",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:POST /workspaces/grant/{workspace_id}",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_id}",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:routers/workspace.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:models/__init__.py",
+      "target": "file:models/user_workspace.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:models/__init__.py",
+      "target": "file:models/workspace.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:models/user_workspace.py",
+      "target": "file:models/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:models/workspace.py",
+      "target": "file:models/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:repositories/__init__.py",
+      "target": "file:repositories/user_workspace.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:repositories/__init__.py",
+      "target": "file:repositories/workspace.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:repositories/user_workspace.py",
+      "target": "file:models/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:repositories/workspace.py",
+      "target": "file:models/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/__init__.py",
+      "target": "file:routers/workspace.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/auth.py",
+      "target": "file:routers/schemas/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/schemas/__init__.py",
+      "target": "file:routers/schemas/auth.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/schemas/__init__.py",
+      "target": "file:routers/schemas/workspace.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/schemas/workspace.py",
+      "target": "file:models/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "file:dependencies/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "file:dependencies/auth.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "file:routers/schemas/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "file:services/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/__init__.py",
+      "target": "file:services/workspace.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/workspace.py",
+      "target": "file:models/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/workspace.py",
+      "target": "file:repositories/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:tests/test_user_workspace.py",
+      "target": "file:models/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:tests/test_user_workspace_repository.py",
+      "target": "file:dependencies/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:tests/test_user_workspace_repository.py",
+      "target": "file:models/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:tests/test_user_workspace_repository.py",
+      "target": "file:repositories/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:tests/test_workspace_api.py",
+      "target": "file:config/__init__.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:tests/test_workspace_api.py",
+      "target": "file:main.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "class:models/workspace.py:Workspace",
+      "target": "class:models/__init__.py:BaseModel",
+      "type": "inherits",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "class:models/user_workspace.py:UserWorkspace",
+      "target": "class:models/__init__.py:BaseModel",
+      "type": "inherits",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "class:models/user.py:User",
+      "target": "class:models/user_workspace.py:UserWorkspace",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "class:models/workspace.py:Workspace",
+      "target": "class:models/user_workspace.py:UserWorkspace",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "class:models/user_workspace.py:WorkspacePermission",
+      "target": "class:models/user_workspace.py:UserWorkspace",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "function:dependencies/auth.py:get_super_user",
+      "target": "class:models/user.py:User",
+      "type": "reads_from",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py",
+      "target": "table:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py:workspaces",
+      "type": "migrates",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py",
+      "target": "table:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py:user_workspaces",
+      "type": "migrates",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:migrations/versions/ed40a1145bb5_user_workspaces_permission_default_.py",
+      "target": "table:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py:user_workspaces",
+      "type": "migrates",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:migrations/versions/636fdf346107_add_users_is_super.py",
+      "target": "table:migrations/versions/ce9e484f27fb_create_users_table.py:users",
+      "type": "migrates",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "class:models/workspace.py:Workspace",
+      "target": "table:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py:workspaces",
+      "type": "defines_schema",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "class:models/user_workspace.py:UserWorkspace",
+      "target": "table:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py:user_workspaces",
+      "type": "defines_schema",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:POST /workspaces/create",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:GET /workspaces/mine",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:GET /workspaces/detail/{workspace_id}",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:PATCH /workspaces/update/{workspace_id}",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:DELETE /workspaces/delete/{workspace_id}",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:GET /workspaces/members/{workspace_id}",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:POST /workspaces/grant/{workspace_id}",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_id}",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/workspace.py:POST /workspaces/create",
+      "target": "function:services/workspace.py:WorkspaceService.create",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/workspace.py:GET /workspaces/mine",
+      "target": "function:services/workspace.py:WorkspaceService.list_mine",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/workspace.py:GET /workspaces/detail/{workspace_id}",
+      "target": "function:services/workspace.py:WorkspaceService.get",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/workspace.py:PATCH /workspaces/update/{workspace_id}",
+      "target": "function:services/workspace.py:WorkspaceService.update",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/workspace.py:DELETE /workspaces/delete/{workspace_id}",
+      "target": "function:services/workspace.py:WorkspaceService.delete",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/workspace.py:GET /workspaces/members/{workspace_id}",
+      "target": "function:services/workspace.py:WorkspaceService.list_members",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/workspace.py:POST /workspaces/grant/{workspace_id}",
+      "target": "function:services/workspace.py:WorkspaceService.grant_member",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_id}",
+      "target": "function:services/workspace.py:WorkspaceService.revoke_member",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService.create",
+      "target": "function:repositories/workspace.py:WorkspaceRepository.get_by_name",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService.get",
+      "target": "function:repositories/user_workspace.py:UserWorkspaceRepository.get_permission",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService.get",
+      "target": "function:repositories/workspace.py:WorkspaceRepository.get_by_id",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService.list_mine",
+      "target": "function:repositories/user_workspace.py:UserWorkspaceRepository.list_by_user",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService.update",
+      "target": "function:repositories/workspace.py:WorkspaceRepository.update",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService.delete",
+      "target": "function:repositories/workspace.py:WorkspaceRepository.delete",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService.list_members",
+      "target": "function:repositories/user_workspace.py:UserWorkspaceRepository.list_members",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService.grant_member",
+      "target": "function:repositories/user_workspace.py:UserWorkspaceRepository.grant",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService.revoke_member",
+      "target": "function:repositories/user_workspace.py:UserWorkspaceRepository.revoke",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService._access",
+      "target": "function:repositories/user_workspace.py:UserWorkspaceRepository.get_permission",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:dependencies/auth.py:get_super_user",
+      "target": "function:dependencies/auth.py:get_current_user",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:dependencies/auth.py",
+      "target": "class:models/user.py:User",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "file:dependencies/auth.py",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/workspace.py",
+      "target": "file:repositories/workspace.py",
+      "type": "depends_on",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "concept:super 权限 + 空间成员模型",
+      "target": "function:dependencies/auth.py:get_super_user",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "concept:super 权限 + 空间成员模型",
+      "target": "file:services/workspace.py",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "concept:super 权限 + 空间成员模型",
+      "target": "file:routers/workspace.py",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "concept:super 权限 + 空间成员模型",
+      "target": "class:models/user_workspace.py:UserWorkspace",
+      "type": "related",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "file:tests/test_workspace_api.py",
+      "type": "tested_by",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/workspace.py",
+      "target": "file:tests/test_workspace_api.py",
+      "type": "tested_by",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:services/workspace.py",
+      "target": "file:tests/test_user_workspace_repository.py",
+      "type": "tested_by",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:repositories/workspace.py",
+      "target": "file:tests/test_user_workspace_repository.py",
+      "type": "tested_by",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:repositories/user_workspace.py",
+      "target": "file:tests/test_user_workspace_repository.py",
+      "type": "tested_by",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:repositories/user_workspace.py",
+      "target": "file:tests/test_workspace_api.py",
+      "type": "tested_by",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:models/user_workspace.py",
+      "target": "file:tests/test_user_workspace.py",
+      "type": "tested_by",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:models/workspace.py",
+      "target": "file:tests/test_user_workspace.py",
+      "type": "tested_by",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:tests/test_workspace_api.py",
+      "type": "tested_by",
+      "weight": 0.5,
+      "direction": "forward"
     }
   ],
   "layers": [
@@ -2448,7 +4092,19 @@
         "endpoint:routers/auth.py:GET /auth/me",
         "file:dependencies/__init__.py",
         "file:dependencies/database.py",
-        "file:dependencies/auth.py"
+        "file:dependencies/auth.py",
+        "file:routers/workspace.py",
+        "file:routers/schemas/__init__.py",
+        "file:routers/schemas/auth.py",
+        "file:routers/schemas/workspace.py",
+        "endpoint:routers/workspace.py:POST /workspaces/create",
+        "endpoint:routers/workspace.py:GET /workspaces/mine",
+        "endpoint:routers/workspace.py:GET /workspaces/detail/{workspace_id}",
+        "endpoint:routers/workspace.py:PATCH /workspaces/update/{workspace_id}",
+        "endpoint:routers/workspace.py:DELETE /workspaces/delete/{workspace_id}",
+        "endpoint:routers/workspace.py:GET /workspaces/members/{workspace_id}",
+        "endpoint:routers/workspace.py:POST /workspaces/grant/{workspace_id}",
+        "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_id}"
       ]
     },
     {
@@ -2464,7 +4120,16 @@
         "file:migrations/script.py.mako",
         "file:migrations/versions/ce9e484f27fb_create_users_table.py",
         "table:migrations/versions/ce9e484f27fb_create_users_table.py:users",
-        "config:alembic.ini"
+        "config:alembic.ini",
+        "file:models/workspace.py",
+        "file:models/user_workspace.py",
+        "file:repositories/workspace.py",
+        "file:repositories/user_workspace.py",
+        "file:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py",
+        "file:migrations/versions/ed40a1145bb5_user_workspaces_permission_default_.py",
+        "file:migrations/versions/636fdf346107_add_users_is_super.py",
+        "table:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py:workspaces",
+        "table:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py:user_workspaces"
       ]
     },
     {
@@ -2504,7 +4169,8 @@
       "description": "路由功能的具体实现：密码哈希与校验、JWT 签发与解码、注册/登录/刷新/登出的业务规则，不感知 HTTP 细节。",
       "nodeIds": [
         "file:services/__init__.py",
-        "file:services/auth.py"
+        "file:services/auth.py",
+        "file:services/workspace.py"
       ]
     },
     {
@@ -2512,7 +4178,10 @@
       "name": "测试与自检",
       "description": "端到端验证脚本：覆盖全部鉴权端点与数据库落库行为，跑完自动清理测试数据。",
       "nodeIds": [
-        "file:tests/test_auth.py"
+        "file:tests/test_auth.py",
+        "file:tests/test_user_workspace.py",
+        "file:tests/test_user_workspace_repository.py",
+        "file:tests/test_workspace_api.py"
       ]
     }
   ],
@@ -2608,7 +4277,7 @@
     {
       "order": 8,
       "title": "接口层：/auth 五个端点",
-      "description": "routers/auth.py 用 APIRouter(prefix=\"/auth\") 声明注册（201）、登录、刷新、登出（204）与当前用户五个端点，配合 pydantic 请求/响应模型；处理函数只做收参与返回，逻辑全在 AuthService。",
+      "description": "接口层：/auth 五个端点。实现在 routers/auth.py，只收参/调 service/返回；请求与响应模型已抽到 routers/schemas/，路由参数顺序统一为「路径 → 请求体 → 当前用户 → session」。",
       "nodeIds": [
         "file:routers/auth.py",
         "endpoint:routers/auth.py:POST /auth/register",
@@ -2616,9 +4285,6 @@
         "endpoint:routers/auth.py:POST /auth/refresh",
         "endpoint:routers/auth.py:POST /auth/logout",
         "endpoint:routers/auth.py:GET /auth/me",
-        "class:routers/auth.py:RegisterRequest",
-        "class:routers/auth.py:TokenPair",
-        "class:routers/auth.py:UserOut",
         "file:routers/__init__.py"
       ],
       "languageLesson": "入参模型负责 422 校验（账号字符集、密码长度、邮箱正则），出参模型负责脱敏：UserOut 只声明 id/account/email/is_active/created_at，密码哈希字段永远不会出现在响应里。"
@@ -2626,7 +4292,7 @@
     {
       "order": 9,
       "title": "鉴权依赖：从 Bearer 令牌到当前用户",
-      "description": "dependencies/auth.py 用 HTTPBearer(auto_error=False) 取出令牌，get_current_user 校验 JWT 类型与签名、按 id 查库、检查 is_active，把失败分成 401（令牌无效）与 403（用户被禁用）两种；路由写 current_user: CurrentUser 即可。",
+      "description": "鉴权链路：Bearer 令牌解析当前用户（dependencies/auth.py），再叠加 get_super_user 依赖——写接口靠它在路由层就把非 super 挡成 403，标志不进 JWT、每次回库现查。",
       "nodeIds": [
         "file:dependencies/auth.py",
         "function:dependencies/auth.py:get_current_user"
@@ -2674,6 +4340,33 @@
         "file:agents/__init__.py",
         "concept:deepagents-wiring",
         "config:pyproject.toml"
+      ]
+    },
+    {
+      "order": 14,
+      "title": "业务空间与成员权限：super 写、成员读",
+      "description": "沿 workspace 这条线读一遍：模型（Workspace / UserWorkspace / WorkspacePermission，权限默认 viewer 且有 CHECK）→ 仓储（grant 用 PG upsert 一条语句授权或改权限）→ 服务（建空间时同一事务把创建者设为 admin，读操作校验成员身份）→ 路由（/workspaces/* 一个操作一条独立路径，写接口声明 SuperUser 依赖）→ schema（输入输出模型）。重点：is_super 只能在数据库里改，permission 目前只描述身份、不参与鉴权。",
+      "nodeIds": [
+        "file:models/workspace.py",
+        "file:models/user_workspace.py",
+        "class:models/user_workspace.py:WorkspacePermission",
+        "file:repositories/user_workspace.py",
+        "function:repositories/user_workspace.py:UserWorkspaceRepository.grant",
+        "file:services/workspace.py",
+        "function:services/workspace.py:WorkspaceService.create",
+        "file:routers/workspace.py",
+        "file:routers/schemas/workspace.py",
+        "table:migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py:user_workspaces"
+      ]
+    },
+    {
+      "order": 15,
+      "title": "权限的验证方式：三个自建自清脚本",
+      "description": "这三个脚本不需要 pytest，跑真实 PG 或内存 SQLite：test_user_workspace.py 验证关联表约束与默认值，test_user_workspace_repository.py 验证仓储的 upsert/撤销/级联，test_workspace_api.py 用 21 项检查走完 super 规则与 401/403/404/409/422 全部分支。",
+      "nodeIds": [
+        "file:tests/test_user_workspace.py",
+        "file:tests/test_user_workspace_repository.py",
+        "file:tests/test_workspace_api.py"
       ]
     }
   ]
