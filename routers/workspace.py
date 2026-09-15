@@ -124,28 +124,27 @@ async def delete_workspace(
     response_model=list[MemberOut],
     summary="成员列表（需 super）",
 )
-async def list_members(
-    workspace_id: str, current_user: SuperUser, session: SessionDep
-):
+async def list_members(workspace_id: str, current_user: SuperUser, session: SessionDep):
     rows = await WorkspaceService(session).list_members(workspace_id)
     return [MemberOut.of(user, permission) for user, permission in rows]
 
 
 @router.post(
     "/grant/{workspace_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    response_class=Response,
-    summary="加成员 / 改权限（需 super，按账号名）",
+    response_model=dict[str, bool],
+    summary="加成员 / 改权限（需 super，按账号名），成功返回 true",
 )
 async def grant_member(
     workspace_id: str,
     payload: MemberGrant,
     current_user: SuperUser,
     session: SessionDep,
-) -> None:
+):
+    """成功返回 ``true``（而不是 204 空响应）：调用方一眼就能确认写没写进去。"""
     await WorkspaceService(session).grant_member(
         workspace_id, user_name=payload.user_name, permission=payload.permission
     )
+    return {"result": True}
 
 
 @router.delete(

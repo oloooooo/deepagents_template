@@ -136,13 +136,13 @@ def main() -> None:
         )
         assert resp.status_code == 403, resp.text
 
-        step("super 加成员 viewer -> 204")
+        step("super 加成员 viewer -> 200 且 body 是 true")
         resp = client.post(
             f"/workspaces/grant/{workspace_id}",
             json={"user_name": USER, "permission": "viewer"},
             headers=root_h,
         )
-        assert resp.status_code == 204 and resp.content == b"", (resp.status_code, resp.content)
+        assert resp.status_code == 200 and resp.json() is True, (resp.status_code, resp.text)
 
         step("成员能看详情和「我参与的空间」，但成员列表只有 super 能看")
         assert client.get(f"/workspaces/detail/{workspace_id}", headers=user_h).status_code == 200
@@ -191,7 +191,7 @@ def main() -> None:
             f"/workspaces/grant/{workspace_id}",
             json={"user_name": USER, "permission": "admin"},
             headers=root_h,
-        ).status_code == 204
+        ).status_code == 200
         rows = db_execute(
             "select permission, count(*) from user_workspaces where workspace_id = %s and user_id = %s group by permission",
             (workspace_id, user_id),

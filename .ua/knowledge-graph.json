@@ -1633,7 +1633,7 @@
       "type": "function",
       "name": "WorkspaceService.grant_member",
       "filePath": "services/workspace.py",
-      "summary": "按账号名找目标用户（精确匹配 account），重复授权即改权限（仓储层 upsert）。",
+      "summary": "按账号名找目标用户（精确匹配 account），重复授权即改权限（仓储层 PG upsert）；路由层把成功包装成 true。",
       "tags": [
         "service",
         "权限",
@@ -1890,7 +1890,7 @@
       "type": "endpoint",
       "name": "POST /workspaces/grant/{workspace_id}",
       "filePath": "routers/workspace.py",
-      "summary": "按账号名加成员或改权限（需 super）：204；账号不存在 404，账号格式不合法 422。",
+      "summary": "按账号名加成员或改权限（需 super）：成功返回 true（200，不是 204 空响应）；账号不存在 404，账号格式不合法 422。",
       "tags": [
         "api-handler",
         "端点",
