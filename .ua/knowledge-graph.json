@@ -1198,7 +1198,7 @@
       "type": "file",
       "name": "services/workspace.py",
       "filePath": "services/workspace.py",
-      "summary": "业务空间服务：建空间时同一事务把创建者写成 admin；读操作校验成员身份（非成员 404）；写操作的 super 判断已上移到路由层 SuperUser 依赖。",
+      "summary": "业务空间服务：建空间时同一事务把创建者写成 admin；读操作校验成员身份（非成员 404）；写操作与成员列表的 super 判断都在路由层 SuperUser 依赖。",
       "tags": [
         "service",
         "权限",
@@ -1212,7 +1212,7 @@
       "type": "file",
       "name": "routers/workspace.py",
       "filePath": "routers/workspace.py",
-      "summary": "业务空间路由：/workspaces/* 八个接口，一个操作一条独立路径；写接口声明 SuperUser、读接口声明 CurrentUser，参数顺序统一为「路径 → 请求体 → 当前用户 → session」。",
+      "summary": "业务空间路由：/workspaces/* 八个接口，一个操作一条独立路径；写接口和成员列表声明 SuperUser、其余读接口声明 CurrentUser，参数顺序统一为「路径 → 请求体 → 当前用户 → session」。",
       "tags": [
         "api-handler",
         "路由",
@@ -1620,7 +1620,7 @@
       "type": "function",
       "name": "WorkspaceService.list_members",
       "filePath": "services/workspace.py",
-      "summary": "成员才能看成员列表（含 account/email/权限）。",
+      "summary": "成员列表：super 由路由层把关，这里只确认空间存在，不检查自己是不是成员。",
       "tags": [
         "service",
         "权限",
@@ -1773,7 +1773,7 @@
       "type": "concept",
       "name": "super 权限 + 空间成员模型",
       "filePath": null,
-      "summary": "写（建/改/删空间、增删成员）只认 users.is_super，且只能在数据库里改这个标志；读只认 user_workspaces 里的成员关系，非成员一律 404；permission 字段目前不参与鉴权。",
+      "summary": "写（建/改/删空间、增删成员）与成员列表只认 users.is_super，且只能在数据库里改这个标志；读空间详情/我的空间只认 user_workspaces 里的成员关系，非成员一律 404；permission 字段目前不参与鉴权。",
       "tags": [
         "权限",
         "设计约定",
@@ -1877,7 +1877,7 @@
       "type": "endpoint",
       "name": "GET /workspaces/members/{workspace_id}",
       "filePath": "routers/workspace.py",
-      "summary": "成员列表（需成员）：返回 account/email 与各自权限。",
+      "summary": "成员列表（需 super）：返回 account/email 与各自权限；空间内的 admin 也看不到。",
       "tags": [
         "api-handler",
         "端点",
@@ -1934,6 +1934,45 @@
         "service",
         "helper",
         "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "endpoint:routers/workspace.py:GET /workspaces/access/{workspace_name}",
+      "type": "endpoint",
+      "name": "GET /workspaces/access/{workspace_name}",
+      "filePath": "routers/workspace.py",
+      "summary": "按空间名自查权限（任何登录用户）：有权限返回 has_access=true + permission + workspace_id；没权限或空间不存在都返回 200 + false，不用 404，不泄露空间是否存在。",
+      "tags": [
+        "api-handler",
+        "端点",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:routers/schemas/workspace.py:WorkspaceAccessOut",
+      "type": "class",
+      "name": "WorkspaceAccessOut",
+      "filePath": "routers/schemas/workspace.py",
+      "summary": "自查响应：workspace_name / has_access / workspace_id / permission，后两个仅在有权限时非空。",
+      "tags": [
+        "schema",
+        "serialization",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/workspace.py:WorkspaceService.check_access",
+      "type": "function",
+      "name": "WorkspaceService.check_access",
+      "filePath": "services/workspace.py",
+      "summary": "按空间名返回 (空间, 我的权限)，空间不存在或没有关联都返回 None——两者同一个答案，不泄露存在性。",
+      "tags": [
+        "service",
+        "权限",
+        "read"
       ],
       "complexity": "simple"
     }
@@ -4136,6 +4175,55 @@
       "type": "calls",
       "weight": 0.8,
       "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:GET /workspaces/access/{workspace_name}",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/workspace.py",
+      "target": "endpoint:routers/workspace.py:GET /workspaces/access/{workspace_name}",
+      "type": "routes",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "endpoint:routers/workspace.py:GET /workspaces/access/{workspace_name}",
+      "target": "function:services/workspace.py:WorkspaceService.check_access",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService.check_access",
+      "target": "function:repositories/workspace.py:WorkspaceRepository.get_by_name",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService.check_access",
+      "target": "function:repositories/user_workspace.py:UserWorkspaceRepository.get_permission",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:routers/schemas/workspace.py",
+      "target": "class:routers/schemas/workspace.py:WorkspaceAccessOut",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/workspace.py:WorkspaceService",
+      "target": "function:services/workspace.py:WorkspaceService.check_access",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
     }
   ],
   "layers": [
@@ -4165,7 +4253,8 @@
         "endpoint:routers/workspace.py:DELETE /workspaces/delete/{workspace_id}",
         "endpoint:routers/workspace.py:GET /workspaces/members/{workspace_id}",
         "endpoint:routers/workspace.py:POST /workspaces/grant/{workspace_id}",
-        "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_name}"
+        "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_name}",
+        "endpoint:routers/workspace.py:GET /workspaces/access/{workspace_name}"
       ]
     },
     {

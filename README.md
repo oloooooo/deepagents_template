@@ -268,9 +268,10 @@ WantedBy=multi-user.target
 | POST | `/workspaces/create` | 建空间（name 3–100 位、path）；创建者自动成为该空间 admin，重名 409 | **super** |
 | GET | `/workspaces/mine` | 我参与的空间列表，每项带 `permission` | 成员 |
 | GET | `/workspaces/detail/{workspace_id}` | 空间详情 | 成员 |
+| GET | `/workspaces/access/{workspace_name}` | **自查**：我有没有这个空间的权限（按空间名）。返回 `{workspace_name, has_access, workspace_id, permission}`，没权限与空间不存在都是 200 + `false` | 登录即可 |
 | PATCH | `/workspaces/update/{workspace_id}` | 改 name / path（只改传了的字段） | **super** |
 | DELETE | `/workspaces/delete/{workspace_id}` | 删空间（成员关联级联清理，204） | **super** |
-| GET | `/workspaces/members/{workspace_id}` | 成员列表（account / email / 权限） | 成员 |
+| GET | `/workspaces/members/{workspace_id}` | 成员列表（account / email / 权限） | **super** |
 | POST | `/workspaces/grant/{workspace_id}` | 加成员或改权限（按**账号名**），body `{"user_name":"…","permission":"admin / editor / viewer"}`；重复授权即更新 | **super** |
 | DELETE | `/workspaces/revoke/{workspace_id}/{user_name}` | 按账号名移除成员（204） | **super** |
 
@@ -278,9 +279,9 @@ WantedBy=multi-user.target
 
 - **`users.is_super` 只能直接改数据库**：没有 API、也没有 repository 写入口，注册/登录碰不到它
   （注册请求里塞 `is_super: true` 也无效）。
-- **写操作一律要求 super**（建/改/删空间、增删成员），在路由层用 `SuperUser` 依赖拦成 403，
-  早于任何数据库读写；空间内的 `admin` 也不能改空间或成员。
-- **读操作要求是成员**；不是成员一律 404（不泄露空间是否存在）。
+- **写操作和成员列表一律要求 super**（建/改/删空间、增删成员、查看成员列表），在路由层用 `SuperUser` 依赖拦成 403，
+  早于任何数据库读写；空间内的 `admin` 也不能改空间、成员，也看不到成员列表（它可能误以为别人还有权限）。
+- **读操作要求是成员**（空间详情、我参与的空间）；不是成员一律 404（不泄露空间是否存在）。
 - **`user_workspaces.permission`（admin/editor/viewer，默认 viewer）目前只描述成员身份，不参与鉴权**，
   留给以后空间内的功能（跑 agent、写文件等）。
 
@@ -290,6 +291,10 @@ update users set is_super = true where account = 'admin';
 ```
 
 标志**不写进 JWT**，每个请求都回库现查，所以改完立刻生效，**升权/降权都不必重新登录**。
+
+前端想决定「要不要给用户显示这个空间」时，用 `GET /workspaces/access/{workspace_name}`：
+它只回答「我能不能进」——有权限时带 `permission` 与 `workspace_id`（可接着调详情/成员接口），
+没权限或空间不存在都返回 `has_access: false`（**不是 404**，因此不会泄露空间是否存在）。
 
 ### 7.4 curl 示例
 
@@ -310,9 +315,12 @@ WS=$(curl -s -X POST $BASE/workspaces/create -H "Authorization: Bearer $TOKEN" \
 curl -s -X POST $BASE/workspaces/grant/$WS -H "Authorization: Bearer $TOKEN" \
      -H 'Content-Type: application/json' -d '{"user_name":"someone","permission":"viewer"}'
 
-# 我参与的空间 / 成员列表
+# 我参与的空间 / 成员列表（成员列表需 super）
 curl -s $BASE/workspaces/mine -H "Authorization: Bearer $TOKEN"
 curl -s $BASE/workspaces/members/$WS -H "Authorization: Bearer $TOKEN"
+
+# 按名字自查：我有没有 proj-a 的权限
+curl -s $BASE/workspaces/access/proj-a -H "Authorization: Bearer $TOKEN"
 
 # 踢出空间（真删关联行）
 curl -s -X DELETE $BASE/workspaces/revoke/$WS/someone -H "Authorization: Bearer $TOKEN"
@@ -384,9 +392,9 @@ bcrypt 只处理前 72 字节，本项目对超长密码直接拒绝（不静默
 **Q：`/auth/me` 返回 403 而不是 401？**
 401 = 没有/无效令牌；403 = 令牌有效但用户被禁用（`users.is_active = false`）。
 
-**Q：建空间/改空间返回 403？**
-写操作（建/改/删空间、增删成员）只允许 super —— `update users set is_super = true where account = '你的账号'`，
-改完立即生效、不用重新登录（见 [7.3](#73-权限模型重要)）。空间内的 admin 也不行。
+**Q：建空间 / 改空间 / 看成员列表返回 403？**
+这些操作只允许 super —— `update users set is_super = true where account = '你的账号'`，
+改完立即生效、不用重新登录（见 [7.3](#73-权限模型重要)）。空间内的 admin 也不行，成员列表连 admin 都看不了。
 
 **Q：空间详情返回 404，但我当然是管理员？**
 读操作先看 `user_workspaces` 里的成员关系；不是成员就统一 404（不泄露空间是否存在）。

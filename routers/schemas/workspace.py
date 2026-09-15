@@ -10,6 +10,7 @@ __all__ = [
     "MemberGrant",
     "MemberOut",
     "MyWorkspaceOut",
+    "WorkspaceAccessOut",
     "WorkspaceCreate",
     "WorkspaceOut",
     "WorkspaceUpdate",
@@ -88,3 +89,16 @@ class MemberOut(BaseModel):
             email=user.email,
             permission=permission,
         )
+
+
+class WorkspaceAccessOut(BaseModel):
+    """自查结果：没权限也返回 200，用 has_access 表达，不泄露空间是否存在。"""
+
+    workspace_name: str
+    has_access: bool
+    workspace_id: str | None = Field(
+        default=None, description="有权限时才给，方便接着调详情/成员接口"
+    )
+    permission: WorkspacePermission | None = Field(
+        default=None, description="我在此空间的权限：admin / editor / viewer"
+    )

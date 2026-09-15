@@ -62,8 +62,9 @@ uv run python tests/test_auth.py   # 18 项自检
 
 | 操作 | 谁能做 | 失败码 |
 | --- | --- | --- |
-| 建 / 改 / 删空间、加成员 / 改权限 / 移除成员 | **只有 `users.is_super = true`** | 403（未登录 401） |
-| 空间详情 / 我参与的空间 / 成员列表 | 该空间成员 | 非成员 404（不泄露空间是否存在） |
+| 建 / 改 / 删空间、加成员 / 改权限 / 移除成员、**查看成员列表** | **只有 `users.is_super = true`** | 403（未登录 401） |
+| 空间详情 / 我参与的空间 | 该空间成员 | 非成员 404（不泄露空间是否存在） |
+| 按空间名自查（`/workspaces/access/{name}`） | 任何登录用户 | 200 + `has_access: false`（不是 404） |
 | 注册 / 登录 / 刷新 | 任何人 | — |
 
 - `user_workspaces.permission`（`admin` / `editor` / `viewer`，默认 `viewer`，库侧有默认值 + CHECK）
@@ -151,6 +152,7 @@ uv run python tests/test_auth.py   # 18 项自检
 | 建/改空间返回 403 | 你不是 super：`update users set is_super = true where account = '...'`（改完立即生效） |
 | 空间详情 404 | 你不是该空间成员（读操作按成员关系判定，super 也不会自动获得读权限） |
 | `grant` 返回 404 | 入参 `user_name` 是**账号**（注册时的 account），不是用户 id、也不是邮箱；写错了就 404 |
+| 看成员列表返回 403 | 成员列表只有 super 能看（空间内的 admin 也不行） |
 | `Psycopg cannot use the 'ProactorEventLoop'` | 用 `uv run python main.py`，或加 `--reload` / `--workers N` / `--loop asyncio:SelectorEventLoop` |
 | `MissingGreenlet` | 在异步上下文里读了 `commit()` 之后未 `refresh` 的过期属性 |
 | `alembic check` 有输出 | 模型与库不一致：漏了 `revision --autogenerate` 或忘了 `upgrade head` |

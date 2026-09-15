@@ -3,12 +3,14 @@
 权限规则：
 - **写**（建/改/删空间、增删成员）由路由层的 ``SuperUser`` 依赖把关，
   ``users.is_super`` 只能在数据库里改，没有 repository/API 写入口；
-- **读**（空间详情 / 我参与的空间 / 成员列表）：是成员就行；
+- **读**（空间详情 / 我参与的空间）：是成员就行；
+- **成员列表**：只有 super 能看（和写操作一样走路由层 ``SuperUser`` 依赖），
+  空间内的 admin 也不行；
 - 不是成员一律按「空间不存在」返回 404，不泄露空间是否存在；
-- ``user_workspaces.permission``（admin/editor/viewer）现在只描述成员身份，
-  不参与鉴权，留给以后空间内的功能（跑 agent、写文件等）用。
+- ``user_workspaces.permission``（admin/editor/viewer）暂不参与鉴权，
+  留给以后空间内的功能（跑 agent、写文件等）用。
 
-所以这个类里只有读权限校验，没有 super 判断。
+所以这个类里没有 super 判断，也没有权限等级比较：写操作和成员列表都在路由层拦。
 """
 
 from fastapi import HTTPException, status
@@ -61,6 +63,24 @@ class WorkspaceService:
     ) -> list[tuple[Workspace, WorkspacePermission]]:
         return await self.links.list_by_user(user.id)
 
+    async def check_access(
+        self, user: User, workspace_name: str
+    ) -> tuple[Workspace, WorkspacePermission] | None:
+        """自查：按空间名返回 (空间, 我的权限)，没权限或空间不存在都返回 None。
+
+        故意不抛 404：调用方只需要一个「能不能进」的答案，
+        而且两种情况返回同一个 None，不泄露空间是否存在。
+        """
+        workspace = await self.workspaces.get_by_name(workspace_name)
+        if workspace is None:
+            return None
+        permission = await self.links.get_permission(
+            user_id=user.id, workspace_id=workspace.id
+        )
+        if permission is None:
+            return None
+        return workspace, permission
+
     async def update(
         self,
         workspace_id: str,
@@ -81,9 +101,10 @@ class WorkspaceService:
         await self.workspaces.delete(await self._get_or_404(workspace_id))
 
     async def list_members(
-        self, user: User, workspace_id: str
+        self, workspace_id: str
     ) -> list[tuple[User, WorkspacePermission]]:
-        await self._access(workspace_id, user.id)
+        """成员列表（需 super，路由层把关）：空间存在就能看，不管自己是不是成员。"""
+        await self._get_or_404(workspace_id)
         return await self.links.list_members(workspace_id)
 
     async def grant_member(
@@ -132,7 +153,7 @@ class WorkspaceService:
     async def _access(
         self, workspace_id: str, user_id: str
     ) -> tuple[Workspace, WorkspacePermission]:
-        """读权限校验：没关联按 404 处理。"""
+        """读权限校验：没关联按 404 处理（不泄露空间存在）。"""
         permission = await self.links.get_permission(
             user_id=user_id, workspace_id=workspace_id
         )

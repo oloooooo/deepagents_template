@@ -10,11 +10,12 @@
 路径                          方法      权限
 ===========================  ========  ================
 /workspaces/mine             GET       成员
+/workspaces/access/{name}    GET       登录用户（自查）
 /workspaces/create           POST      super
 /workspaces/detail/{id}      GET       成员
 /workspaces/update/{id}      PATCH     super
 /workspaces/delete/{id}      DELETE    super
-/workspaces/members/{id}     GET       成员
+/workspaces/members/{id}     GET       super
 /workspaces/grant/{id}       POST      super    body: user_name + permission
 /workspaces/revoke/{id}/{u}  DELETE    super    u 是账号名（account）
 ===========================  ========  ================
@@ -28,6 +29,7 @@ from routers.schemas import (
     MemberGrant,
     MemberOut,
     MyWorkspaceOut,
+    WorkspaceAccessOut,
     WorkspaceCreate,
     WorkspaceOut,
     WorkspaceUpdate,
@@ -68,6 +70,27 @@ async def get_workspace(
     return await WorkspaceService(session).get(current_user, workspace_id)
 
 
+@router.get(
+    "/access/{workspace_name}",
+    response_model=WorkspaceAccessOut,
+    summary="我有没有这个空间的权限（按空间名自查）",
+)
+async def check_workspace_access(
+    workspace_name: str, current_user: CurrentUser, session: SessionDep
+):
+    """任何登录用户都能问；没权限与空间不存在都返回 has_access=false（200）。"""
+    found = await WorkspaceService(session).check_access(current_user, workspace_name)
+    if found is None:
+        return WorkspaceAccessOut(workspace_name=workspace_name, has_access=False)
+    workspace, permission = found
+    return WorkspaceAccessOut(
+        workspace_name=workspace.name,
+        has_access=True,
+        workspace_id=workspace.id,
+        permission=permission,
+    )
+
+
 @router.patch(
     "/update/{workspace_id}",
     response_model=WorkspaceOut,
@@ -99,12 +122,12 @@ async def delete_workspace(
 @router.get(
     "/members/{workspace_id}",
     response_model=list[MemberOut],
-    summary="成员列表（需成员）",
+    summary="成员列表（需 super）",
 )
 async def list_members(
-    workspace_id: str, current_user: CurrentUser, session: SessionDep
+    workspace_id: str, current_user: SuperUser, session: SessionDep
 ):
-    rows = await WorkspaceService(session).list_members(current_user, workspace_id)
+    rows = await WorkspaceService(session).list_members(workspace_id)
     return [MemberOut.of(user, permission) for user, permission in rows]
 
 

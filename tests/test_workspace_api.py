@@ -44,8 +44,8 @@ def cleanup() -> None:
     # psycopg3 里 % 必须走参数，不能直接写在 SQL 里
     db_execute("delete from workspaces where name like %s", ("ws-%",))
     db_execute(
-        "delete from users where account like %s or account like %s",
-        ("wsroot_%", "wsuser_%"),
+        "delete from users where account like %s or account like %s or account like %s",
+        ("wsroot_%", "wsuser_%", "wsnobody_%"),
     )
 
 
@@ -117,10 +117,10 @@ def main() -> None:
         assert (mine["id"], mine["permission"]) == (workspace_id, "admin"), mine
 
         print("== 非成员看不到 ==")
-        step("普通用户的列表为空 / 详情 404 / 成员列表 404")
+        step("普通用户的列表为空 / 详情 404 / 成员列表 403（成员列表要 super，先拦权限）")
         assert client.get("/workspaces/mine", headers=user_h).json() == []
         assert client.get(f"/workspaces/detail/{workspace_id}", headers=user_h).status_code == 404
-        assert client.get(f"/workspaces/members/{workspace_id}", headers=user_h).status_code == 404
+        assert client.get(f"/workspaces/members/{workspace_id}", headers=user_h).status_code == 403
 
         step("不存在的空间 id -> 404")
         assert client.get("/workspaces/detail/ffffffffffffffffffffffffffffffff", headers=root_h).status_code == 404
@@ -144,10 +144,46 @@ def main() -> None:
         )
         assert resp.status_code == 204 and resp.content == b"", (resp.status_code, resp.content)
 
-        step("成员能看详情和成员列表了，列表里是 viewer")
+        step("成员能看详情和「我参与的空间」，但成员列表只有 super 能看")
         assert client.get(f"/workspaces/detail/{workspace_id}", headers=user_h).status_code == 200
         assert client.get("/workspaces/mine", headers=user_h).json()[0]["permission"] == "viewer"
-        assert len(client.get(f"/workspaces/members/{workspace_id}", headers=user_h).json()) == 2
+        assert client.get(f"/workspaces/members/{workspace_id}", headers=user_h).status_code == 403
+        assert len(client.get(f"/workspaces/members/{workspace_id}", headers=root_h).json()) == 2
+
+        print("== 按空间名自查权限 ==")
+        step("未登录 -> 401")
+        assert client.get(f"/workspaces/access/{WS_NAME}").status_code == 401
+
+        step("成员自查 -> 200 has_access=true，带 permission 与 workspace_id")
+        resp = client.get(f"/workspaces/access/{WS_NAME}", headers=user_h)
+        assert resp.status_code == 200, resp.text
+        me = resp.json()
+        assert me == {
+            "workspace_name": WS_NAME,
+            "has_access": True,
+            "workspace_id": workspace_id,
+            "permission": "viewer",
+        }, me
+
+        step("super（也是该空间 admin）自查 -> admin")
+        assert client.get(f"/workspaces/access/{WS_NAME}", headers=root_h).json()["permission"] == "admin"
+
+        step("非成员自查 -> 200 has_access=false（不是 404，也不泄露空间是否存在）")
+        nobody = client.post(
+            "/auth/register",
+            json={"account": f"wsnobody_{SUFFIX}", "email": f"wsnobody_{SUFFIX}@example.com", "password": PASSWORD},
+        )
+        assert nobody.status_code == 201, nobody.text
+        nobody_h = {
+            "Authorization": "Bearer "
+            + client.post("/auth/login", json={"account": f"wsnobody_{SUFFIX}", "password": PASSWORD}).json()["access_token"]
+        }
+        resp = client.get(f"/workspaces/access/{WS_NAME}", headers=nobody_h)
+        assert resp.json() == {"workspace_name": WS_NAME, "has_access": False, "workspace_id": None, "permission": None}, resp.json()
+
+        step("空间不存在 -> 同样是 has_access=false")
+        resp = client.get("/workspaces/access/no-such-space", headers=nobody_h)
+        assert resp.status_code == 200 and resp.json()["has_access"] is False
 
         print("== 空间自己的 admin 权限也不能写 ==")
         step("把普通用户提到 admin")
@@ -161,6 +197,9 @@ def main() -> None:
             (workspace_id, user_id),
         )
         assert rows == [("admin", 1)], rows
+
+        step("提到 admin 也看不了成员列表（只有 super 能）-> 403")
+        assert client.get(f"/workspaces/members/{workspace_id}", headers=user_h).status_code == 403
 
         step("admin（非 super）改空间 / 删空间 / 加成员 / 移除成员 -> 全部 403")
         assert client.patch(f"/workspaces/update/{workspace_id}", json={"path": "/tmp/hack"}, headers=user_h).status_code == 403
@@ -202,9 +241,10 @@ def main() -> None:
         new_name = f"ws-renamed-{SUFFIX}"
         assert client.patch(f"/workspaces/update/{workspace_id}", json={"name": new_name}, headers=root_h).json()["name"] == new_name
 
-        step("super 移除成员 -> 204，被移除的人又看不到 -> 404")
+        step("super 移除成员 -> 204，被移除的人又看不到 -> 404，自查也变 false")
         assert client.delete(f"/workspaces/revoke/{workspace_id}/{USER}", headers=root_h).status_code == 204
         assert client.get(f"/workspaces/detail/{workspace_id}", headers=user_h).status_code == 404
+        assert client.get(f"/workspaces/access/{new_name}", headers=user_h).json()["has_access"] is False
 
         step("再移除一次 -> 404；不存在的账号 -> 404")
         assert client.delete(f"/workspaces/revoke/{workspace_id}/{USER}", headers=root_h).status_code == 404
