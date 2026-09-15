@@ -1,5 +1,5 @@
 """FastAPI 路由。"""
 
-from . import auth
+from . import auth, workspace
 
-__all__ = ["auth"]
+__all__ = ["auth", "workspace"]

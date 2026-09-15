@@ -6,7 +6,7 @@ from uuid import uuid4
 from sqlalchemy import DateTime, MetaData, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-__all__ = ["Base", "BaseModel", "User"]
+__all__ = ["Base", "BaseModel", "User", "UserWorkspace", "Workspace", "WorkspacePermission"]
 
 # 统一索引/约束命名，便于 alembic 生成可预期的迁移脚本
 NAMING_CONVENTION = {
@@ -42,3 +42,5 @@ class BaseModel(Base):
 
 # 放在末尾导入，保证 Base/BaseModel 先定义好（避免循环导入）
 from .user import User  # noqa: E402
+from .user_workspace import UserWorkspace, WorkspacePermission  # noqa: E402
+from .workspace import Workspace  # noqa: E402

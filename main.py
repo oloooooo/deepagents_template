@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from config import app_config
 from dependencies import engine
 from logger import logger
-from routers import auth
+from routers import auth, workspace
 
 # Windows 默认的 ProactorEventLoop 跑不了 psycopg 异步驱动，
 # 而 uvicorn 非 reload 模式恰好会选 Proactor，所以显式指定 SelectorEventLoop。
@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="DeepAgents Template", lifespan=lifespan)
 app.include_router(auth.router)
+app.include_router(workspace.router)
 
 
 @app.get("/health", tags=["system"], summary="健康检查")

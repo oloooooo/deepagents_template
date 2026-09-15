@@ -10,5 +10,8 @@
 - moels 储存orm模型
 - repositories 储存各种数据库的读写删查的类
 - routers 储存fastapi的路由
+-- schemas 应该存储路由的输入schema ， 以及输出schema
+-- 路由路径：一个操作一条独立路径，动作词写进路径（如 /workspaces/create、/workspaces/grant/{id}），不要用不同 HTTP 方法复用同一条路径
 - service 储存fastapi路由的功能实现逻辑
 - uv.lock 表明该项目的python环境管理由python实现
+

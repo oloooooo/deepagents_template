@@ -70,7 +70,7 @@ class PostgresConfig(_Strict):
     """postgresql 段：业务库与 deepagents 库分开配置，将来拆库只改 yaml。"""
 
     # deepagents 的 state（检查点）与 store（长期记忆）
-    deepagent: PostgreConfig
+    # deepagent: PostgreConfig
     # 业务用户库（用户表、登录鉴权）
     user: PostgreConfig
 

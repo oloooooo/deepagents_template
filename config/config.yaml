@@ -7,12 +7,12 @@
 
 postgresql:
   # deepagent 的 state（检查点）与 store（长期记忆）共用这一份连接参数
-  deepagent:
-    host: 127.0.0.1
-    port: 5432
-    user: postgres
-    password: "1234"
-    db_name: deepagent
+  # deepagent:
+  #   host: 127.0.0.1
+  #   port: 5432
+  #   user: postgres
+  #   password: "1234"
+  #   db_name: deepagent
 
   # 业务用户表：账号 / 邮箱 / 密码哈希 / refresh token。将来拆库只改这五行
   user:
@@ -20,7 +20,7 @@ postgresql:
     port: 5432
     user: postgres
     password: "1234"
-    db_name: deepagent
+    db_name: user_related
 
 logger:
   # 日志目录（相对项目根，也可写绝对路径）

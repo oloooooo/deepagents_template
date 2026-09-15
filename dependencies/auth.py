@@ -11,7 +11,7 @@ from models import User
 from repositories import UserRepository
 from services import ACCESS_TOKEN_TYPE, decode_token
 
-__all__ = ["CurrentUser", "bearer_scheme", "get_current_user"]
+__all__ = ["CurrentUser", "SuperUser", "bearer_scheme", "get_current_user", "get_super_user"]
 
 # auto_error=False：没带令牌时自己抛 401，错误信息统一
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -43,3 +43,21 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+NOT_SUPER = "只有超级用户（super）能修改空间和成员"
+
+
+async def get_super_user(user: CurrentUser) -> User:
+    """在当前登录用户基础上再要求 ``users.is_super``。
+
+    标志不写在 JWT 里，每次请求回库现查，所以数据库里改了立刻生效。
+    """
+    if not user.is_super:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=NOT_SUPER
+        )
+    return user
+
+
+# 写接口（建/改/删空间、增删成员）一律用它，读接口用 CurrentUser
+SuperUser = Annotated[User, Depends(get_super_user)]
