@@ -127,10 +127,11 @@ def main() -> None:
 
         print("== 成员管理只有 super 能动 ==")
         step("普通用户给自己加权限 -> 403（哪怕空间存在也不再是 404）")
+        # 授权/踢人用账号名；user_id 只留给直连数据库的断言
         user_id = client.get("/auth/me", headers=user_h).json()["id"]
         resp = client.post(
             f"/workspaces/grant/{workspace_id}",
-            json={"user_id": user_id, "permission": "admin"},
+            json={"user_name": USER, "permission": "admin"},
             headers=user_h,
         )
         assert resp.status_code == 403, resp.text
@@ -138,7 +139,7 @@ def main() -> None:
         step("super 加成员 viewer -> 204")
         resp = client.post(
             f"/workspaces/grant/{workspace_id}",
-            json={"user_id": user_id, "permission": "viewer"},
+            json={"user_name": USER, "permission": "viewer"},
             headers=root_h,
         )
         assert resp.status_code == 204 and resp.content == b"", (resp.status_code, resp.content)
@@ -152,7 +153,7 @@ def main() -> None:
         step("把普通用户提到 admin")
         assert client.post(
             f"/workspaces/grant/{workspace_id}",
-            json={"user_id": user_id, "permission": "admin"},
+            json={"user_name": USER, "permission": "admin"},
             headers=root_h,
         ).status_code == 204
         rows = db_execute(
@@ -166,10 +167,10 @@ def main() -> None:
         assert client.delete(f"/workspaces/delete/{workspace_id}", headers=user_h).status_code == 403
         assert client.post(
             f"/workspaces/grant/{workspace_id}",
-            json={"user_id": user_id, "permission": "viewer"},
+            json={"user_name": USER, "permission": "viewer"},
             headers=user_h,
         ).status_code == 403
-        assert client.delete(f"/workspaces/revoke/{workspace_id}/{user_id}", headers=user_h).status_code == 403
+        assert client.delete(f"/workspaces/revoke/{workspace_id}/{USER}", headers=user_h).status_code == 403
 
         step("库里的数据没被上面几下改动")
         assert db_execute("select count(*) from workspaces where id = %s", (workspace_id,)) == [(1,)]
@@ -179,15 +180,20 @@ def main() -> None:
         ) == [("admin",)]
 
         print("== super 改空间 ==")
-        step("授权的边界：不存在的用户 404、非法权限值 422")
+        step("授权的边界：不存在的账号 404、非法权限值 422、账号格式不合法 422")
         assert client.post(
             f"/workspaces/grant/{workspace_id}",
-            json={"user_id": "0" * 32, "permission": "viewer"},
+            json={"user_name": "no_such_user_here", "permission": "viewer"},
             headers=root_h,
         ).status_code == 404
         assert client.post(
             f"/workspaces/grant/{workspace_id}",
-            json={"user_id": user_id, "permission": "owner"},
+            json={"user_name": USER, "permission": "owner"},
+            headers=root_h,
+        ).status_code == 422
+        assert client.post(
+            f"/workspaces/grant/{workspace_id}",
+            json={"user_name": "bad name", "permission": "viewer"},
             headers=root_h,
         ).status_code == 422
 
@@ -197,11 +203,12 @@ def main() -> None:
         assert client.patch(f"/workspaces/update/{workspace_id}", json={"name": new_name}, headers=root_h).json()["name"] == new_name
 
         step("super 移除成员 -> 204，被移除的人又看不到 -> 404")
-        assert client.delete(f"/workspaces/revoke/{workspace_id}/{user_id}", headers=root_h).status_code == 204
+        assert client.delete(f"/workspaces/revoke/{workspace_id}/{USER}", headers=root_h).status_code == 204
         assert client.get(f"/workspaces/detail/{workspace_id}", headers=user_h).status_code == 404
 
-        step("再移除一次 -> 404")
-        assert client.delete(f"/workspaces/revoke/{workspace_id}/{user_id}", headers=root_h).status_code == 404
+        step("再移除一次 -> 404；不存在的账号 -> 404")
+        assert client.delete(f"/workspaces/revoke/{workspace_id}/{USER}", headers=root_h).status_code == 404
+        assert client.delete(f"/workspaces/revoke/{workspace_id}/no_such_user_here", headers=root_h).status_code == 404
 
         print("== super 删空间 ==")
         step("DELETE /workspaces/delete/{id} -> 204，库里空间和关联都没了")

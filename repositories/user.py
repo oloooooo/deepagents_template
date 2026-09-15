@@ -22,6 +22,14 @@ class UserRepository:
         stmt = select(User).where(or_(User.account == account, User.email == account))
         return await self.session.scalar(stmt)
 
+    async def get_by_name(self, name: str) -> User | None:
+        """按账号名精确匹配。
+
+        授权/踢人接口用这个：``get_by_account`` 是「账号或邮箱」语义，
+        万一 A 的账号恰好等于 B 的邮箱，返回哪条取决于数据库，不适合当授权目标。
+        """
+        return await self.session.scalar(select(User).where(User.account == name))
+
     async def create(self, *, account: str, email: str, hashed_password: str) -> User:
         user = User(account=account, email=email, hashed_password=hashed_password)
         self.session.add(user)

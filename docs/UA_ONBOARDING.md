@@ -150,6 +150,7 @@ uv run python tests/test_auth.py   # 18 项自检
 | --- | --- |
 | 建/改空间返回 403 | 你不是 super：`update users set is_super = true where account = '...'`（改完立即生效） |
 | 空间详情 404 | 你不是该空间成员（读操作按成员关系判定，super 也不会自动获得读权限） |
+| `grant` 返回 404 | 入参 `user_name` 是**账号**（注册时的 account），不是用户 id、也不是邮箱；写错了就 404 |
 | `Psycopg cannot use the 'ProactorEventLoop'` | 用 `uv run python main.py`，或加 `--reload` / `--workers N` / `--loop asyncio:SelectorEventLoop` |
 | `MissingGreenlet` | 在异步上下文里读了 `commit()` 之后未 `refresh` 的过期属性 |
 | `alembic check` 有输出 | 模型与库不一致：漏了 `revision --autogenerate` 或忘了 `upgrade head` |

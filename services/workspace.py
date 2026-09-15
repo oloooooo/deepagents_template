@@ -90,22 +90,21 @@ class WorkspaceService:
         self,
         workspace_id: str,
         *,
-        user_id: str,
+        user_name: str,
         permission: WorkspacePermission,
     ) -> None:
-        """加成员或改权限（同一个人重复授权即更新）。"""
+        """按账号名加成员或改权限（同一个人重复授权即更新）。"""
         await self._get_or_404(workspace_id)
-        if await self.users.get_by_id(user_id) is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在"
-            )
         await self.links.grant(
-            user_id=user_id, workspace_id=workspace_id, permission=permission
+            user_id=(await self._get_user_or_404(user_name)).id,
+            workspace_id=workspace_id,
+            permission=permission,
         )
 
-    async def revoke_member(self, workspace_id: str, user_id: str) -> None:
+    async def revoke_member(self, workspace_id: str, user_name: str) -> None:
         await self._get_or_404(workspace_id)
-        if not await self.links.revoke(user_id=user_id, workspace_id=workspace_id):
+        user = await self._get_user_or_404(user_name)
+        if not await self.links.revoke(user_id=user.id, workspace_id=workspace_id):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="该用户不在这个空间"
             )
@@ -117,6 +116,18 @@ class WorkspaceService:
                 status_code=status.HTTP_404_NOT_FOUND, detail=WORKSPACE_NOT_FOUND
             )
         return workspace
+
+    async def _get_user_or_404(self, user_name: str) -> User:
+        """按账号名取用户（写接口的目标用户），不存在统一 404。
+
+        内部仍拿 id 去写 user_workspaces：外键指向主键，用名字只影响入参。
+        """
+        user = await self.users.get_by_name(user_name)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在"
+            )
+        return user
 
     async def _access(
         self, workspace_id: str, user_id: str

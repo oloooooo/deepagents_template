@@ -62,7 +62,13 @@ class MyWorkspaceOut(WorkspaceOut):
 
 
 class MemberGrant(BaseModel):
-    user_id: str = Field(max_length=32, description="被授权的用户 id")
+    # 用账号名（account）而不是用户 id：调用方只需要知道对方叫什么都行
+    user_name: str = Field(
+        min_length=3,
+        max_length=50,
+        pattern=NAME_PATTERN,
+        description="被授权用户的账号（account），与注册时的账号规则一致",
+    )
     permission: WorkspacePermission = Field(
         description="admin / editor / viewer，重复授权即改权限"
     )

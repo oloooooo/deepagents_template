@@ -271,8 +271,8 @@ WantedBy=multi-user.target
 | PATCH | `/workspaces/update/{workspace_id}` | 改 name / path（只改传了的字段） | **super** |
 | DELETE | `/workspaces/delete/{workspace_id}` | 删空间（成员关联级联清理，204） | **super** |
 | GET | `/workspaces/members/{workspace_id}` | 成员列表（account / email / 权限） | 成员 |
-| POST | `/workspaces/grant/{workspace_id}` | 加成员或改权限，body `{"user_id":"…","permission":"admin / editor / viewer"}`；重复授权即更新 | **super** |
-| DELETE | `/workspaces/revoke/{workspace_id}/{user_id}` | 移除成员（204） | **super** |
+| POST | `/workspaces/grant/{workspace_id}` | 加成员或改权限（按**账号名**），body `{"user_name":"…","permission":"admin / editor / viewer"}`；重复授权即更新 | **super** |
+| DELETE | `/workspaces/revoke/{workspace_id}/{user_name}` | 按账号名移除成员（204） | **super** |
 
 ### 7.3 权限模型（重要）
 
@@ -306,13 +306,16 @@ WS=$(curl -s -X POST $BASE/workspaces/create -H "Authorization: Bearer $TOKEN" \
      -H 'Content-Type: application/json' -d '{"name":"proj-a","path":"/srv/ws/a"}' \
      | python -c "import sys,json;print(json.load(sys.stdin)['id'])")
 
-# 把另一个用户加成 viewer（user_id 从 /auth/me 或成员列表拿）
+# 把另一个用户加成 viewer（user_name 就是对方的账号，注册时那个 account）
 curl -s -X POST $BASE/workspaces/grant/$WS -H "Authorization: Bearer $TOKEN" \
-     -H 'Content-Type: application/json' -d '{"user_id":"<32位用户id>","permission":"viewer"}'
+     -H 'Content-Type: application/json' -d '{"user_name":"someone","permission":"viewer"}'
 
 # 我参与的空间 / 成员列表
 curl -s $BASE/workspaces/mine -H "Authorization: Bearer $TOKEN"
 curl -s $BASE/workspaces/members/$WS -H "Authorization: Bearer $TOKEN"
+
+# 踢出空间（真删关联行）
+curl -s -X DELETE $BASE/workspaces/revoke/$WS/someone -H "Authorization: Bearer $TOKEN"
 ```
 
 启动后 Swagger 文档在 `/docs`，OpenAPI JSON 在 `/openapi.json`。
@@ -390,9 +393,10 @@ bcrypt 只处理前 72 字节，本项目对超长密码直接拒绝（不静默
 super 本身不会自动成为成员，但建空间时会被自动写成 admin。
 
 **Q：怎么给用户加/改权限？**
-`POST /workspaces/grant/{workspace_id}`，body `{"user_id":"…","permission":"admin|editor|viewer"}`，
+`POST /workspaces/grant/{workspace_id}`，body `{"user_name":"对方的账号","permission":"admin / editor / viewer"}`，
 同一个人重复提交就是改权限（内部是 PG `ON CONFLICT DO UPDATE`，并发下不会撞唯一约束）。
-想“踢出空间”用 `DELETE /workspaces/revoke/{workspace_id}/{user_id}`——那是真删关联行，不是降级成 viewer。
+入参用**账号名**（account）而不是用户 id；账号不存在 404，账号格式不合法 422。
+想“踢出空间”用 `DELETE /workspaces/revoke/{workspace_id}/{user_name}`——那是真删关联行，不是降级成 viewer。
 
 **Q：怎么切到另一个数据库？**
 只改 `config/config.yaml`（或对应环境变量），应用与 alembic 都用同一份配置，无需改代码。

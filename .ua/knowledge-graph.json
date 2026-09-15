@@ -1633,7 +1633,7 @@
       "type": "function",
       "name": "WorkspaceService.grant_member",
       "filePath": "services/workspace.py",
-      "summary": "空间与目标用户都要存在，重复授权即改权限（upsert）。",
+      "summary": "按账号名找目标用户（精确匹配 account），重复授权即改权限（仓储层 upsert）。",
       "tags": [
         "service",
         "权限",
@@ -1646,7 +1646,7 @@
       "type": "function",
       "name": "WorkspaceService.revoke_member",
       "filePath": "services/workspace.py",
-      "summary": "目标用户不在空间里返回 404，否则删除关联。",
+      "summary": "按账号名找目标用户，不在空间里返回 404，否则删除关联行。",
       "tags": [
         "service",
         "权限",
@@ -1734,7 +1734,7 @@
       "type": "class",
       "name": "MemberGrant",
       "filePath": "routers/schemas/workspace.py",
-      "summary": "授权请求体：user_id + permission（admin/editor/viewer），重复授权即改权限。",
+      "summary": "授权请求体：user_name（账号，而非用户 id）+ permission（admin/editor/viewer）；重复授权即改权限。",
       "tags": [
         "schema",
         "serialization",
@@ -1890,7 +1890,7 @@
       "type": "endpoint",
       "name": "POST /workspaces/grant/{workspace_id}",
       "filePath": "routers/workspace.py",
-      "summary": "加成员或改权限（需 super）：204；目标用户不存在 404。",
+      "summary": "按账号名加成员或改权限（需 super）：204；账号不存在 404，账号格式不合法 422。",
       "tags": [
         "api-handler",
         "端点",
@@ -1899,14 +1899,40 @@
       "complexity": "simple"
     },
     {
-      "id": "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_id}",
+      "id": "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_name}",
       "type": "endpoint",
-      "name": "DELETE /workspaces/revoke/{workspace_id}/{user_id}",
+      "name": "DELETE /workspaces/revoke/{workspace_id}/{user_name}",
       "filePath": "routers/workspace.py",
-      "summary": "移除成员（需 super）：204；目标不在空间里 404。",
+      "summary": "按账号名移除成员（需 super）：204；账号不存在或不在空间里都 404。",
       "tags": [
         "api-handler",
         "端点",
+        "权限"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:repositories/user.py:UserRepository.get_by_name",
+      "type": "function",
+      "name": "UserRepository.get_by_name",
+      "filePath": "repositories/user.py",
+      "summary": "按账号名精确匹配用户；授权/踢人接口用它，避免 get_by_account 的「账号或邮箱」语义产生歧义。",
+      "tags": [
+        "repository",
+        "crud",
+        "read"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:services/workspace.py:WorkspaceService._get_user_or_404",
+      "type": "function",
+      "name": "WorkspaceService._get_user_or_404",
+      "filePath": "services/workspace.py",
+      "summary": "按账号名取写操作的目标用户，不存在统一 404；内部仍用 user.id 写关联表（外键指向主键）。",
+      "tags": [
+        "service",
+        "helper",
         "权限"
       ],
       "complexity": "simple"
@@ -3497,7 +3523,7 @@
     },
     {
       "source": "file:routers/workspace.py",
-      "target": "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_id}",
+      "target": "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_name}",
       "type": "contains",
       "weight": 1.0,
       "direction": "forward"
@@ -3826,7 +3852,7 @@
     },
     {
       "source": "file:routers/workspace.py",
-      "target": "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_id}",
+      "target": "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_name}",
       "type": "routes",
       "weight": 0.5,
       "direction": "forward"
@@ -3881,7 +3907,7 @@
       "direction": "forward"
     },
     {
-      "source": "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_id}",
+      "source": "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_name}",
       "target": "function:services/workspace.py:WorkspaceService.revoke_member",
       "type": "calls",
       "weight": 0.8,
@@ -4075,6 +4101,41 @@
       "type": "tested_by",
       "weight": 0.5,
       "direction": "forward"
+    },
+    {
+      "source": "class:repositories/user.py:UserRepository",
+      "target": "function:repositories/user.py:UserRepository.get_by_name",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "class:services/workspace.py:WorkspaceService",
+      "target": "function:services/workspace.py:WorkspaceService._get_user_or_404",
+      "type": "contains",
+      "weight": 1.0,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService._get_user_or_404",
+      "target": "function:repositories/user.py:UserRepository.get_by_name",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService.grant_member",
+      "target": "function:services/workspace.py:WorkspaceService._get_user_or_404",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:services/workspace.py:WorkspaceService.revoke_member",
+      "target": "function:services/workspace.py:WorkspaceService._get_user_or_404",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
     }
   ],
   "layers": [
@@ -4104,7 +4165,7 @@
         "endpoint:routers/workspace.py:DELETE /workspaces/delete/{workspace_id}",
         "endpoint:routers/workspace.py:GET /workspaces/members/{workspace_id}",
         "endpoint:routers/workspace.py:POST /workspaces/grant/{workspace_id}",
-        "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_id}"
+        "endpoint:routers/workspace.py:DELETE /workspaces/revoke/{workspace_id}/{user_name}"
       ]
     },
     {

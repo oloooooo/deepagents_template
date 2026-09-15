@@ -15,8 +15,8 @@
 /workspaces/update/{id}      PATCH     super
 /workspaces/delete/{id}      DELETE    super
 /workspaces/members/{id}     GET       成员
-/workspaces/grant/{id}       POST      super
-/workspaces/revoke/{id}/{u}  DELETE    super
+/workspaces/grant/{id}       POST      super    body: user_name + permission
+/workspaces/revoke/{id}/{u}  DELETE    super    u 是账号名（account）
 ===========================  ========  ================
 """
 
@@ -112,7 +112,7 @@ async def list_members(
     "/grant/{workspace_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    summary="加成员 / 改权限（需 super）",
+    summary="加成员 / 改权限（需 super，按账号名）",
 )
 async def grant_member(
     workspace_id: str,
@@ -121,20 +121,20 @@ async def grant_member(
     session: SessionDep,
 ) -> None:
     await WorkspaceService(session).grant_member(
-        workspace_id, user_id=payload.user_id, permission=payload.permission
+        workspace_id, user_name=payload.user_name, permission=payload.permission
     )
 
 
 @router.delete(
-    "/revoke/{workspace_id}/{user_id}",
+    "/revoke/{workspace_id}/{user_name}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    summary="移除成员（需 super）",
+    summary="移除成员（需 super，按账号名）",
 )
 async def revoke_member(
     workspace_id: str,
-    user_id: str,
+    user_name: str,
     current_user: SuperUser,
     session: SessionDep,
 ) -> None:
-    await WorkspaceService(session).revoke_member(workspace_id, user_id)
+    await WorkspaceService(session).revoke_member(workspace_id, user_name)
