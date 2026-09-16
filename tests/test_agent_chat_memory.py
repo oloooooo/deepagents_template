@@ -97,7 +97,14 @@ async def main() -> None:
         other = await agent.memory.aget_state(THREAD, "u_other")
         assert other["messages"] == 0 and other["answer"] == "", other
 
-        print("== 6. 流式：写记忆时收到 interrupt 事件 ==")
+        print("== 6. 会话元数据（归属 + 空间）已在检查点里 ==")
+        meta = await agent.memory.aget_meta(THREAD, USER)
+        print(f"  {meta}")
+        assert meta is not None and meta["user_id"] == USER, meta
+        assert meta["workspace_id"] == WORKSPACE, meta
+        assert await agent.memory.aget_meta("t_missing", USER) is None
+
+        print("== 7. 流式：写记忆时收到 interrupt 事件 ==")
         async with GeneralAgent(model=model_for("/memories/stream.md")) as streamer:
             kinds = [
                 event.kind

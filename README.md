@@ -36,23 +36,25 @@ uv sync --frozen      # 按 uv.lock 精确安装依赖（新增依赖用 uv add�
 ├── logger/__init__.py       # loguru 控制台 + 滚动文件 sink；接管标准库 logging
 ├── dependencies/
 │   ├── database.py          #   异步 engine / AsyncSessionFactory / get_session（请求级会话）
-│   └── auth.py              #   get_current_user（Bearer → JWT → User）、CurrentUser / SuperUser 注入类型
+│   ├── auth.py              #   get_current_user（Bearer → JWT → User）、CurrentUser / SuperUser 注入类型
+│   └── agent.py             #   AgentDep：从 app.state 取 lifespan 起好的 GeneralAgent（未就绪 503）
 ├── models/                  # SQLAlchemy ORM
 │   ├── __init__.py          #   Base（命名约定）/ BaseModel（id+时间戳）；末尾 import 各表模型
 │   ├── user.py              #   users 表：account / email / hashed_password / refresh_token / is_super
 │   ├── workspace.py         #   workspaces 表：name（唯一）/ path
 │   └── user_workspace.py    #   user_workspaces 关联表：多对多 + permission（默认 viewer）
 ├── repositories/            # 数据库读写类（UserRepository / WorkspaceRepository / UserWorkspaceRepository）
-├── services/                # 路由功能实现（AuthService、WorkspaceService）
-├── routers/                 # FastAPI 路由（auth.py → /auth/*，workspace.py → /workspaces/*）
-│   └── schemas/             #   请求/响应模型：auth.py、workspace.py（路由里不再内联定义）
-├── main.py                  # 应用入口：app / lifespan / /health / 事件循环与 uvicorn 启动参数
+├── services/                # 路由功能实现（AuthService / WorkspaceService / MemoryService / ChatService）
+│   └── access.py            #   空间权限校验的唯一入口（非成员 404、viewer 写 403）
+├── routers/                 # FastAPI 路由（auth.py、workspace.py、memory.py、chat.py）
+│   └── schemas/             #   请求/响应模型：auth.py、workspace.py、memory.py、chat.py
+├── main.py                  # 应用入口：app / lifespan（起 agent）/ /health / 事件循环与 uvicorn 启动参数
 ├── migrations/              # alembic 迁移（连接串来自 config.yaml 的 postgresql.user 段）
 │   ├── env.py
 │   └── versions/*.py        #   users、workspaces、user_workspaces、is_super 等 4 个迁移
-├── tests/                   # 端到端自检脚本（4 个，均无需 pytest，跑完自清理）
+├── tests/                   # 端到端自检脚本（7 个，均无需 pytest，跑完自清理）
 ├── alembic.ini              # 只配 script_location / 日志，URL 由 env.py 注入
-└── agents/                  # deepagents 的装配位置（当前为空，尚未接线）
+└── agents/                  # agent 本体：agent.py（GeneralAgent / AgentMemory）+ readme.md（记忆隔离约定）
 ```
 
 分层约定：**routers 只收参/返回 → services 写业务逻辑 → repositories 只做数据库读写 → models 定义表**；
@@ -78,7 +80,7 @@ uv run python main.py         # http://127.0.0.1:8000 ，Swagger 在 /docs
 # 5) 自检（注册/登录/me/刷新/登出/禁用用户，共 18 项，跑完自动清理测试数据）
 uv run python tests/test_auth.py
 
-# 6) 把自己设成 super，否则建不了空间（super 只能在数据库里改，见 7.3）
+# 6) 把自己设成 super，否则建不了空间（super 只能在数据库里改，见 7.5）
 psql -d <库名> -c "update users set is_super = true where account = 'admin'"
 ```
 
@@ -272,18 +274,69 @@ WantedBy=multi-user.target
 | PATCH | `/workspaces/update/{workspace_id}` | 改 name / path（只改传了的字段） | **super** |
 | DELETE | `/workspaces/delete/{workspace_id}` | 删空间（成员关联级联清理，204） | **super** |
 | GET | `/workspaces/members/{workspace_id}` | 成员列表（account / email / 权限） | **super** |
-| POST | `/workspaces/grant/{workspace_id}` | 加成员或改权限（按**账号名**），body `{"user_name":"…","permission":"admin / editor / viewer"}`；重复授权即更新，**成功返回 `true`** | **super** |
+| POST | `/workspaces/grant/{workspace_id}` | 加成员或改权限（按**账号名**），body `{"user_name":"…","permission":"admin / editor / viewer"}`；重复授权即更新，**成功返回 `{"result": true}`** | **super** |
 | DELETE | `/workspaces/revoke/{workspace_id}/{user_name}` | 按账号名移除成员（204） | **super** |
 
-### 7.3 权限模型（重要）
+### 7.3 聊天（Agent）
+
+```
+POST /chat/send                 跑一轮（阻塞）
+POST /chat/stream               跑一轮（SSE 流式）
+POST /chat/approve              人工批准 / 拒绝后接着跑
+GET  /chat/mine                 我的会话列表
+GET  /chat/state/{thread_id}    会话的短期记忆概况
+GET  /chat/history/{thread_id}  会话的消息列表（带 message id）
+POST /chat/messages/delete      删几条消息（短期记忆编辑，204）
+POST /chat/files/delete         删会话内临时文件（短期记忆编辑，204）
+DELETE /chat/delete/{thread_id} 删整条会话（只删短期记忆，不动 /memories/，204）
+```
+
+| 方法 | 路径 | 说明 | 权限 |
+| --- | --- | --- | --- |
+| POST | `/chat/send` | body `{"workspace_id", "message", "thread_id"?}`；不传 `thread_id` 就新开会话并返回。返回 `{thread_id, answer, interrupt}`——`interrupt` 非空表示在等人批准 | 成员（viewer 也能聊） |
+| POST | `/chat/stream` | 同样的 body，返回 SSE：`event: token / tool_call / interrupt / done` + 一行 JSON（统一 `{"text":…, "data":{…}}`）。新建的 thread_id 走响应头 `X-Thread-Id` | 成员 |
+| POST | `/chat/approve` | body `{"thread_id", "decisions": [{"type": "approve"}]}`，`decisions` 原样透传给 langgraph（approve / edit / reject / respond）。**不接受 `workspace_id`**：空间取自会话绑定值 | 本人会话 |
+| GET | `/chat/mine` | 我的会话（`thread_id` / `workspace_id` / `updated_at`）。读的是 checkpoint metadata，不另建表 | 登录 |
+| GET | `/chat/state/{thread_id}` | `{thread_id, workspace_id, messages, answer, files}` | 本人会话 |
+| GET | `/chat/history/{thread_id}` | 消息列表（最旧→最新，带 `id` 与 `role`） | 本人会话 |
+| POST | `/chat/messages/delete` | body `{"thread_id", "message_ids": [...]}`，删单条消息后还能继续聊 | 本人会话 |
+| POST | `/chat/files/delete` | body `{"thread_id", "paths": ["/tmp.txt"]}`，删会话内临时文件 | 本人会话 |
+| DELETE | `/chat/delete/{thread_id}` | 删整条会话（检查点），**长期记忆不受影响** | 本人会话 |
+
+### 7.4 长期记忆
+
+```
+GET  /memories/mine?workspace_id=<id>   列出我的记忆文件
+POST /memories/read                     读一份记忆
+POST /memories/write                    写 / 覆盖一份记忆
+POST /memories/delete                   删一份记忆（204）
+```
+
+| 方法 | 路径 | 说明 | 权限 |
+| --- | --- | --- | --- |
+| GET | `/memories/mine` | query `workspace_id`；返回 `{workspace_id, memories: ["/memories/…"]}` | 成员（viewer 起） |
+| POST | `/memories/read` | body `{"workspace_id", "path"}`（`path` 带斜杠所以放 body），不存在 404 | 成员 |
+| POST | `/memories/write` | body `{"workspace_id", "path", "content"}`，整份覆盖，返回 `{"path": "/memories/…"}` | **editor / admin** |
+| POST | `/memories/delete` | body `{"workspace_id", "path"}`，不存在 404 | **editor / admin** |
+
+记忆库按 **`(user_id, workspace_id)`** 隔离（store 命名空间）：同一个空间里，别人也看不到你的记忆文件。
+agent 自己写 `/memories/**` 会先 `interrupt` 等人批准（`POST /chat/approve`），用户侧的 `/memories/write` 直写、不用批准；
+这两条链路的细节（含为什么裸内存路径也要单独列一条权限规则）见 `agents/readme.md`。
+
+### 7.5 权限模型（重要）
 
 - **`users.is_super` 只能直接改数据库**：没有 API、也没有 repository 写入口，注册/登录碰不到它
   （注册请求里塞 `is_super: true` 也无效）。
 - **写操作和成员列表一律要求 super**（建/改/删空间、增删成员、查看成员列表），在路由层用 `SuperUser` 依赖拦成 403，
   早于任何数据库读写；空间内的 `admin` 也不能改空间、成员，也看不到成员列表（它可能误以为别人还有权限）。
 - **读操作要求是成员**（空间详情、我参与的空间）；不是成员一律 404（不泄露空间是否存在）。
-- **`user_workspaces.permission`（admin/editor/viewer，默认 viewer）目前只描述成员身份，不参与鉴权**，
-  留给以后空间内的功能（跑 agent、写文件等）。
+- **`user_workspaces.permission`（admin/editor/viewer，默认 viewer）参与空间内的鉴权**：
+  `viewer` 能聊天（`/chat/*`）与读自己的记忆（`/memories/mine`、`/memories/read`）；
+  写/删记忆（`/memories/write`、`/memories/delete`）要 `editor` 或 `admin`，`viewer` 403。
+  改空间/成员仍然只认 `users.is_super`，跟空间内权限无关。
+- **记忆与聊天都不从请求体取 `user_id`**：归属一律来自登录态，另有会话归属校验
+  （`thread_id` 非本人 404）与 `(user_id, workspace_id)` 双维度存储隔离；
+  请求体里多塞 `user_id` / `workspace_id`（在不该出现的地方）会被 Pydantic 挡成 422。
 
 ```sql
 -- 授权 super（唯一途径）
@@ -296,7 +349,7 @@ update users set is_super = true where account = 'admin';
 它只回答「我能不能进」——有权限时带 `permission` 与 `workspace_id`（可接着调详情/成员接口），
 没权限或空间不存在都返回 `has_access: false`（**不是 404**，因此不会泄露空间是否存在）。
 
-### 7.4 curl 示例
+### 7.6 curl 示例
 
 ```bash
 BASE=http://127.0.0.1:8000
@@ -352,13 +405,16 @@ yaml 里写错键名会**直接报错**，不会被静默忽略）：
 
 ## 9. 测试
 
-四个端到端自检脚本，都不需要 pytest，失败即非 0 退出，跑完自动清理测试数据：
+七个端到端自检脚本，都不需要 pytest，失败即非 0 退出，跑完自动清理测试数据：
 
 ```bash
 uv run python tests/test_auth.py                      # 18 项，需 PostgreSQL
-uv run python tests/test_workspace_api.py             # 21 项，需 PostgreSQL
+uv run python tests/test_workspace_api.py             # 27 项，需 PostgreSQL
 uv run python tests/test_user_workspace_repository.py # 需 PostgreSQL
 uv run python tests/test_user_workspace.py            # 内存 SQLite，无需数据库
+uv run python tests/test_agent_memory_scope.py        # 纯内存，无数据库、无模型 key
+uv run python tests/test_agent_chat_memory.py         # 需 PostgreSQL 的 agents 库，假模型
+uv run python tests/test_agent_api.py                 # 39 项，需两个库，假模型（不联网）
 ```
 
 | 脚本 | 覆盖 |
@@ -367,8 +423,12 @@ uv run python tests/test_user_workspace.py            # 内存 SQLite，无需�
 | `test_workspace_api.py` | 非 super 建空间 403 / 未登录 401 / 非法入参 422 / 重名 409 / 创建者自动 admin（同一事务）/ 非成员看不见（空列表与 404）/ 成员可见 / admin 也改不了（403）/ 授权与改权限 upsert / 成员列表 / 移除成员 / 改名 / 级联删除；`is_super` 只用裸 SQL 改，顺便证明没有写入口 |
 | `test_user_workspace_repository.py` | 仓储层：grant 改权限行数仍为 1 / 查权限 / 列我的空间 / 空结果 / 撤销 True·False / 删空间级联清关联 |
 | `test_user_workspace.py` | 关联表：默认 viewer / 入库存小写 / CHECK 拒非法值 / 双向只读关系 / 重复授权被唯一约束拒 |
+| `test_agent_memory_scope.py` | 纯内存验证记忆机制：`/memories/` 按用户命名空间隔离、`/memories/**` 只读（deny）、`interrupt → 批准 → 落库`、忘传 context 的失败模式 |
+| `test_agent_chat_memory.py` | 真图 + 真检查点：agent 写记忆被拦下、批准后落库、换用户/换空间看不见、用户侧直写、短期记忆按用户隔离、会话元数据（user_id / workspace_id）已进检查点 |
+| `test_agent_api.py` | HTTP 层：`/memories/*` 写读列删、viewer 只读、非成员 404、跨空间隔离；`/chat/*` 八端点契约、SSE 事件序列、接力聊天、借别人 thread_id 404、`interrupt → approve` 后记忆落库、短期记忆的读/删消息/删文件/删会话 |
 
-前三个脚本用 `tester_*` / `wsroot_*` / `wsuser_*` 前缀账号并在结束时清理，不影响其他数据。
+前三个业务脚本用 `tester_*` / `wsroot_*` / `wsuser_*` 前缀账号并在结束时清理；agent 相关脚本用 `agt_api_*` 前缀，
+并额外清 `agents` 库里的 `checkpoints` / `store` 残留。`/chat/*` 的测试全部注入假模型（不联真实 LLM）。
 
 ---
 
@@ -395,7 +455,7 @@ bcrypt 只处理前 72 字节，本项目对超长密码直接拒绝（不静默
 
 **Q：建空间 / 改空间 / 看成员列表返回 403？**
 这些操作只允许 super —— `update users set is_super = true where account = '你的账号'`，
-改完立即生效、不用重新登录（见 [7.3](#73-权限模型重要)）。空间内的 admin 也不行，成员列表连 admin 都看不了。
+改完立即生效、不用重新登录（见 [7.5](#75-权限模型重要)）。空间内的 admin 也不行，成员列表连 admin 都看不了。
 
 **Q：空间详情返回 404，但我当然是管理员？**
 读操作先看 `user_workspaces` 里的成员关系；不是成员就统一 404（不泄露空间是否存在）。

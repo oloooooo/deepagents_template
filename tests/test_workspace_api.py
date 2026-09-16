@@ -142,7 +142,7 @@ def main() -> None:
             json={"user_name": USER, "permission": "viewer"},
             headers=root_h,
         )
-        assert resp.status_code == 200 and resp.json() is True, (resp.status_code, resp.text)
+        assert resp.status_code == 200 and resp.json()["result"] is True, (resp.status_code, resp.text)
 
         step("成员能看详情和「我参与的空间」，但成员列表只有 super 能看")
         assert client.get(f"/workspaces/detail/{workspace_id}", headers=user_h).status_code == 200

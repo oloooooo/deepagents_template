@@ -7,6 +7,25 @@ from .auth import (
     TokenPair,
     UserOut,
 )
+from .chat import (
+    ChatApprove,
+    ChatDeleteFiles,
+    ChatDeleteMessages,
+    ChatHistoryOut,
+    ChatMessageOut,
+    ChatRunOut,
+    ChatSend,
+    ChatStateOut,
+    ChatThreadOut,
+    ChatThreadsOut,
+)
+from .memory import (
+    MemoryListOut,
+    MemoryOut,
+    MemoryPath,
+    MemoryStored,
+    MemoryWrite,
+)
 from .workspace import (
     MemberGrant,
     MemberOut,
@@ -18,9 +37,24 @@ from .workspace import (
 )
 
 __all__ = [
+    "ChatApprove",
+    "ChatDeleteFiles",
+    "ChatDeleteMessages",
+    "ChatHistoryOut",
+    "ChatMessageOut",
+    "ChatRunOut",
+    "ChatSend",
+    "ChatStateOut",
+    "ChatThreadOut",
+    "ChatThreadsOut",
     "LoginRequest",
     "MemberGrant",
     "MemberOut",
+    "MemoryListOut",
+    "MemoryOut",
+    "MemoryPath",
+    "MemoryStored",
+    "MemoryWrite",
     "MyWorkspaceOut",
     "RefreshRequest",
     "RegisterRequest",
