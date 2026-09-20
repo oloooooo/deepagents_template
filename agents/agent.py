@@ -5,7 +5,10 @@
 - **短期记忆**：``AsyncPostgresSaver`` 检查点，按 ``user_id:thread_id`` 落库，跨进程续聊；
 - **长期记忆**：``AsyncPostgresStore`` + ``StoreBackend``，``/memories/`` 路径跨会话保留，
   命名空间 ``(user_id, workspace_id)``，等价于 store 里的 ``/memories/{user_id}/{workspace_id}/``；
-  其余路径走 ``StateBackend``（线程内临时文件）。
+- **公共空间挂载**：``/public/{公共空间名}/`` **只读**，命名空间 ``("public", id, "filesystem")``
+  （不含 user_id，成员共享同一份），可见范围来自当轮 ``AgentContext.public_workspaces``；
+  实现见 ``agents/public_workspace.py``，取舍见 ``docs/adr/0003`` 与 ``docs/adr/0004``；
+- 其余路径走 ``StateBackend``（线程内临时文件）。
 
 记忆写入（两条路，互不干扰）：
 
@@ -58,9 +61,15 @@ from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.store.postgres.aio import AsyncPostgresStore
 from langgraph.types import Command
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from agents.config import ModelConfig, AgentPostgreConfig, model_cfg
+from agents.public_workspace import (
+    PUBLIC_PERMISSIONS,
+    PUBLIC_ROUTE,
+    PublicMountBackend,
+    PublicWorkspaceStore,
+)
 from logger import logger
 
 __all__ = [
@@ -107,10 +116,15 @@ class AgentContext(BaseModel):
     ``(user_id, workspace_id)`` 等价于 store 里的 ``/memories/{user_id}/{workspace_id}/``。
     ``workspace_id`` 默认 ``"default"``（虚拟的日常聊天空间，人人都是 admin）；
     ``user_id`` 没有默认值：漏传直接报错，而不是静默写进同一个共享命名空间。
+
+    ``public_workspaces`` 是当轮可见的公共空间（名字 -> id），决定 ``/public/`` 挂载里能看到
+    哪几个子目录。**每轮重新查**，不写进 checkpoint metadata —— 被移出公共空间必须立刻失效
+    （见 ``docs/adr/0004``）。super 的可见范围是"全部"，由 dependency 填充时体现。
     """
 
     user_id: str
     workspace_id: str = "default"
+    public_workspaces: dict[str, str] = Field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -156,6 +170,8 @@ class GeneralAgent:
         self._graph: Any = None
         # 启动后可用：记忆操作入口（借 graph/store，无独立生命周期）
         self.memory: AgentMemory | None = None
+        # 启动后可用：公共空间内容的 store 读写（REST 侧与删除清理用）
+        self.public_store: PublicWorkspaceStore | None = None
 
     # ---------- 生命周期 ----------
 
@@ -185,10 +201,18 @@ class GeneralAgent:
                                 "filesystem",
                             ),
                             store=store,
-                        )
+                        ),
+                        # /public/{公共空间名}/...：只读，可见范围来自当轮的 AgentContext。
+                        # 路由是启动时定死的静态前缀，所以"这个人能看哪几个公共空间"只能由
+                        # PublicMountBackend 每次操作去读 rt.context，不能往 routes 里塞。
+                        #
+                        # ponytail: 目录说明靠约定（谁建公共空间谁在里面放 README.md），
+                        # 不注入 system prompt。模型老是读错公共空间时再加一层按用户动态
+                        # 注入 prompt 的 middleware —— 那时它由证据支撑，不是预防性的。
+                        PUBLIC_ROUTE: PublicMountBackend(store),
                     },
                 ),
-                permissions=MEMORY_PERMISSIONS,
+                permissions=[*MEMORY_PERMISSIONS, *PUBLIC_PERMISSIONS],
                 checkpointer=saver,
                 store=store,
                 context_schema=AgentContext,
@@ -197,6 +221,7 @@ class GeneralAgent:
             self._stack = stack.pop_all()  # 所有权移交给 self；异常时上面已自动清理
             self._graph = graph
             self.memory = AgentMemory(graph, store, saver)
+            self.public_store = PublicWorkspaceStore(store)
         logger.info(
             "GeneralAgent 就绪，模型 {}（checkpointer + store: {}@{}/{}）",
             self.config.model,  # pyright: ignore[reportOptionalMemberAccess]
@@ -209,6 +234,7 @@ class GeneralAgent:
     async def __aexit__(self, *exc_info: Any) -> None:
         """关闭连接池。幂等，可重复调用。"""
         self.memory = None
+        self.public_store = None
         self._graph = None
         stack, self._stack = self._stack, None
         if stack is not None:
@@ -223,6 +249,7 @@ class GeneralAgent:
         thread_id: str,
         user_id: str,
         workspace_id: str,
+        public_workspaces: dict[str, str] | None = None,
         recursion_limit: int = 100,
         resume: dict[str, Any] | None = None,
     ) -> AgentRun:
@@ -230,11 +257,18 @@ class GeneralAgent:
 
         ``resume`` 是上一次 ``run.interrupt`` 的答复（``{"decisions": [...]}``），
         传了它就不需要 ``message``，图从中断点接着跑。
+
+        ``public_workspaces``（名字 -> id）决定 ``/public/`` 挂载里能看到哪几个公共空间，
+        由调用方每轮重新给（包括 resume）—— 不落 metadata，见 ``docs/adr/0004``。
         """
         state = await self._require_graph().ainvoke(
             _payload(message, resume),
             config=_run_config(thread_id, user_id, recursion_limit, workspace_id),
-            context=AgentContext(user_id=user_id, workspace_id=workspace_id),
+            context=AgentContext(
+                user_id=user_id,
+                workspace_id=workspace_id,
+                public_workspaces=public_workspaces or {},
+            ),
         )
         return AgentRun(answer=_last_text(state.get("messages", [])), interrupt=_pending(state))
 
@@ -245,6 +279,7 @@ class GeneralAgent:
         thread_id: str,
         user_id: str,
         workspace_id: str,
+        public_workspaces: dict[str, str] | None = None,
         recursion_limit: int = 100,
         resume: dict[str, Any] | None = None,
     ) -> AsyncIterator[AgentEvent]:
@@ -254,7 +289,11 @@ class GeneralAgent:
         async for mode, payload in self._require_graph().astream(
             _payload(message, resume),
             config=_run_config(thread_id, user_id, recursion_limit, workspace_id),
-            context=AgentContext(user_id=user_id, workspace_id=workspace_id),
+            context=AgentContext(
+                user_id=user_id,
+                workspace_id=workspace_id,
+                public_workspaces=public_workspaces or {},
+            ),
             stream_mode=["messages", "values"],
         ):
             if mode == "messages":

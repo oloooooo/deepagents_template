@@ -40,20 +40,52 @@ store 里实际存的      namespace = (user_id, workspace_id, "filesystem")
 
 ## 三、跑起来要带 context
 
-`AgentContext`（`user_id` 必填 + `workspace_id`，默认虚拟的 `default` 空间）是长期记忆命名空间的唯一来源：
+`AgentContext`（`user_id` 必填 + `workspace_id` 默认虚拟的 `default` 空间 + `public_workspaces`）
+是长期记忆命名空间与 `/public/` 可见范围的唯一来源：
 
 - `ainvoke` / `astream` 内部已经传好了；**新增调用路径（子图、后台任务、直接 `graph.ainvoke`）必须自己传**；
-- 忘了传时命名空间工厂会 `AttributeError: 'NoneType' object has no attribute 'user_id'` —— 报错难看但不会静默串号；
+- `public_workspaces`（名字 → id）**每轮重新给**，包括 `/chat/approve` 续跑那一轮 —— 不落 metadata；
+  漏传就是空字典，模型在 `/public/` 下什么都看不到（不是报错，也不会串号）；
+- 忘了传 `user_id` 时命名空间工厂会 `AttributeError: 'NoneType' object has no attribute 'user_id'`
+  —— 报错难看但不会静默串号；
 - `AgentMemory.aget_state` 不走后端，可以不传 context。
 
-## 四、验证脚本
+## 四、公共空间挂载 `/public/`（只读）
+
+`/public/` 和 `/memories/` 是**两个方向相反**的挂载，别混：
+
+| | `/memories/` | `/public/` |
+|---|---|---|
+| 命名空间 | `(user_id, workspace_id, "filesystem")` | `("public", public_workspace_id, "filesystem")` |
+| 谁看得见 | 只有本人 | 被授权的成员 + super |
+| agent 能写吗 | 能，但走 `interrupt` 等人批准 | **不能**，静态 `deny` 挡掉所有 write |
+| 内容谁改 | 用户自己（`/memories/write`） | 只有 super（`/public-workspaces/files/write`） |
+
+agent 看到的路径是 `/public/{公共空间名}/x.md`，**名字不是 id**（模型读 uuid 没意义，
+所以公共空间名不可变，见 `docs/adr/0002`）。
+
+实现上的三个要点：
+
+1. **路由静态、可见范围动态**：`CompositeBackend.routes` 在 `create_deep_agent` 时定死，
+   所以 `/public/` 只挂一个 `PublicMountBackend`；它每次操作都去读 `rt.context.public_workspaces`，
+   不查库（backend 是同步的，拿不到数据库 session）。所以**每轮都要重新填** `AgentContext.public_workspaces`
+   （`dependencies/public_workspace.py`），不写 checkpoint metadata（`docs/adr/0004`）。
+2. **`permissions=` 也是静态的**，区分不了用户，所以 `/public/**` 对**所有人**只读（`PUBLIC_PERMISSIONS`）。
+   super 的写权限不在这里表达，走 REST（`docs/adr/0003`）。
+3. **写方法仍然返回错误**（`PublicMountBackend.DENIED`）：静态规则在 middleware 层，
+   这里是第二道防线 —— 规则写漏时宁可直接报错，也不能静默写进共享空间。
+
+删公共空间要清空它的命名空间，顺序是**先删表再清内容**，清理失败只记日志（`docs/adr/0005`）。
+
+## 五、验证脚本
 
 | 文件 | 覆盖 | 依赖 |
 |---|---|---|
 | `tests/test_agent_memory_scope.py` | 跨用户隔离、`deny` 只读、`interrupt → 批准 → 落库` | 纯内存，无 DB / 无模型 key |
 | `tests/test_agent_chat_memory.py` | 真图 + 真检查点：拦下、批准落库、换用户/换空间看不见、用户侧直写、短期隔离、流式 interrupt 事件 | 本机 PostgreSQL 的 `agents` 库，假模型，无模型 key |
+| `tests/test_public_workspace_mount.py` | `/public/` 挂载：成员只看得到自己被授权的、同一公共空间的两人读到同一份、super 全部可见、`glob`/`grep` 合并且不越权、写被 deny、假模型端到端 | 纯内存，无 DB / 无模型 key |
 
-## 五、还没做
+## 六、还没做
 
 1. `/memories/*`、`/chat/*` 路由与 service（鉴权落点见第二节）；
 2. `conversations(thread_id, user_id, workspace_id)` 归属表 —— 现在 thread_id 只是拼字符串，建议显式登记 + 每次请求校验；

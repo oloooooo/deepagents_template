@@ -12,6 +12,7 @@ from .workspace import WorkspaceService
 from .access import WorkspaceAccess
 from .chat import ChatService
 from .memory import MemoryService
+from .public_workspace import PublicWorkspaceService
 
 __all__ = [
     "ACCESS_TOKEN_TYPE",
@@ -19,6 +20,7 @@ __all__ = [
     "AuthService",
     "ChatService",
     "MemoryService",
+    "PublicWorkspaceService",
     "WorkspaceAccess",
     "WorkspaceService",
     "decode_token",

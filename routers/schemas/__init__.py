@@ -26,6 +26,17 @@ from .memory import (
     MemoryStored,
     MemoryWrite,
 )
+from .public_workspace import (
+    PublicFileListOut,
+    PublicFileOut,
+    PublicFilePath,
+    PublicFileWrite,
+    PublicMemberGrant,
+    PublicMemberOut,
+    PublicWorkspaceCreate,
+    PublicWorkspaceOut,
+    PublicWorkspaceUpdate,
+)
 from .workspace import (
     MemberGrant,
     MemberOut,
@@ -56,6 +67,15 @@ __all__ = [
     "MemoryStored",
     "MemoryWrite",
     "MyWorkspaceOut",
+    "PublicFileListOut",
+    "PublicFileOut",
+    "PublicFilePath",
+    "PublicFileWrite",
+    "PublicMemberGrant",
+    "PublicMemberOut",
+    "PublicWorkspaceCreate",
+    "PublicWorkspaceOut",
+    "PublicWorkspaceUpdate",
     "RefreshRequest",
     "RegisterRequest",
     "TokenPair",

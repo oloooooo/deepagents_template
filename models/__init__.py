@@ -10,7 +10,9 @@ __all__ = [
     "DEFAULT_WORKSPACE",
     "Base",
     "BaseModel",
+    "PublicWorkspace",
     "User",
+    "UserPublicWorkspace",
     "UserWorkspace",
     "Workspace",
     "WorkspacePermission",
@@ -52,3 +54,5 @@ class BaseModel(Base):
 from .user import User  # noqa: E402
 from .user_workspace import UserWorkspace, WorkspacePermission  # noqa: E402
 from .workspace import DEFAULT_WORKSPACE, Workspace  # noqa: E402
+from .public_workspace import PublicWorkspace  # noqa: E402
+from .user_public_workspace import UserPublicWorkspace  # noqa: E402

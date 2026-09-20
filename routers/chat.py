@@ -19,6 +19,8 @@
 鉴权：``user_id`` 只来自登录态；``thread_id`` 先过归属校验（非本人 / 不存在一律 404）；
 ``workspace_id`` 在 /chat/send、/chat/stream 由请求体给并校验成员权限，在
 /chat/approve、/chat/state 直接取会话绑定值，避免同一会话被塞进别的空间。
+``/public/`` 挂载的可见范围由 ``PublicWorkspaceDep`` **每轮查一次**（包括 approve 续跑），
+不写进 checkpoint metadata —— 被移出公共空间必须立刻失效。
 
 SSE 事件格式（每个事件都是 ``event: <kind>`` + 一行 JSON）：
 
@@ -40,6 +42,7 @@ from agents.agent import AgentEvent
 from dependencies import SessionDep
 from dependencies.agent import AgentDep
 from dependencies.auth import CurrentUser
+from dependencies.public_workspace import PublicWorkspaceDep
 from routers.schemas import (
     ChatApprove,
     ChatDeleteFiles,
@@ -65,12 +68,14 @@ async def send_message(
     current_user: CurrentUser,
     agent: AgentDep,
     session: SessionDep,
+    public_workspaces: PublicWorkspaceDep,
 ):
     thread_id, run = await ChatService(session, agent).send(
         current_user,
         workspace_id=payload.workspace_id,
         message=payload.message,
         thread_id=payload.thread_id,
+        public_workspaces=public_workspaces,
     )
     return ChatRunOut(
         thread_id=thread_id, answer=run.answer, interrupt=run.interrupt
@@ -83,12 +88,14 @@ async def stream_message(
     current_user: CurrentUser,
     agent: AgentDep,
     session: SessionDep,
+    public_workspaces: PublicWorkspaceDep,
 ) -> StreamingResponse:
     thread_id, events = await ChatService(session, agent).stream(
         current_user,
         workspace_id=payload.workspace_id,
         message=payload.message,
         thread_id=payload.thread_id,
+        public_workspaces=public_workspaces,
     )
     return StreamingResponse(
         _sse(events),
@@ -107,9 +114,13 @@ async def approve_message(
     current_user: CurrentUser,
     agent: AgentDep,
     session: SessionDep,
+    public_workspaces: PublicWorkspaceDep,
 ):
     run = await ChatService(session, agent).approve(
-        current_user, thread_id=payload.thread_id, decisions=payload.decisions
+        current_user,
+        thread_id=payload.thread_id,
+        decisions=payload.decisions,
+        public_workspaces=public_workspaces,
     )
     return ChatRunOut(
         thread_id=payload.thread_id, answer=run.answer, interrupt=run.interrupt

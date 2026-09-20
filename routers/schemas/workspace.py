@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from models import DEFAULT_WORKSPACE, User, Workspace, WorkspacePermission
+from routers.schemas.paths import NAME_PATTERN
 
 __all__ = [
     "MemberGrant",
@@ -15,9 +16,6 @@ __all__ = [
     "WorkspaceOut",
     "WorkspaceUpdate",
 ]
-
-NAME_PATTERN = r"^[A-Za-z0-9_.\-]+$"
-
 
 class WorkspaceCreate(BaseModel):
     name: str = Field(

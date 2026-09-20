@@ -57,6 +57,14 @@ uv run python tests/test_auth.py   # 18 项自检
 8. **多对多带权限用关联对象**：`UserWorkspace` 既是被映射的表，也是权限的载体；`User.workspaces` / `Workspace.users` 是 `viewonly=True` 的只读视图（`append` 不会写库，写入一律走 `UserWorkspaceRepository.grant`）。
 9. **幂等授权用 PG upsert**：`grant` 是 `INSERT ... ON CONFLICT (user_id, workspace_id) DO UPDATE`，并发下不会撞唯一约束；`revoke` 是**删关联行**（不是降级成 viewer）。
 10. **Windows 事件循环坑**：psycopg 异步驱动不兼容 `ProactorEventLoop`，在 `dependencies/database.py` 与 `main.py` 里统一换成 Selector（Linux 无此问题）。
+11. **「可见范围」和「成员关系」是两个问题**（根目录 `CONTEXT.md` 的 Visibility）：业务空间的可见范围**等于**成员关系；
+    公共空间是「成员 ∪ super」—— super 不是成员也能读、能写、能删。所以公共空间的
+    `/public-workspaces/list`（我能读的全部）与 `/public-workspaces/mine`（我是不是成员）对 super 的答案可以不同，
+    `/mine` 空不是 bug。
+12. **agent 的 `/public/` 是启动时定死的静态路由 + 每轮变的命名空间**：`CompositeBackend.routes` 在
+    `create_deep_agent` 时固定，所以「这个人能看哪几个公共空间」不能往 routes 里塞，只能由
+    `agents/public_workspace.py` 的 `PublicMountBackend` 每次操作去读 `rt.context`；同理 `permissions=` 也是静态的，
+    区分不了用户，所以 `/public/**` 对所有人只读（`docs/adr/0003`）。
 
 ## 4. 权限模型（最容易踩）
 
@@ -65,6 +73,8 @@ uv run python tests/test_auth.py   # 18 项自检
 | 建 / 改 / 删空间、加成员 / 改权限 / 移除成员、**查看成员列表** | **只有 `users.is_super = true`** | 403（未登录 401） |
 | 空间详情 / 我参与的空间 | 该空间成员 | 非成员 404（不泄露空间是否存在） |
 | 自查空间权限（`/workspaces/access/{workspace_id}`） | 任何登录用户 | 200 + `has_access: false`（不是 404） |
+| 建 / 删公共空间、改说明、授权 / 撤权、成员列表、**写 / 删公共内容** | **只有 super** | 403 |
+| 公共空间详情 / 列文件 / 读内容 | 成员 **或 super** | 不可见与不存在都是 404 |
 | 注册 / 登录 / 刷新 | 任何人 | — |
 
 - `user_workspaces.permission`（`admin` / `editor` / `viewer`，默认 `viewer`，库侧有默认值 + CHECK）
@@ -75,6 +85,9 @@ uv run python tests/test_auth.py   # 18 项自检
   `/workspaces/access/default` 恒为 `has_access: true`，但建/改空间不能用这个名字（409），
   也没有详情/成员（404）。不传 `workspace_id` 的 `/chat/*`、`/memories/*` 都落在这里。
 - 建空间时会在**同一个事务**里把创建者写成该空间的 `admin`，所以不会出现「没人管的空间」。
+- **公共空间没有权限等级**：`user_public_workspaces` 只有两列（user_id / public_workspace_id），
+  成员一律只读，写 / 删只认 `users.is_super`（`docs/adr/0001`）。它的**可见范围 = 成员 ∪ super**：
+  super 不是成员也能读、能写、能删。agent 侧的 `/public/` 挂载也按这个范围过滤，且对所有人**只读**。
 - 授权 super 的唯一途径是数据库：`update users set is_super = true where account = '...'`。
 
 ## 5. 导览路线（建议按顺序读）
@@ -96,6 +109,7 @@ uv run python tests/test_auth.py   # 18 项自检
 | 13 | 下一个装配位 | `agents/` 为空但依赖与 `postgresql.deepagent` 段已就绪 |
 | 14 | 业务空间与成员权限 | 模型 → 仓储（grant upsert）→ 服务（同一事务写 admin）→ 路由（SuperUser 依赖）→ schema |
 | 15 | 权限的验证方式 | 三个自建自清脚本：关联表约束 / 仓储 upsert·撤销·级联 / 21 项接口检查 |
+| 16 | 公共空间与 `/public/` 挂载 | 两张新表 → `PublicWorkspaceService`（super 全通 + 成员看关联记录）→ `/public-workspaces/*` 路由 → `PublicWorkspaceDep` 每轮查一次 → `PublicMountBackend` 按 `rt.context` 过滤。先读 `CONTEXT.md` 与 `docs/adr/0001~0005`，再看代码 |
 
 ## 6. 文件地图（按图层）
 
@@ -106,21 +120,30 @@ uv run python tests/test_auth.py   # 18 项自检
 **接口层**
 - `routers/auth.py` — 注册 / 登录 / 刷新 / 登出 / me 五个端点
 - `routers/workspace.py` — `/workspaces/*` 八个端点（一操作一路径）
+- `routers/public_workspace.py` — `/public-workspaces/*` 十三个端点（空间 CRUD + 授权 + 内容读写）
 - `routers/schemas/auth.py`、`routers/schemas/workspace.py` — 请求/响应模型（含 `MyWorkspaceOut.of()`、`MemberOut.of()` 组装工厂）
+- `routers/schemas/public_workspace.py` — 公共空间的请求/响应模型（`PublicWorkspaceUpdate` **故意没有 name 字段**）
+- `routers/schemas/paths.py` — 空间名 `NAME_PATTERN` 与 store 路径校验 `safe_store_path`（记忆与公共空间共用）
 - `dependencies/database.py` — 异步 engine / `AsyncSessionFactory` / `get_session`
 - `dependencies/auth.py` — `get_current_user`、`get_super_user` 与 `CurrentUser` / `SuperUser` 注入别名
+- `dependencies/public_workspace.py` — `PublicWorkspaceDep`：当轮可见的公共空间（名字 → id），每轮查一次
+- `dependencies/agent.py` — `AgentDep`（未就绪 503）与 `OptionalAgentDep`（没起来给 None，给删公共空间用）
 
 **服务层**
 - `services/auth.py` — bcrypt 哈希、JWT 签发解码、注册/登录/刷新/登出规则
 - `services/workspace.py` — 建空间（事务内写 admin）、读操作的成员校验、空间/用户存在性校验
+- `services/public_workspace.py` — 公共空间：`visible()` 算可见范围、管理动作、内容读写、删空间时顺带清 store
 
 **数据层**
 - `models/__init__.py` — `Base`（命名约定）+ `BaseModel`（id + 时间戳）；末尾导入各表模型注册 metadata
 - `models/user.py` — `users`：account / email / hashed_password / refresh_token / is_active / **is_super**
 - `models/workspace.py` — `workspaces`：name（唯一）/ path
 - `models/user_workspace.py` — `user_workspaces`：多对多 + `WorkspacePermission`（默认 viewer + CHECK + 唯一约束）
+- `models/public_workspace.py` — `public_workspaces`：name（唯一且**不可变**）/ description，**没有 path**
+- `models/user_public_workspace.py` — `user_public_workspaces`：多对多，**没有 permission 列**
 - `repositories/user.py`、`repositories/workspace.py`、`repositories/user_workspace.py` — 三个仓储（成员仓储的 `grant` 是 PG upsert）
-- `migrations/env.py` + `versions/*.py` — 4 条迁移：建 users → 建 workspaces/user_workspaces → permission 默认值与 CHECK → users.is_super
+- `repositories/public_workspace.py`、`repositories/user_public_workspace.py` — 公共空间仓储（授权是 `ON CONFLICT DO NOTHING`，因为没有权限要更新）
+- `migrations/env.py` + `versions/*.py` — 5 条迁移：建 users → 建 workspaces/user_workspaces → permission 默认值与 CHECK → users.is_super → 建 public_workspaces/user_public_workspaces
 - `alembic.ini` — 只配 `script_location` 与日志，URL 由 env.py 注入
 
 **基础设施**
@@ -133,6 +156,8 @@ uv run python tests/test_auth.py   # 18 项自检
 - `tests/test_workspace_api.py` — 21 项空间接口（super 规则、错误码、级联删除）
 - `tests/test_user_workspace_repository.py` — 成员仓储（upsert / 撤销 / 级联）
 - `tests/test_user_workspace.py` — 关联表约束（内存 SQLite，无需 PG）
+- `tests/test_public_workspace_api.py` — 25 项公共空间接口（super 规则、可见范围、写权限、删空间清内容）
+- `tests/test_public_workspace_mount.py` — 纯内存验证 `/public/` 挂载的隔离与只读（无数据库、无模型 key）
 
 ## 7. 复杂度热点（改动前请谨慎）
 

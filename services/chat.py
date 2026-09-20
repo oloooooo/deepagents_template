@@ -8,6 +8,9 @@
 3. 归属校验读 checkpoint metadata（``AgentMemory.aget_meta``），查不到一律 404；
 4. ``workspace_id`` 从 metadata 取（不信任请求体），每轮再校验一次成员权限 ——
    被移出空间后立刻失效；metadata 里没有它（虚拟 default 空间之前建的会话）就当 ``default``。
+
+``public_workspaces``（可见的公共空间，名字 -> id）是**每轮由路由传进来**的，不落 metadata：
+被移出公共空间必须立刻失效，包括 ``/chat/approve`` 续跑那一轮（见 ``docs/adr/0004``）。
 """
 
 from collections.abc import AsyncIterator
@@ -50,13 +53,18 @@ class ChatService:
         *,
         workspace_id: str,
         message: str,
+        public_workspaces: dict[str, str],
         thread_id: str | None = None,
     ) -> tuple[str, AgentRun]:
         conversation = await self.open_turn(
             user, workspace_id=workspace_id, thread_id=thread_id
         )
         run = await self.agent.ainvoke(
-            message, thread_id=conversation, user_id=user.id, workspace_id=workspace_id
+            message,
+            thread_id=conversation,
+            user_id=user.id,
+            workspace_id=workspace_id,
+            public_workspaces=public_workspaces,
         )
         return conversation, run
 
@@ -66,25 +74,39 @@ class ChatService:
         *,
         workspace_id: str,
         message: str,
+        public_workspaces: dict[str, str],
         thread_id: str | None = None,
     ) -> tuple[str, AsyncIterator[AgentEvent]]:
         conversation = await self.open_turn(
             user, workspace_id=workspace_id, thread_id=thread_id
         )
         events = self.agent.astream(
-            message, thread_id=conversation, user_id=user.id, workspace_id=workspace_id
+            message,
+            thread_id=conversation,
+            user_id=user.id,
+            workspace_id=workspace_id,
+            public_workspaces=public_workspaces,
         )
         return conversation, events
 
     async def approve(
-        self, user: User, *, thread_id: str, decisions: list[dict]
+        self,
+        user: User,
+        *,
+        thread_id: str,
+        decisions: list[dict],
+        public_workspaces: dict[str, str],
     ) -> AgentRun:
-        """人工批准后接着跑：空间取自会话 metadata，不接受请求体里的 workspace_id。"""
+        """人工批准后接着跑：空间取自会话 metadata，不接受请求体里的 workspace_id。
+
+        公共空间可见范围**重新传一遍**（不取 metadata）：续跑也要反映最新的授权状态。
+        """
         workspace_id = await self.own(user, thread_id)
         return await self.agent.ainvoke(
             thread_id=thread_id,
             user_id=user.id,
             workspace_id=workspace_id,
+            public_workspaces=public_workspaces,
             resume={"decisions": decisions},
         )
 

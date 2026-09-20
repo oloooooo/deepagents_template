@@ -37,24 +37,30 @@ uv sync --frozen      # 按 uv.lock 精确安装依赖（新增依赖用 uv add�
 ├── dependencies/
 │   ├── database.py          #   异步 engine / AsyncSessionFactory / get_session（请求级会话）
 │   ├── auth.py              #   get_current_user（Bearer → JWT → User）、CurrentUser / SuperUser 注入类型
-│   └── agent.py             #   AgentDep：从 app.state 取 lifespan 起好的 GeneralAgent（未就绪 503）
+│   ├── agent.py             #   AgentDep：从 app.state 取 lifespan 起好的 GeneralAgent（未就绪 503）
+│   └── public_workspace.py  #   PublicWorkspaceDep：当轮可见的公共空间（名字→id），每轮查一次
 ├── models/                  # SQLAlchemy ORM
 │   ├── __init__.py          #   Base（命名约定）/ BaseModel（id+时间戳）；末尾 import 各表模型
 │   ├── user.py              #   users 表：account / email / hashed_password / refresh_token / is_super
 │   ├── workspace.py         #   workspaces 表：name（唯一）/ path
-│   └── user_workspace.py    #   user_workspaces 关联表：多对多 + permission（默认 viewer）
-├── repositories/            # 数据库读写类（UserRepository / WorkspaceRepository / UserWorkspaceRepository）
-├── services/                # 路由功能实现（AuthService / WorkspaceService / MemoryService / ChatService）
-│   └── access.py            #   空间权限校验的唯一入口（非成员 404、viewer 写 403）
-├── routers/                 # FastAPI 路由（auth.py、workspace.py、memory.py、chat.py）
-│   └── schemas/             #   请求/响应模型：auth.py、workspace.py、memory.py、chat.py
+│   ├── user_workspace.py    #   user_workspaces 关联表：多对多 + permission（默认 viewer）
+│   ├── public_workspace.py  #   public_workspaces 表：name（唯一且不可变）/ description，没有 path
+│   └── user_public_workspace.py # user_public_workspaces 关联表：多对多，**没有** permission 列
+├── repositories/            # 数据库读写类（User / Workspace / UserWorkspace / PublicWorkspace / UserPublicWorkspace）
+├── services/                # 路由功能实现（Auth / Workspace / PublicWorkspace / Memory / Chat）
+│   ├── access.py            #   业务空间权限校验的唯一入口（非成员 404、viewer 写 403）
+│   └── public_workspace.py  #   公共空间：super 全通 + 成员看关联记录；删空间时顺带清 store
+├── routers/                 # FastAPI 路由（auth.py、workspace.py、public_workspace.py、memory.py、chat.py）
+│   └── schemas/             #   请求/响应模型：auth.py、workspace.py、public_workspace.py、memory.py、chat.py、paths.py
 ├── main.py                  # 应用入口：app / lifespan（起 agent）/ /health / 事件循环与 uvicorn 启动参数
 ├── migrations/              # alembic 迁移（连接串来自 config.yaml 的 postgresql.user 段）
 │   ├── env.py
-│   └── versions/*.py        #   users、workspaces、user_workspaces、is_super 等 4 个迁移
-├── tests/                   # 端到端自检脚本（7 个，均无需 pytest，跑完自清理）
+│   └── versions/*.py        #   users、workspaces、user_workspaces、is_super、public_workspaces 等 5 个迁移
+├── tests/                   # 端到端自检脚本（9 个，均无需 pytest，跑完自清理）
+├── CONTEXT.md               # 领域术语表：Workspace / Public workspace / Default workspace / Visibility…
+├── docs/adr/                # 架构决定记录（0001~0005：公共空间为什么不复用 Workspace、为什么只读…）
 ├── alembic.ini              # 只配 script_location / 日志，URL 由 env.py 注入
-└── agents/                  # agent 本体：agent.py（GeneralAgent / AgentMemory）+ readme.md（记忆隔离约定）
+└── agents/                  # agent 本体：agent.py（GeneralAgent / AgentMemory）+ public_workspace.py（/public 挂载）+ readme.md
 ```
 
 分层约定：**routers 只收参/返回 → services 写业务逻辑 → repositories 只做数据库读写 → models 定义表**；
@@ -71,7 +77,7 @@ uv sync --frozen
 # 2) 改 config/config.yaml 里 postgresql.user / postgresql.deepagent 的连接信息
 #    （本机就是 PostgreSQL 的话，通常只改 user/password/db_name）
 
-# 3) 建业务库的表（users / workspaces / user_workspaces + alembic_version）
+# 3) 建业务库的表（users / workspaces / user_workspaces / public_workspaces / user_public_workspaces + alembic_version）
 uv run alembic upgrade head
 
 # 4) 启动
@@ -335,7 +341,64 @@ POST /memories/delete                   删一份记忆（204）
 agent 自己写 `/memories/**` 会先 `interrupt` 等人批准（`POST /chat/approve`），用户侧的 `/memories/write` 直写、不用批准；
 这两条链路的细节（含为什么裸内存路径也要单独列一条权限规则）见 `agents/readme.md`。
 
-### 7.5 权限模型（重要）
+### 7.5 公共空间（`/public-workspaces/*` + agent 的 `/public/` 挂载）
+
+**公共空间**是一组指定用户**只读**、只有 super 能读写删的共享空间。它和「业务空间」是**两类实体**
+（权限模型不同：业务空间三级、公共空间二元），术语见根目录 `CONTEXT.md`，取舍见 `docs/adr/0001`。
+
+```
+POST   /public-workspaces/create               建公共空间
+GET    /public-workspaces/list                 全部公共空间（管理视角）
+GET    /public-workspaces/mine                 我被授权的
+GET    /public-workspaces/detail/{id}          详情
+PATCH  /public-workspaces/update/{id}          改说明（名字不可变）
+DELETE /public-workspaces/delete/{id}          删空间 + 清内容
+POST   /public-workspaces/grant/{id}           授权（body: user_name，幂等）
+DELETE /public-workspaces/revoke/{id}/{user}   撤权
+GET    /public-workspaces/members/{id}         成员列表
+GET    /public-workspaces/files/list/{id}      列文件
+POST   /public-workspaces/files/read/{id}      读一份（body: path）
+POST   /public-workspaces/files/write/{id}     写一份（body: path + content，整份覆盖）
+POST   /public-workspaces/files/delete/{id}    删一份（body: path）
+```
+
+| 方法 | 路径 | 说明 | 权限 |
+| --- | --- | --- | --- |
+| POST | `/public-workspaces/create` | body `{"name", "description"?}`；`name` 全局唯一、**不可变**（它是 agent 挂载路径的一段），重名 409 | **super** |
+| GET | `/public-workspaces/list` | 全部公共空间 —— 「我能读的全部」 | **super** |
+| GET | `/public-workspaces/mine` | 我被授权的 —— 「我是不是成员」。**super 的 `/mine` 也可能是空的**，这不是 bug | 登录 |
+| GET | `/public-workspaces/detail/{id}` | 详情；不可见与不存在都 404（不泄露存在性） | 可见 |
+| PATCH | `/public-workspaces/update/{id}` | body `{"description"}`；body 里塞 `name` 直接 422 | **super** |
+| DELETE | `/public-workspaces/delete/{id}` | 204；先删表再清 store 内容，清理失败只记日志（`docs/adr/0005`） | **super** |
+| POST | `/public-workspaces/grant/{id}` | body `{"user_name"}`（账号名），**成功返回 `{"result": true}`**，重复授权幂等 | **super** |
+| DELETE | `/public-workspaces/revoke/{id}/{user_name}` | 204；本来就不是成员 404 | **super** |
+| GET | `/public-workspaces/members/{id}` | 成员列表，**没有 `permission` 字段**（成员一律只读） | **super** |
+| GET | `/public-workspaces/files/list/{id}` | `{public_workspace_id, files: ["notes/a.md"]}` | 可见 |
+| POST | `/public-workspaces/files/read/{id}` | body `{"path"}`，不存在 404 | 可见 |
+| POST | `/public-workspaces/files/write/{id}` | body `{"path", "content"}`，整份覆盖 | **super** |
+| POST | `/public-workspaces/files/delete/{id}` | body `{"path"}`，不存在 404 | **super** |
+
+**可见范围**（`CONTEXT.md` 的 Visibility）：**super 全部可见**（不是成员也能读、能写、能删）；
+成员只看自己被授权的那些，一律只读。所以 `/list` 与 `/mine` 回答的是两个不同的问题。
+
+**agent 侧的 `/public/` 挂载**：内容存在 langgraph store 里，命名空间是
+`("public", <id>, "filesystem")`，**不含 `user_id`** —— 这就是「公共」的定义，也是它和
+`/memories/`（`(user_id, workspace_id, "filesystem")`）的根本区别。agent 看到的路径是：
+
+```
+/public/{公共空间名}/notes/a.md
+```
+
+- **对 agent 只读**：`/public/**` 的写操作被一条静态规则拒掉（`docs/adr/0003`）。静态规则区分不了用户，
+  所以「只有 super 能写」不在 agent 这边表达 —— super 改内容走上面的 `files/write`、`files/delete`；
+- 可见范围**每轮重查**（`PublicWorkspaceDep`），不写 checkpoint metadata —— 被移出公共空间立刻失效
+  （`docs/adr/0004`）；
+- `CompositeBackend` 的路由是启动时定死的静态前缀，所以「这个人能看哪几个」只能由
+  `agents/public_workspace.py` 的 `PublicMountBackend` 每次操作去读 `rt.context`，
+  **不能**往 `CompositeBackend.routes` 里塞；`ls` / `read_file` / `glob` / `grep` 都按当轮可见范围过滤；
+- 目录说明靠约定：谁建公共空间谁在里面放 `README.md`，模型按需自己读（不注入 system prompt）。
+
+### 7.6 权限模型（重要）
 
 - **`users.is_super` 只能直接改数据库**：没有 API、也没有 repository 写入口，注册/登录碰不到它
   （注册请求里塞 `is_super: true` 也无效）。
@@ -352,6 +415,10 @@ agent 自己写 `/memories/**` 会先 `interrupt` 等人批准（`POST /chat/app
 - **记忆与聊天都不从请求体取 `user_id`**：归属一律来自登录态，另有会话归属校验
   （`thread_id` 非本人 404）与 `(user_id, workspace_id)` 双维度存储隔离；
   请求体里多塞 `user_id` / `workspace_id`（在不该出现的地方）会被 Pydantic 挡成 422。
+- **公共空间没有权限等级**：成员一律只读，写/删只认 `users.is_super`（`docs/adr/0001`）。
+  它的**可见范围 = 成员 ∪ super** —— super 不是成员也能读、能写、能删，
+  所以管理动作（建/改/删/授权/撤权/成员列表）走 `SuperUser`，读走 `CurrentUser` 再过一遍可见性，
+  不可见与不存在一律 404（同样不泄露存在性）。
 
 ```sql
 -- 授权 super（唯一途径）
@@ -364,7 +431,7 @@ update users set is_super = true where account = 'admin';
 它只回答「我能不能进」——有权限时带 `permission`，没权限或空间不存在都返回
 `has_access: false`（**不是 404**，因此不会泄露空间是否存在）。
 
-### 7.6 curl 示例
+### 7.7 curl 示例
 
 ```bash
 BASE=http://127.0.0.1:8000
@@ -394,6 +461,21 @@ curl -s $BASE/workspaces/access/$WS -H "Authorization: Bearer $TOKEN"
 # 日常聊天 / 日常记忆：不传 workspace_id 就落虚拟 default 空间（人人 admin，不用建空间）
 curl -s -X POST $BASE/chat/send -H "Authorization: Bearer $TOKEN" \
      -H 'Content-Type: application/json' -d '{"message":"你好"}'
+
+# 公共空间（需 super）：建一个、写一份内容、授权给某个账号
+PW=$(curl -s -X POST $BASE/public-workspaces/create -H "Authorization: Bearer $TOKEN" \
+     -H 'Content-Type: application/json' -d '{"name":"handbook","description":"团队手册"}' \
+     | python -c "import sys,json;print(json.load(sys.stdin)['id'])")
+curl -s -X POST $BASE/public-workspaces/files/write/$PW -H "Authorization: Bearer $TOKEN" \
+     -H 'Content-Type: application/json' -d '{"path":"notes/a.md","content":"公共规范 v1"}'
+curl -s -X POST $BASE/public-workspaces/grant/$PW -H "Authorization: Bearer $TOKEN" \
+     -H 'Content-Type: application/json' -d '{"user_name":"someone"}'
+# => {"result":true}
+
+# 被授权的人：列 + 读（写 / 删是 403），agent 那边多一个只读的 /public/handbook/ 目录
+curl -s $BASE/public-workspaces/mine -H "Authorization: Bearer $SOMEONE_TOKEN"
+curl -s -X POST $BASE/public-workspaces/files/read/$PW -H "Authorization: Bearer $SOMEONE_TOKEN" \
+     -H 'Content-Type: application/json' -d '{"path":"notes/a.md"}'
 curl -s $BASE/memories/mine -H "Authorization: Bearer $TOKEN"
 
 # 踢出空间（真删关联行）
@@ -425,16 +507,18 @@ yaml 里写错键名会**直接报错**，不会被静默忽略）：
 
 ## 9. 测试
 
-七个端到端自检脚本，都不需要 pytest，失败即非 0 退出，跑完自动清理测试数据：
+九个端到端自检脚本，都不需要 pytest，失败即非 0 退出，跑完自动清理测试数据：
 
 ```bash
 uv run python tests/test_auth.py                      # 18 项，需 PostgreSQL
-uv run python tests/test_workspace_api.py             # 27 项，需 PostgreSQL
+uv run python tests/test_workspace_api.py             # 30 项，需 PostgreSQL
+uv run python tests/test_public_workspace_api.py      # 25 项，需业务库 + agents 库（不联网）
+uv run python tests/test_public_workspace_mount.py    # 纯内存，无数据库、无模型 key
 uv run python tests/test_user_workspace_repository.py # 需 PostgreSQL
 uv run python tests/test_user_workspace.py            # 内存 SQLite，无需数据库
 uv run python tests/test_agent_memory_scope.py        # 纯内存，无数据库、无模型 key
 uv run python tests/test_agent_chat_memory.py         # 需 PostgreSQL 的 agents 库，假模型
-uv run python tests/test_agent_api.py                 # 39 项，需两个库，假模型（不联网）
+uv run python tests/test_agent_api.py                 # 42 项，需两个库，假模型（不联网）
 ```
 
 | 脚本 | 覆盖 |
@@ -444,6 +528,8 @@ uv run python tests/test_agent_api.py                 # 39 项，需两个库，
 | `test_user_workspace_repository.py` | 仓储层：grant 改权限行数仍为 1 / 查权限 / 列我的空间 / 空结果 / 撤销 True·False / 删空间级联清关联 |
 | `test_user_workspace.py` | 关联表：默认 viewer / 入库存小写 / CHECK 拒非法值 / 双向只读关系 / 重复授权被唯一约束拒 |
 | `test_agent_memory_scope.py` | 纯内存验证记忆机制：`/memories/` 按用户命名空间隔离、`/memories/**` 只读（deny）、`interrupt → 批准 → 落库`、忘传 context 的失败模式 |
+| `test_public_workspace_mount.py` | 纯内存验证 `/public/` 挂载：成员只看得到自己被授权的、同一公共空间的两个人读到同一份、super 全部可见、`glob`/`grep` 跨空间合并且不越权、写操作被 deny、假模型端到端走 `ls`/`read_file`/`write_file` |
+| `test_public_workspace_api.py` | HTTP 层：非 super 建空间 403、`/list` 与 `/mine` 对 super 的口径差异、授权前不可见（404）与授权后可读、成员写删 403、路径校验 422、撤权后立即 404、删空间把 store 内容一起清掉、关联记录级联删除 |
 | `test_agent_chat_memory.py` | 真图 + 真检查点：agent 写记忆被拦下、批准后落库、换用户/换空间看不见、用户侧直写、短期记忆按用户隔离、会话元数据（user_id / workspace_id）已进检查点 |
 | `test_agent_api.py` | HTTP 层：`/memories/*` 写读列删、viewer 只读、非成员 404、跨空间隔离；`/chat/*` 八端点契约、SSE 事件序列、接力聊天、借别人 thread_id 404、`interrupt → approve` 后记忆落库、短期记忆的读/删消息/删文件/删会话 |
 
@@ -475,7 +561,7 @@ bcrypt 只处理前 72 字节，本项目对超长密码直接拒绝（不静默
 
 **Q：建空间 / 改空间 / 看成员列表返回 403？**
 这些操作只允许 super —— `update users set is_super = true where account = '你的账号'`，
-改完立即生效、不用重新登录（见 [7.5](#75-权限模型重要)）。空间内的 admin 也不行，成员列表连 admin 都看不了。
+改完立即生效、不用重新登录（见 [7.6](#76-权限模型重要)）。空间内的 admin 也不行，成员列表连 admin 都看不了。
 
 **Q：空间详情返回 404，但我当然是管理员？**
 读操作先看 `user_workspaces` 里的成员关系；不是成员就统一 404（不泄露空间是否存在）。

@@ -7,11 +7,10 @@
 - ``path`` 在这里就把 ``..`` / ``~`` / 空路径挡掉，别把脏路径带进 store。
 """
 
-from pathlib import PurePosixPath
-
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from models import DEFAULT_WORKSPACE
+from routers.schemas.paths import safe_store_path
 
 __all__ = [
     "MemoryListOut",
@@ -42,11 +41,7 @@ class MemoryPath(BaseModel):
     @field_validator("path")
     @classmethod
     def _safe_path(cls, value: str) -> str:
-        if not value.strip().strip("/"):
-            raise ValueError("记忆路径不能为空")
-        if ".." in PurePosixPath(value.replace("\\", "/")).parts or value.startswith("~"):
-            raise ValueError("记忆路径不能包含 .. 或 ~")
-        return value
+        return safe_store_path(value, label="记忆路径")
 
 
 class MemoryWrite(MemoryPath):
