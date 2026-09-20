@@ -37,14 +37,15 @@ uv run python tests/test_auth.py   # 18 项自检
 | **接口层：路由与依赖注入** | FastAPI 路由与依赖注入（请求级会话、Bearer → 当前用户、super 校验） | `routers/auth.py`、`routers/workspace.py`、`routers/schemas/*`、`dependencies/auth.py`、`dependencies/database.py` |
 | **服务层：业务逻辑** | 鉴权规则与空间规则的唯一落点，不感知 HTTP | `services/auth.py`、`services/workspace.py` |
 | **数据层：模型、仓库与迁移** | ORM 基类与表模型、仓储类、alembic 迁移 | `models/*`、`repositories/*`、`migrations/*`、`alembic.ini` |
-| **基础设施：配置与日志** | 配置加载（OmegaConf + pydantic + `APP_*` 覆盖）与 loguru 日志基础设施 | `config/config.py`、`config/config.yaml`、`logger/__init__.py`、`pyproject.toml` |
+| **基础设施：配置与日志** | 配置加载（OmegaConf + pydantic + `.env` / 环境变量插值）与 loguru 日志基础设施 | `config/config.py`、`config/config.yaml`、`logger/__init__.py`、`pyproject.toml` |
 | **应用入口与装配** | FastAPI 实例、lifespan、`/health`、uvicorn 参数；deepagents 装配位 | `main.py`、`agents/__init__.py` |
 | **测试与自检** | 四个端到端脚本，无需 pytest，跑完自清理 | `tests/*.py` |
 | **文档与协作规范** | 使用文档与给 AI 协作者的目录职责约定 | `README.md`、`AGENTS.md` |
 
 ## 3. 关键概念（读代码前先知道这几条）
 
-1. **配置只有一份源**：`config/config.yaml`。`config/config.py` 负责「OmegaConf 读 → `APP_*` 环境变量覆盖 → pydantic 校验 → `app_config` 单例」，
+1. **配置只有一份源**：`config/config.yaml`。`config/config.py` 负责「`python-dotenv` 读 `.env` → OmegaConf 读 yaml（解析其中的 `${oc.env:变量名,默认值}`）→ pydantic 校验 → `app_config` 单例」，
+   优先级是**系统环境变量 > `.env` > yaml 默认值**；能从外部改的键在 yaml 里显式写成插值，不再有 `APP_` 前缀扫描那一套。
    `extra="forbid"` 让写错键名在启动瞬间报错。其它模块统一 `from config import app_config`。
 2. **四层职责不越界**：routers 不写 SQL，services 不碰 HTTP 细节，repositories 只做增删改查（`repositories/user.py` 是「唯一写 SQL 的地方」这一约定的范例）。
 3. **请求级会话**：`SessionDep`（`Annotated[AsyncSession, Depends(get_session)]`）注入，禁止在路由里自建 engine。

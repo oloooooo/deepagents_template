@@ -172,20 +172,21 @@ uv run alembic downgrade -1 && uv run alembic upgrade head
 
 ### 6.1 必须改的配置
 
-配置优先级：**环境变量 > `config/config.yaml`**。生产建议密码/密钥只走环境变量，
-但环境变量只能覆盖 yaml 中**已存在**的键（键名必须保留在 yaml 里），命名规则：`APP_` + 大写路径 + `__` 分隔层级。
+配置优先级：**系统环境变量 > 项目根目录 `.env` > `config/config.yaml` 里的默认值**。
+
+yaml 里每个能从外部改的键都写成 `${oc.env:变量名,默认值}`，所以「哪些配置可以外部注入」在 yaml 里
+一眼看得见；要加一个就照抄一行，**不用改 `config.py`**。本地把真值写进 `.env`（已 gitignore），
+容器 / systemd / k8s 直接注同名环境变量即可（同名时环境变量优先）。
 
 | 配置项（yaml 路径） | 生产要求 | 环境变量 |
 | --- | --- | --- |
-| `postgresql.user.host/port/user/password/db_name` | 指向生产业务库，**密码不要写进提交的 yaml** | `APP_POSTGRESQL__USER__HOST` / `__PORT` / `__USER` / `__PASSWORD` / `__DB_NAME` |
-| `postgresql.deepagent.*` | 指向 deepagents 的检查点/长期记忆库 | `APP_POSTGRESQL__DEEPAGENT__HOST` / `__PORT` / `__USER` / `__PASSWORD` / `__DB_NAME` |
-| `auth.secret_key` | **必须替换**为 ≥32 字节随机串，泄露等于任何人都能签 token | `APP_AUTH__SECRET_KEY` |
-| `auth.access_token_expire_minutes` | 15–60 分钟（越短越安全，越大越省刷新） | `APP_AUTH__ACCESS_TOKEN_EXPIRE_MINUTES` |
-| `auth.refresh_token_expire_days` | 7–30 天 | `APP_AUTH__REFRESH_TOKEN_EXPIRE_DAYS` |
-| `logger.level` | 生产用 `INFO` 或 `WARNING` | `APP_LOGGER__LEVEL` |
-| `logger.dir` | 绝对路径，例如 `/var/log/deepagents` | `APP_LOGGER__DIR` |
-| `logger.rotation` / `retention` | 按磁盘策略，如 `100 MB` / `30 days` | `APP_LOGGER__ROTATION` / `APP_LOGGER__RETENTION` |
-| `logger.diagnose` | 保持 `false`（打印异常时附带变量值，可能泄漏密码/令牌） | `APP_LOGGER__DIAGNOSE` |
+| `postgresql.user.host/port/user/password/db_name` | 指向生产业务库，**密码不要写进提交的 yaml** | `PG_HOST` / `PG_PORT` / `PG_USER` / `PG_PASSWORD` / `PG_DB` |
+| `auth.secret_key` | **必须替换**为 ≥32 字节随机串，泄露等于任何人都能签 token | `AUTH_SECRET_KEY` |
+| `logger.level` | 生产用 `INFO` 或 `WARNING` | `LOG_LEVEL` |
+| `logger.dir` | 绝对路径，例如 `/var/log/deepagents` | `LOG_DIR` |
+
+其余键（token 有效期、日志切分策略、`logger.diagnose`、`auth.algorithm`）属于**策略而不是环境**，
+直接写死在 yaml 里；确实要按环境改，就在 yaml 那行套一层 `${oc.env:名字,默认值}`。
 
 生成密钥：
 
@@ -193,18 +194,20 @@ uv run alembic downgrade -1 && uv run alembic upgrade head
 uv run python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-生产环境变量示例（systemd `EnvironmentFile` / Docker env / k8s Secret 均可）：
+生产注入示例（systemd `EnvironmentFile` / Docker env / k8s Secret 均可）：
 
 ```bash
-APP_POSTGRESQL__USER__HOST=10.0.0.12
-APP_POSTGRESQL__USER__PASSWORD=<生产密码>
-APP_AUTH__SECRET_KEY=<上面生成的随机串>
-APP_LOGGER__DIR=/var/log/deepagents
-APP_LOGGER__LEVEL=INFO
+PG_HOST=10.0.0.12
+PG_PASSWORD=<生产密码>
+AUTH_SECRET_KEY=<上面生成的随机串>
+LOG_DIR=/var/log/deepagents
+LOG_LEVEL=INFO
 ```
 
-> 本项目**不读取 `.env` 文件**（`.env` 仅被 gitignore）。环境变量请通过进程环境注入；
-> 也可以在 yaml 里用 OmegaConf 插值：`password: ${oc.env:PG_PASSWORD,1234}`。
+> `.env` 在**项目根目录**（和 `config/` 同级），由 `config/config.py` 在 import 时用 `python-dotenv` 读入。
+> `load_dotenv` 默认不覆盖已存在的变量，所以「本地用 `.env`、线上注环境变量」不会打架。
+> 变量名要改就**两边一起改**（yaml 里的 `${oc.env:...}` 与 `.env` / 环境变量）。
+> 模型密钥走的是同一个 `.env`，但由 `agents/config.py` 的 `ModelConfig` 直接读（`OPEN_MODEL` / `OPEN_BASE_URL` / `OPEN_API_KEY`）。
 
 ### 6.2 启动与进程管理
 
@@ -500,6 +503,10 @@ yaml 里写错键名会**直接报错**，不会被静默忽略）：
 
 `PostgreConfig` 暴露两个连接串：`.uri`（`postgresql://…`，给 psycopg/连接池/checkpointer 用）与
 `.sqlalchemy_uri`（`postgresql+psycopg://…`，同步/异步引擎通用）。
+
+能从外部改的键在 yaml 里写成 `${oc.env:变量名,默认值}`（如 `password: ${oc.env:PG_PASSWORD,"1234"}`）：
+`config/config.py` import 时先用 `python-dotenv` 读项目根目录的 `.env`，再解析这些插值，
+所以优先级是**系统环境变量 > `.env` > yaml 默认值**。变量名与生产注入方式见 [6.1](#61-必须改的配置)。
 
 其他模块读取方式：`from config import app_config, load_config`（`load_config()` 可重新加载）。
 

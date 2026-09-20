@@ -3,6 +3,7 @@
 from .config import (
     BASE_DIR,
     CONFIG_FILE,
+    ENV_FILE,
     AppConfig,
     AuthConfig,
     LoggerConfig,
@@ -15,6 +16,7 @@ from .config import (
 __all__ = [
     "BASE_DIR",
     "CONFIG_FILE",
+    "ENV_FILE",
     "AppConfig",
     "AuthConfig",
     "LoggerConfig",
