@@ -283,15 +283,22 @@ async def part_a() -> None:
         assert answer == "收到：你好", "跑完的轮次应该返回原来的回答"
         assert await history(agent, thread) == before, "跑完的轮次不该被塞占位文案"
 
-    print("-- A5 TurnRegistry：互斥 + 自愈 --")
+    print("-- A5 TurnRegistry：本地登记与释放（互斥不在这，在 running_turns 表里）--")
     registry = TurnRegistry()
-    first = registry.reserve("t")
+    first = registry.reserve("t", "u1", "w1")
     step("第一次 reserve 成功")
-    assert first is not None
-    assert registry.reserve("t") is None, "同一 thread 第二次 reserve 应该失败（409）"
-    assert registry.get("t") is first
+    assert registry.get("t") is first, "应该能按 thread_id 找到"
+    assert (first.user_id, first.workspace_id) == ("u1", "w1"), (
+        "owner 收到停止通知时只有 thread_id，user_id / workspace_id 必须随身带着"
+    )
+    try:
+        registry.reserve("t", "u1", "w1")
+        raise AssertionError("同一进程里同一 thread 第二次 reserve 应该拒绝")
+    except RuntimeError:
+        step("第二次 reserve 被拒")
     registry.release(first)
-    assert registry.reserve("t") is not None, "释放后应该能再占"
+    assert registry.get("t") is None, "释放后应该查不到"
+    assert registry.reserve("t", "u1", "w1") is not None, "释放后应该能再占"
 
 
 def part_b() -> None:

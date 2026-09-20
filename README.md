@@ -56,11 +56,15 @@ uv sync --frozen      # 按 uv.lock 精确安装依赖（新增依赖用 uv add�
 ├── migrations/              # alembic 迁移（连接串来自 config.yaml 的 postgresql.user 段）
 │   ├── env.py
 │   └── versions/*.py        #   users、workspaces、user_workspaces、is_super、public_workspaces 等 5 个迁移
-├── tests/                   # 端到端自检脚本（9 个，均无需 pytest，跑完自清理）
-├── CONTEXT.md               # 领域术语表：Workspace / Public workspace / Default workspace / Visibility…
-├── docs/adr/                # 架构决定记录（0001~0005：公共空间为什么不复用 Workspace、为什么只读…）
+├── tests/                   # 端到端自检脚本（11 个，均无需 pytest，跑完自清理）
+├── CONTEXT.md               # 领域术语表：Workspace / Public workspace / Visibility / Turn owner…
+├── docs/adr/                # 架构决定记录（0001~0008：公共空间为什么不复用 Workspace、停止为什么靠 LISTEN/NOTIFY…）
 ├── alembic.ini              # 只配 script_location / 日志，URL 由 env.py 注入
-└── agents/                  # agent 本体：agent.py（GeneralAgent / AgentMemory）+ public_workspace.py（/public 挂载）+ readme.md
+└── agents/                  # agent 本体
+    ├── agent.py             #   GeneralAgent / AgentMemory（跑图 + 存取记忆）
+    ├── turns.py             #   停止：TurnRegistry（本进程：找 task + 攒文本）+ RunningTurns（跨进程：表 + chat_drain 通道）
+    ├── public_workspace.py  #   /public 挂载（只读）
+    └── readme.md            #   模块约定（记忆隔离边界、context 必传、停止的取舍）
 ```
 
 分层约定：**routers 只收参/返回 → services 写业务逻辑 → repositories 只做数据库读写 → models 定义表**；
@@ -251,6 +255,9 @@ WantedBy=multi-user.target
    而 PostgreSQL 默认 `max_connections=100` → 容易连接被打满。
    规则：`workers × (pool_size + max_overflow) ≤ max_connections 的 80%`，
    要么调小 `pool_size`/`max_overflow`，要么调大 `max_connections`，要么上 PgBouncer。
+   另外停止功能每个 worker 还要**多占 2 条长连接**（一条 `chat_drain` 的 `LISTEN`、
+   一条控制查询，都不进连接池 —— `LISTEN` 是连接级状态，借来的连接会污染）。
+   算容量时把它加上：`workers × (pool_size + max_overflow + 2)`。
 2. **多副本写日志**：loguru 的文件 sink 由同机多进程共写会有交错行。
    多副本部署时建议 `logger.dir` 每实例独立，或只保留控制台日志交给 journald / Docker logs 收集。
 
@@ -344,8 +351,13 @@ DELETE /chat/delete/{thread_id} 删整条会话（只删短期记忆，不动 /m
 - 被停止时 SSE 流是**直接断的**（任务被取消，没有机会再 yield），结果从 `/chat/stop` 的响应体里取；
 - 一个会话同时只允许一轮在跑，重复提交返回 **409**（`await` 完 `/chat/stop` 再发新消息就不会撞上）。
 
-`/chat/stop` 靠进程内一张 `thread_id -> Turn` 的表找到要停的那一轮，**只在单进程有效** ——
-多 worker / 多实例部署前必须换成数据库里的取消标志（见 `docs/adr/0006`）。
+`/chat/stop` 不靠负载均衡器做会话粘性 —— 它把“要停这一轮”写进 `running_turns` 表，
+再用 Postgres 的 `LISTEN/NOTIFY` **广播**给所有 worker；只有跑着那一轮的那个进程会动手。
+所以停止请求落到哪台都行，轮询 / 最少连接随便配（实现与取舍见 `docs/adr/0008`）。
+
+同一张表的 PK 兼任跨进程的 409 互斥：**一个会话同时最多一轮**，多 worker 下也成立。
+worker 挂在轮次中途时，那行靠心跳回收（60 秒），下一轮开轮次前会先把留在半路的检查点
+收尾（“孤儿恢复”，见 `docs/adr/0008`）。
 
 ### 7.4 长期记忆
 
@@ -575,6 +587,7 @@ uv run python tests/test_agent_api.py                 # 42 项，需两个库，
 | `test_agent_chat_memory.py` | 真图 + 真检查点：agent 写记忆被拦下、批准后落库、换用户/换空间看不见、用户侧直写、短期记忆按用户隔离、会话元数据（user_id / workspace_id）已进检查点 |
 | `test_agent_api.py` | HTTP 层：`/memories/*` 写读列删、viewer 只读、非成员 404、跨空间隔离；`/chat/*` 九端点契约、SSE 事件序列、接力聊天、借别人 thread_id 404、`interrupt → approve` 后记忆落库、短期记忆的读/删消息/删文件/删会话 |
 | `test_chat_stop.py` | 停止：四种入口的收尾（工具中途 / 生成中途 / 等人批准 / 已跑完）、已流出文本写回历史、续聊不合并、幂等、409 互斥、404 鉴权、流式跑到一半按停止 |
+| `test_chat_stop_cross.py` | **跨进程**停止：停止请求落到没有那一轮的 worker 仍能停掉并拿回部分文本、跨进程 409、没人在跑时不靠超时、心跳回收陈行、孤儿检查点恢复不合并 |
 
 前三个业务脚本用 `tester_*` / `wsroot_*` / `wsuser_*` 前缀账号并在结束时清理；agent 相关脚本用 `agt_api_*` / `chat_stop_*` 前缀，
 并额外清 `agents` 库里的 `checkpoints` / `store` 残留。`/chat/*` 的测试全部注入假模型（不联真实 LLM）。

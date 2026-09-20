@@ -1,42 +1,29 @@
-# 停止的注册表放在进程内存里
+# 停止：意图跨进程，能力留在本地
 
-`/chat/stop` 要能找到"正在跑的那一轮"才能取消它，而 `ChatService` 是每请求一个实例，
-`StreamingResponse` 返回后路由就撒手了 —— 所以需要一个 `thread_id -> Turn` 的注册表。
-它放在 `GeneralAgent.turns` 上（跟着 agent 的生命周期走，测试里每建一个 agent 就是一份干净的表），
-**是进程内存里的 dict，不是数据库里的取消标志**。
+`/chat/stop` 落到的 worker 和跑着那一轮的 worker **可能不是同一个**。而能执行取消的
+**只有 owner** —— `asyncio.Task` 是运行时对象，绑死在一个进程的一个事件循环上，
+不能序列化、不能进数据库、不能发给别的进程。
 
-**Consequences**：`/chat/stop` **只在单进程有效**。多 worker / 多实例部署时，按停止的请求
-可能落到没有那一轮的进程上。失败模式比“停不掉”糟得多：
+所以“停止”拆成两半，各用各的载体（见 `CONTEXT.md` 的 Turn owner）：
 
-```
-进程 A：/chat/stream  →  reserve("t1")，正在跑，检查点 next=('model',)
-进程 B：/chat/stop    →  turns.get("t1") → None（B 的表里没有）
-                      →  但 astop 看到 next 非空，就写了一份收尾
-进程 A：还在跑，还会继续写检查点 → 把收尾盖掉，或两条写互相打架
-```
+| | 载体 | 管什么 |
+| --- | --- | --- |
+| **意图与归属** | `running_turns` 表（跨进程） | 谁在跑、要不要停、结果是什么 |
+| **执行能力** | `TurnRegistry`（进程内存） | 那个 `Task` 和已流出的增量文本 |
 
-用户拿到 **200**，以为停了，其实没停，历史还被写脏了。所以水平扩容前**必须**先解决它，
-而不是“反正停不掉也无所谓”。换实现时注意选一个不会写坏历史的方案，并从两个方向都验一遍。
+投递走 Postgres 的 `LISTEN/NOTIFY`（**方案 B**，实现见 `docs/adr/0008`）：
+任何一个 worker 收到停止请求都往 `chat_drain` 通道里喊一声，**所有** worker 都收得到，
+只有认领那一条的那个会动手。
 
-顺带一提：现在的区分依据是 ``interrupts``。卡在等人批准时 ``next`` 停在
-``HumanInTheLoopMiddleware.after_model``（也是非空），但 ``interrupts`` 有东西；
-换成跨进程方案时别把这个区分丢了 —— 那个分支本来就没有 task 可取消，收尾是必须做的。
+**能力这一半不是可以“优化掉”的**：它是“立刻中断”这个语义的直接后果。
+如果接受“在下个超步边界停”（langgraph 的 `RunControl.request_drain`），那一半确实能归零 ——
+控制面由 langgraph 自己持有。两条路的完整对比见 `docs/adr/0008`。
 
-### 同一条天花板也压在 409 互斥上
+**Consequences**：
 
-`ChatService.open_turn` 里“一个会话同时只允许一轮在跑”靠的是同一个 `turns.reserve`，
-所以它**也只在单进程有效**：两个 worker 可以同时给同一个 `thread_id` 各跑一轮，
-而 langgraph 对同一 thread 的并发写会互相覆盖（`checkpoints` 按
-`thread_id + checkpoint_ns + checkpoint_id` 写，同一个超步两条写谁赢不确定）。
-所以“一个会话最多一轮在跑”这句话，单进程下是硬约束，多进程下不是。
-
-三条出路，按登价比排：
-
-1. **粘性路由**：让 LB 把同一会话的请求都送到同一个实例。`thread_id` 在 body 里 LB 看不到，
-   所以要么改成路径参数（仅对 `/chat/stop` 有用，`/chat/stream` 的还是在 body），
-   要么让 SSE 响应带回一个 `X-Instance-Id`、前端在 `/chat/stop` 时原样回传，LB 按这个头 hash；
-2. **数据库里的取消标志**：agent 侧在节点边界轮询。要改图，且引入轮询延迟；
-3. **就单 worker 跑**（现在）。
-
-这是有意的取舍：内存注册表约 30 行、零依赖、零延迟；后两者都要改图或改部署。
-现在就是单进程 uvicorn，先按最短可行做。
+- `running_turns` 的 PK 兼任跨进程的 409 互斥 —— 所以“一个会话同时最多一轮”多进程下也成立；
+- 负载均衡器**不需要**做会话粘性，轮询/最少连接都行；
+- 但每个 worker 多两条专用连接（一条 `LISTEN`、一条控制查询），连接预算要算上
+  `workers × 2`（见 README 的连接数那一段）；
+- 两个“半可靠”的地方：**通知是即发即弃的**（不在监听时发出的会丢，靠重连后补扫表兜），
+  **owner 挂了没人收尾**（靠心跳回收 + 孤儿恢复，见 `docs/adr/0008`）。

@@ -10,11 +10,14 @@
   实现见 ``agents/public_workspace.py``，取舍见 ``docs/adr/0003`` 与 ``docs/adr/0004``；
 - 其余路径走 ``StateBackend``（线程内临时文件）。
 
-停止（用户按暂停键，见 ``CONTEXT.md`` 与 ``docs/adr/0006`` / ``0007``）：
+停止（用户按暂停键，见 ``CONTEXT.md`` 与 ``docs/adr/0006`` / ``0007`` / ``0008``）：
 
-- 正在跑的轮次记在 ``GeneralAgent.turns``（进程内，``thread_id -> Turn``），``/chat/stop`` 取消它；
-- 取消之后必须**收尾**：检查点停在中途（``next`` 非空），不收尾则下一轮会把这一轮和下一轮
-  合并成一次请求。收尾见 :meth:`AgentMemory.astop`。
+- 正在跑的轮次记在 ``GeneralAgent.turns``（**本进程**：那个 ``Task`` 和已流出的文本）；
+- “谁在跑 / 要不要停 / 结果是什么”记在 ``running_turns`` 表（**跨进程**），
+  由 :class:`RunningTurns` 维护，投递走 Postgres 的 ``LISTEN/NOTIFY`` —— 
+  所以 ``/chat/stop`` 落到哪个 worker 都行，不需要负载均衡器做会话粘性；
+- owner 收到通知后取消那一轮（:meth:`GeneralAgent.astop_turn`），
+  再把答案写回表；请求方轮询表拿结果。
 
 记忆写入（两条路，互不干扰）：
 
@@ -77,6 +80,12 @@ from agents.public_workspace import (
     PublicMountBackend,
     PublicWorkspaceStore,
 )
+from agents.turns import (  # noqa: F401  ——  ``Turn`` / ``TurnRegistry`` 从这重导出，服务层从这里引
+    STOP_TIMEOUT,
+    RunningTurns,
+    Turn,
+    TurnRegistry,
+)
 from logger import logger
 
 __all__ = [
@@ -119,59 +128,6 @@ DEFAULT_SYSTEM_PROMPT = """你是一个可长期协作的中文助手。
 
 STOP_PLACEHOLDER = "（用户停止了本轮）"
 """停止后补进历史的那条 AI 消息（这一轮一个字都没流出来时用）。模型会读到它。"""
-
-
-@dataclass(slots=True)
-class Turn:
-    """一轮正在跑的对话（记录在 :class:`TurnRegistry` 里，停止时要用）。
-
-    ``text`` 是**已流出的增量文本**的累加：它不落检查点（AI 消息只在超步结束时才写），
-    所以停止时必须靠它把用户已经看到的字写回历史。
-    """
-
-    thread_id: str
-    task: asyncio.Task[Any] | None = None
-    """跑这一轮的那个 task，由服务层绑上（``None`` = 还没开始跑）。停止时取消它。"""
-    text: str = ""
-
-
-class TurnRegistry:
-    """本进程正在跑的轮次：``thread_id -> Turn``。
-
-    故意挂在 :class:`GeneralAgent` 上而不是做成模块级单例：生命周期跟着 agent（进程）走，
-    测试里每建一个 agent 就是一份干净的表。
-
-    **天花板：只在单进程有效。** 多 worker / 多实例时 ``/chat/stop`` 找不到别的进程里的
-    轮次（会当成“没在跑”），要换成数据库里的取消标志。见 ``docs/adr/0006``。
-    """
-
-    def __init__(self) -> None:
-        self._turns: dict[str, Turn] = {}
-
-    def get(self, thread_id: str) -> Turn | None:
-        return self._turns.get(thread_id)
-
-    def reserve(self, thread_id: str) -> Turn | None:
-        """占一个位置，已经有在跑的轮次就返回 ``None``（调用方转成 409）。
-
-        **同步、无 await**：调用方必须在任何 await 之前调它，否则两个并发请求会双双通过检查。
-        顺手把 ``task`` 绑成当前任务（阻塞式那一轮就是当前请求任务；流式会被 ``_tracked``
-        改成真正跑迭代的子任务）。
-
-        顺带自愈：上一轮的 task 已经结束却还赖在表里（客户端在响应体开始前就断了，
-        生成器的 ``finally`` 因此没跑到），就把它当陈的挤掉，不让一条会话永久 409。
-        """
-        existing = self._turns.get(thread_id)
-        if existing is not None and existing.task is not None and not existing.task.done():
-            return None
-        turn = Turn(thread_id=thread_id, task=asyncio.current_task())
-        self._turns[thread_id] = turn
-        return turn
-
-    def release(self, turn: Turn) -> None:
-        """释放。只在自己还是当前持有者时才删，不误删后来者的。"""
-        if self._turns.get(turn.thread_id) is turn:
-            del self._turns[turn.thread_id]
 
 
 class AgentContext(BaseModel):
@@ -236,8 +192,10 @@ class GeneralAgent:
         self.memory: AgentMemory | None = None
         # 启动后可用：公共空间内容的 store 读写（REST 侧与删除清理用）
         self.public_store: PublicWorkspaceStore | None = None
-        # 随时可用：本进程正在跑的轮次（停止用）；与连接无关，构造时就能用
+        # 随时可用：**本进程**正在跑的轮次（找 task + 攒已流出文本）；停止时用
         self.turns = TurnRegistry()
+        # 启动后可用：**跨进程**的在跑轮次（表 + LISTEN 通道）；停止时的意图与归属
+        self.running_turns: RunningTurns | None = None
 
     # ---------- 生命周期 ----------
 
@@ -288,6 +246,19 @@ class GeneralAgent:
             self._graph = graph
             self.memory = AgentMemory(graph, store, saver)
             self.public_store = PublicWorkspaceStore(store)
+        # 建表 + 起 LISTEN；拿不到就整个启动失败 —— 开轮次的互斥也靠这张表，降级不了
+        running_turns = RunningTurns(self.postgres.uri, self._on_stop_request)
+        try:
+            await running_turns.start(self.turns)
+        except Exception:
+            self._graph = None
+            self.memory = None
+            self.public_store = None
+            stack, self._stack = self._stack, None
+            if stack is not None:
+                await stack.aclose()
+            raise
+        self.running_turns = running_turns
         logger.info(
             "GeneralAgent 就绪，模型 {}（checkpointer + store: {}@{}/{}）",
             self.config.model,  # pyright: ignore[reportOptionalMemberAccess]
@@ -298,13 +269,58 @@ class GeneralAgent:
         return self
 
     async def __aexit__(self, *exc_info: Any) -> None:
-        """关闭连接池。幂等，可重复调用。"""
+        """关闭 listener 与连接池。幂等，可重复调用。"""
         self.memory = None
         self.public_store = None
         self._graph = None
+        running_turns, self.running_turns = self.running_turns, None
+        if running_turns is not None:
+            await running_turns.aclose()
         stack, self._stack = self._stack, None
         if stack is not None:
             await stack.aclose()
+
+    # ---------- 停止 ----------
+
+    async def astop_turn(self, turn: Turn) -> str:
+        """取消一轮并收尾，返回它最终留在历史里的文本。
+
+        两种情况走同一条路：**本进程是 owner**（``/chat/stop`` 也落在这台，或收到别人的
+        ``chat_drain`` 通知）时调它。释放 registry 是调用方的事。
+        """
+        await self._cancel(turn)
+        if self.memory is None:  # __aexit__ 已经跑过了
+            raise RuntimeError("GeneralAgent 尚未启动，请先 `async with GeneralAgent() as agent:`")
+        return await self.memory.astop(
+            turn.thread_id, turn.user_id, turn.workspace_id, text=turn.text
+        )
+
+    async def _on_stop_request(self, thread_id: str, turn: Turn) -> None:
+        """收到 ``chat_drain`` 通知且**这一轮是本进程跑的**：收尾，把答案写回表。"""
+        answer = await self.astop_turn(turn)
+        if self.running_turns is not None:
+            await self.running_turns.finish_stop(thread_id, answer)
+
+    async def _cancel(self, turn: Turn) -> None:
+        """取消在跑的那一轮，并等它真的停下来。
+
+        ``asyncio.wait`` 而不是 ``await task``：被取消的 task 会抛 ``CancelledError``，
+        ``wait`` 不把它传播出来。
+
+        超时兜底：工具如果卡在不可取消的阻塞调用里（比如 ``run_in_executor`` 里的同步 IO），
+        ``cancel()`` 不会立刻生效。这时不能把停止按钮变成转圈 —— 先返回，收尾照做。
+        跨进程时这个超时也决定了请求方要等多久（它等 ``STOP_TIMEOUT + 1``）。
+        """
+        task = turn.task
+        if task is None or task.done():
+            return
+        task.cancel()
+        _, pending = await asyncio.wait({task}, timeout=STOP_TIMEOUT)
+        if pending:
+            # 那一轮还活着，稍后可能再写一份检查点、盖掉我们的收尾；概率低但没法根除
+            logger.warning(
+                "停止轮次超时（{}s），不等待收尾：thread_id={}", STOP_TIMEOUT, turn.thread_id
+            )
 
     # ---------- 聊天 ----------
 

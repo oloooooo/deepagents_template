@@ -1,7 +1,12 @@
 # agents 模块约定
 
-`agents/agent.py` 里的 `GeneralAgent` / `AgentMemory` 只负责「跑图 + 存取记忆」，
-**鉴权与 HTTP 一律不管**。这份文档写清记忆的隔离边界，免得后面加路由时把它写漏。
+`agents/` 里是 agent 本体，**鉴权与 HTTP 一律不管**：
+
+- `agent.py` —— `GeneralAgent`（跑图）/ `AgentMemory`（存取记忆）；
+- `turns.py` —— 停止：`TurnRegistry`（本进程的 task 与已流出文本）+ `RunningTurns`（跨进程的意图与归属）；
+- `public_workspace.py` —— `/public/` 只读挂载。
+
+这份文档写清记忆的隔离边界与停止的分工，免得后面加路由时把它写漏。
 
 ## 一、记忆分三层，各自的 user 来源
 
@@ -82,24 +87,35 @@ agent 看到的路径是 `/public/{公共空间名}/x.md`，**名字不是 id**�
 与「中断」严格区分（见 `CONTEXT.md`）：**中断**是 agent 主动停下来等人批准、之后可以续跑；
 **停止**是用户按了暂停键、这一轮到此为止。两条路不要混。
 
-实现分两块：
+实现分两块（见 `docs/adr/0006` / `0008`）：
 
-- `GeneralAgent.turns`（`TurnRegistry`）—— 本进程正在跑的轮次，`thread_id -> Turn`。
-  `Turn.text` 攒的是**已流出的增量文本**；
-- `AgentMemory.astop(thread_id, user_id, workspace_id, text=...)` —— 取消之后把检查点收尾。
+- `running_turns` 表 + `chat_drain` 通道（`agents/turns.py`）—— **跨进程的意图与归属**：
+  谁在跑、要不要停、结果是什么。投递走 Postgres 的 `LISTEN/NOTIFY`，所以停止请求
+  落到哪个 worker 都行，**不需要负载均衡器做粘性**；表的 PK 兼任跨进程的 409 互斥。
+- `GeneralAgent.turns`（`TurnRegistry`）—— **本进程的执行能力**：那个 `Task` 和已流出的文本。
+  这两个都进不了数据库，所以它不能被“优化掉”（见 `CONTEXT.md` 的 Turn owner）。
 
 三个容易踩的点：
 
 1. **已流出的文本不落检查点。** AI 消息只在超步结束时才写，所以停止时必须靠服务层实时攒的
    `Turn.text` 写回去，否则用户已经看到的字在历史里根本不存在。收到 `tool_call` 时要把
    攒的清零，只保留“正在生成的那一段”（否则一轮里多次工具往返会把几段回答粘成一条）。
+   跨进程时这份文本也得从 owner 那里回传 —— 走表的 `answer` 列，**不走通知**
+   （NOTIFY payload 上限 7999 字节，实测 8000 就报错）。
 2. **不收尾 = 下一轮出错。** 停在模型生成中途时，检查点里只有一条没有回答的 human 消息，
    下一轮的新消息会和它**合并成一次请求**。收尾用 `aupdate_state(..., as_node="model")`
    （让 langgraph 从 model 重新路由，没有 tool_calls 就走到终点），再 `ainvoke(None)` 排空
    剩下的节点 —— 正等人批准时 `next` 停在 `HumanInTheLoopMiddleware.after_model`，
    上一步只清掉了待批准请求。取舍见 `docs/adr/0007`。
-3. **注册表是进程内的。** 多 worker / 多实例时 `/chat/stop` 找不到别的进程里的轮次，
-   水平扩容前必须换实现，见 `docs/adr/0006`。
+   这个坑单进程也有：owner 跑到一半被杀死，那个会话就停在那里了 —— 所以
+   `ChatService.open_turn` 每次开轮次前先看一眼检查点（“孤儿恢复”）。
+3. **两条 `LISTEN` 相关的约束。** 通知是**即发即弃**的（不在监听时发出的会丢），
+   所以重连后要补扫一遍表；`LISTEN` 是**连接级状态**，不能借连接池里的连接，
+   也不能和 `notifies()` 共用一条连接（它会阻塞住）。
+
+另外：`Turn.task` 在 `ChatService._tracked` 第一次迭代时会被换成**子任务** ——
+流的迭代跑在 Starlette 的子任务里，取消子任务只结束这条流，取消请求任务是把整个 HTTP
+请求连根拔掉。
 
 另外：一个会话同时只允许一轮在跑（`ChatService.open_turn` 里同步占位，重复 409），
 所以“停哪一轮”永远无歧义；流的迭代跑在 Starlette 的**子任务**里，
@@ -114,6 +130,7 @@ agent 看到的路径是 `/public/{公共空间名}/x.md`，**名字不是 id**�
 | `tests/test_agent_chat_memory.py` | 真图 + 真检查点：拦下、批准落库、换用户/换空间看不见、用户侧直写、短期隔离、流式 interrupt 事件 | 本机 PostgreSQL 的 `agents` 库，假模型，无模型 key |
 | `tests/test_public_workspace_mount.py` | `/public/` 挂载：成员只看得到自己被授权的、同一公共空间的两人读到同一份、super 全部可见、`glob`/`grep` 合并且不越权、写被 deny、假模型端到端 | 纯内存，无 DB / 无模型 key |
 | `tests/test_chat_stop.py` | 停止：四种入口的收尾、已流出文本写回历史、续聊不合并、幂等、409 互斥、404 鉴权 | 本机 PostgreSQL 的 `agents` 库，假模型，无模型 key |
+| `tests/test_chat_stop_cross.py` | 跨进程停止：两个 agent 实例 = 两个 worker | 同上 |
 
 ## 七、还没做
 

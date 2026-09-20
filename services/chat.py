@@ -29,6 +29,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents.agent import AgentEvent, AgentMemory, AgentRun, GeneralAgent, Turn
+from agents.turns import STOP_TIMEOUT
 from logger import logger
 from models import DEFAULT_WORKSPACE, User
 from services.access import WorkspaceAccess
@@ -38,8 +39,8 @@ __all__ = ["THREAD_NOT_FOUND", "TURN_RUNNING", "ChatService"]
 THREAD_NOT_FOUND = "会话不存在"
 AGENT_NOT_READY = "Agent 未就绪（未配置模型或服务正在启动）"
 TURN_RUNNING = "这个会话还有一轮在跑"
-STOP_TIMEOUT = 5.0
-"""等被取消的那一轮真正停下来，最多等这么久（秒）。"""
+REMOTE_STOP_TIMEOUT = STOP_TIMEOUT + 1.0
+"""等别的 worker 收尾，比它自己的取消超时多留 1 秒。"""
 
 
 class ChatService:
@@ -53,25 +54,54 @@ class ChatService:
         self.memory = memory
         self.access = WorkspaceAccess(session)
 
+    def _rows(self):
+        """跨进程的轮次登记（表 + 通道）—— agent 没启动好就没有它，那就是 503。"""
+        rows = self.agent.running_turns
+        if rows is None:  # AgentDep 只返回启动好的 agent，这里兜底
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=AGENT_NOT_READY
+            )
+        return rows
+
     async def open_turn(
         self, user: User, *, workspace_id: str, thread_id: str | None = None
     ) -> tuple[str, Turn]:
         """开一轮对话前的把关：没在跑别的轮次、有空间权限（viewer 也能聊），并定下 thread_id。
 
-        **占位必须发生在任何 ``await`` 之前**：否则两个并发请求会双双通过检查，同一个会话
-        上跑起两轮（langgraph 对同一 thread 的并发写会互相覆盖）。占位成功但鉴权失败时
-        要释放，否则一条无权限的请求就能把会话永久锁住。
+        **互斥在 ``running_turns`` 表的 PK 上**（跨进程），不是内存表 —— 多 worker 下
+        两个进程能同时给一个会话开轮次的话，停止通知会让两个 owner 都去收尾。
+
+        顺序不能改：先拿表行（异步，真正的互斥）→ 再占内存位（同步）→ 再查权限。
+        中途失败要把两处都回滚，否则一条无权限的请求就能把会话锁住。
         """
+        rows = self._rows()
         conversation = thread_id or uuid4().hex
-        turn = self.agent.turns.reserve(conversation)
-        if turn is None:
+        if not await rows.open_turn(conversation):
             raise HTTPException(status.HTTP_409_CONFLICT, TURN_RUNNING)
+        turn = self.agent.turns.reserve(conversation, user.id, workspace_id)
         try:
+            # 上一轮跑到一半就挂了（进程被杀/重启），没人给它收尾 —— 不收的话这一轮的
+            # 新消息会和那条没回答的 human 消息合并成一次请求（见 docs/adr/0007）
+            await self._recover_orphan(conversation, user)
             await self.access.permission(user, workspace_id)
         except Exception:
             self.agent.turns.release(turn)
+            await rows.close_turn(conversation)
             raise
         return conversation, turn
+
+    async def _recover_orphan(self, thread_id: str, user: User) -> None:
+        """把上一轮留在半路的检查点收尾（当时进程挂了，没人来得及收）。
+
+        靠 ``astop`` 自己的幂等（已跑完 / 正等人批准什么都不做），所以放心地每次都看一眼。
+        新会话（还没有检查点）直接返回。
+        """
+        meta = await self.memory.aget_meta(thread_id, user.id)
+        if meta is None:
+            return
+        await self.memory.astop(
+            thread_id, user.id, meta.get("workspace_id") or DEFAULT_WORKSPACE
+        )
 
     async def send(
         self,
@@ -95,6 +125,7 @@ class ChatService:
             )
         finally:
             self.agent.turns.release(turn)
+            await self._rows().close_turn(conversation)
         return conversation, run
 
     async def stream(
@@ -143,7 +174,8 @@ class ChatService:
                 yield event
         finally:
             self.agent.turns.release(turn)
-
+            await self._rows().close_turn(turn.thread_id)
+  
     async def stop(self, user: User, *, thread_id: str) -> str:
         """用户按下停止：取消在跑的那一轮，并把短期记忆收尾。
 
@@ -156,32 +188,28 @@ class ChatService:
         归属走 ``own``：别人的 / 不存在的会话一律 404，不泄露存在性。
         """
         workspace_id = await self.own(user, thread_id)
+        rows = self._rows()
         turn = self.agent.turns.get(thread_id)
-        if turn is not None:
-            await self._cancel(turn)
-        return await self.memory.astop(
-            thread_id, user.id, workspace_id, text=turn.text if turn else ""
-        )
+        if turn is not None:  # 1) 这一轮就在本进程 -> 快路径
+            answer = await self.agent.astop_turn(turn)
+            await rows.drop_stop(thread_id)
+            return answer
 
-    async def _cancel(self, turn: Turn) -> None:
-        """取消在跑的那一轮，并等它真的停下来。
+        request = await rows.request_stop(thread_id)
+        if request is None:  # 2) 没人在跑（已跑完 / 等人批准）-> 直接收尾，幂等
+            return await self.memory.astop(thread_id, user.id, workspace_id)
+        if request.answer is not None:  # 上次没清干净，结果还在
+            await rows.drop_stop(thread_id)
+            return request.answer
 
-        ``asyncio.wait`` 而不是 ``await task``：被取消的 task 会抛 ``CancelledError``，
-        ``wait`` 不把它传播出来。
-
-        超时兜底：工具如果卡在不可取消的阻塞调用里（比如 ``run_in_executor`` 里的同步 IO），
-        ``cancel()`` 不会立刻生效。这时不能把停止按钮变成转圈 —— 先返回，收尾照做。
-        """
-        task = turn.task
-        if task is None or task.done():
-            return
-        task.cancel()
-        _, pending = await asyncio.wait({task}, timeout=STOP_TIMEOUT)
-        if pending:
-            # 那一轮还活着，稍后可能再写一份检查点、盖掉我们的收尾；概率低但没法根除
-            logger.warning(
-                "停止轮次超时（{}s），不等待收尾：thread_id={}", STOP_TIMEOUT, turn.thread_id
-            )
+        answer = await rows.wait_stopped(thread_id, REMOTE_STOP_TIMEOUT)  # 3) 等别的 worker
+        if answer is None:
+            # owner 挂了（心跳还没停满）或者卡在不可取消的调用里。它在另一台进程，这里拉不住它，
+            # 只能自己兑底收尾 —— 代价是可能和它地板写检查点（见 docs/adr/0006）。
+            logger.warning("等 {} 收尾超时，自己兑底：thread_id={}", request.owner, thread_id)
+            answer = await self.memory.astop(thread_id, user.id, workspace_id)
+        await rows.drop_stop(thread_id)
+        return answer
 
     async def approve(
         self,
@@ -196,9 +224,10 @@ class ChatService:
         公共空间可见范围**重新传一遍**（不取 metadata）：续跑也要反映最新的授权状态。
         """
         workspace_id = await self.own(user, thread_id)
-        turn = self.agent.turns.reserve(thread_id)
-        if turn is None:
+        rows = self._rows()
+        if not await rows.open_turn(thread_id):
             raise HTTPException(status.HTTP_409_CONFLICT, TURN_RUNNING)
+        turn = self.agent.turns.reserve(thread_id, user.id, workspace_id)
         try:
             return await self.agent.ainvoke(
                 thread_id=thread_id,
@@ -209,6 +238,7 @@ class ChatService:
             )
         finally:
             self.agent.turns.release(turn)
+            await rows.close_turn(thread_id)
 
     async def state(self, user: User, thread_id: str) -> dict:
         await self.own(user, thread_id)
