@@ -1,8 +1,18 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "295775ef5f0fbfebd957314f4625535b2b6bbffa",
-  "generatedAt": "2026-09-15T13:31:17.534Z",
+  "gitCommitHash": "b029e127093d0e2fc38c2d72c8c9731334b13cf6",
+  "generatedAt": "2026-09-20T06:41:08.804Z",
   "files": {
+    ".env_example": {
+      "filePath": ".env_example",
+      "contentHash": "3afcf1f5ef6e957db3bde8ddfe7a355065a30771e47b1f1ee75a231201ca819a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 5,
+      "hasStructuralAnalysis": false
+    },
     "AGENTS.md": {
       "filePath": "AGENTS.md",
       "contentHash": "c42a2a724c4141be9f50971b87129c59c3e37c9be211f1ba6ff5ac1c24c5e4a6",
@@ -13,14 +23,24 @@
       "totalLines": 18,
       "hasStructuralAnalysis": false
     },
-    "README.md": {
-      "filePath": "README.md",
-      "contentHash": "764836215954bc2ca3ec20963fa116677cd267feb4538fdb1961f865dbd0f27e",
+    "CONTEXT.md": {
+      "filePath": "CONTEXT.md",
+      "contentHash": "2ca593d4e71a49629061b8f873145fcd128df7ec2236e3f66c2c2f1209134d9e",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 321,
+      "totalLines": 46,
+      "hasStructuralAnalysis": false
+    },
+    "README.md": {
+      "filePath": "README.md",
+      "contentHash": "1201ffc0704a2ad7f0fb63d202db50cc2eb3d7b4e4abd2fefa60d61165197011",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 579,
       "hasStructuralAnalysis": false
     },
     "agents/__init__.py": {
@@ -32,6 +52,534 @@
       "exports": [],
       "totalLines": 1,
       "hasStructuralAnalysis": true
+    },
+    "agents/agent.py": {
+      "filePath": "agents/agent.py",
+      "contentHash": "74851012e06578719a682161d898f67804e4c8539b85f3bc242608dd450c5a8d",
+      "functions": [
+        {
+          "name": "_conversation_id",
+          "params": [
+            "thread_id",
+            "user_id"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "_short_thread_id",
+          "params": [
+            "conversation_id",
+            "user_id"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "_memory_ns",
+          "params": [
+            "user_id",
+            "workspace_id"
+          ],
+          "returnType": "tuple[str, str, str]",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "_memory_key",
+          "params": [
+            "path"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "_pending",
+          "params": [
+            "state"
+          ],
+          "returnType": "dict[str, Any] | None",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "_payload",
+          "params": [
+            "message",
+            "resume"
+          ],
+          "returnType": "Any",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "_run_config",
+          "params": [
+            "thread_id",
+            "user_id",
+            "recursion_limit",
+            "workspace_id"
+          ],
+          "returnType": "dict[str, Any]",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "_input",
+          "params": [
+            "message"
+          ],
+          "returnType": "dict[str, list[BaseMessage]]",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "_chunk_text",
+          "params": [
+            "chunk"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "_last_text",
+          "params": [
+            "messages"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "classes": [
+        {
+          "name": "AgentContext",
+          "methods": [],
+          "properties": [
+            "user_id",
+            "workspace_id",
+            "public_workspaces"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "AgentEvent",
+          "methods": [],
+          "properties": [
+            "kind",
+            "text",
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "AgentRun",
+          "methods": [],
+          "properties": [
+            "answer",
+            "interrupt"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "GeneralAgent",
+          "methods": [
+            "__init__",
+            "__aenter__",
+            "__aexit__",
+            "ainvoke",
+            "astream",
+            "_require_graph",
+            "_build_model"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 179
+        },
+        {
+          "name": "AgentMemory",
+          "methods": [
+            "__init__",
+            "aget_state",
+            "aget_meta",
+            "alist_threads",
+            "alist_messages",
+            "aedit_state",
+            "adelete_thread",
+            "alist_memories",
+            "aread_memory",
+            "awrite_memory",
+            "adelete_memory"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 156
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "collections.abc",
+          "specifiers": [
+            "AsyncIterator",
+            "Sequence"
+          ]
+        },
+        {
+          "source": "contextlib",
+          "specifiers": [
+            "AsyncExitStack"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass",
+            "field"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any",
+            "Literal"
+          ]
+        },
+        {
+          "source": "deepagents",
+          "specifiers": [
+            "FilesystemPermission",
+            "create_deep_agent"
+          ]
+        },
+        {
+          "source": "deepagents.backends",
+          "specifiers": [
+            "CompositeBackend",
+            "StateBackend",
+            "StoreBackend"
+          ]
+        },
+        {
+          "source": "deepagents.backends.utils",
+          "specifiers": [
+            "create_file_data",
+            "validate_path"
+          ]
+        },
+        {
+          "source": "langchain_core.language_models",
+          "specifiers": [
+            "BaseChatModel"
+          ]
+        },
+        {
+          "source": "langchain_core.messages",
+          "specifiers": [
+            "AIMessage",
+            "BaseMessage",
+            "HumanMessage",
+            "RemoveMessage"
+          ]
+        },
+        {
+          "source": "langchain_core.tools",
+          "specifiers": [
+            "BaseTool"
+          ]
+        },
+        {
+          "source": "langchain_openai",
+          "specifiers": [
+            "ChatOpenAI"
+          ]
+        },
+        {
+          "source": "langgraph.checkpoint.postgres.aio",
+          "specifiers": [
+            "AsyncPostgresSaver"
+          ]
+        },
+        {
+          "source": "langgraph.store.postgres.aio",
+          "specifiers": [
+            "AsyncPostgresStore"
+          ]
+        },
+        {
+          "source": "langgraph.types",
+          "specifiers": [
+            "Command"
+          ]
+        },
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel",
+            "Field"
+          ]
+        },
+        {
+          "source": "agents.config",
+          "specifiers": [
+            "ModelConfig",
+            "AgentPostgreConfig",
+            "model_cfg"
+          ]
+        },
+        {
+          "source": "agents.public_workspace",
+          "specifiers": [
+            "PUBLIC_PERMISSIONS",
+            "PUBLIC_ROUTE",
+            "PublicMountBackend",
+            "PublicWorkspaceStore"
+          ]
+        },
+        {
+          "source": "logger",
+          "specifiers": [
+            "logger"
+          ]
+        }
+      ],
+      "exports": [
+        "AgentContext",
+        "AgentEvent",
+        "AgentRun",
+        "GeneralAgent",
+        "AgentMemory",
+        "_conversation_id",
+        "_short_thread_id",
+        "_memory_ns",
+        "_memory_key",
+        "_pending",
+        "_payload",
+        "_run_config",
+        "_input",
+        "_chunk_text",
+        "_last_text"
+      ],
+      "totalLines": 571,
+      "hasStructuralAnalysis": true
+    },
+    "agents/config.py": {
+      "filePath": "agents/config.py",
+      "contentHash": "2ef08e792133ec8cd889132b92e952ba7289ecec78842bd2c7a815da7e506559",
+      "functions": [],
+      "classes": [
+        {
+          "name": "AgentPostgreConfig",
+          "methods": [],
+          "properties": [
+            "host",
+            "port",
+            "user",
+            "password",
+            "db_name"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "ModelConfig",
+          "methods": [
+            "ready"
+          ],
+          "properties": [
+            "model",
+            "base_url",
+            "api_key"
+          ],
+          "exported": true,
+          "lineCount": 20
+        }
+      ],
+      "imports": [
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "AliasChoices",
+            "BaseModel",
+            "Field",
+            "SecretStr"
+          ]
+        },
+        {
+          "source": "pydantic_settings",
+          "specifiers": [
+            "BaseSettings",
+            "SettingsConfigDict"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "PostgreConfig"
+          ]
+        }
+      ],
+      "exports": [
+        "AgentPostgreConfig",
+        "ModelConfig"
+      ],
+      "totalLines": 45,
+      "hasStructuralAnalysis": true
+    },
+    "agents/public_workspace.py": {
+      "filePath": "agents/public_workspace.py",
+      "contentHash": "e637665c9eb003292a2fdc86f719d35b21a3377afe0be68e018cb068b288a695",
+      "functions": [
+        {
+          "name": "public_namespace",
+          "params": [
+            "public_workspace_id"
+          ],
+          "returnType": "tuple[str, str, str]",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "_public_key",
+          "params": [
+            "path"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 9
+        }
+      ],
+      "classes": [
+        {
+          "name": "PublicMountBackend",
+          "methods": [
+            "__init__",
+            "_split",
+            "_allowed",
+            "_backend",
+            "_fanout",
+            "ls",
+            "read",
+            "glob",
+            "grep",
+            "write",
+            "edit",
+            "delete"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 144
+        },
+        {
+          "name": "PublicWorkspaceStore",
+          "methods": [
+            "__init__",
+            "alist",
+            "aread",
+            "awrite",
+            "adelete",
+            "adelete_all"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 55
+        }
+      ],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any"
+          ]
+        },
+        {
+          "source": "deepagents",
+          "specifiers": [
+            "FilesystemPermission"
+          ]
+        },
+        {
+          "source": "deepagents.backends",
+          "specifiers": [
+            "StoreBackend"
+          ]
+        },
+        {
+          "source": "deepagents.backends.protocol",
+          "specifiers": [
+            "DeleteResult",
+            "EditResult",
+            "FileInfo",
+            "GlobResult",
+            "GrepMatch",
+            "GrepResult",
+            "LsResult",
+            "ReadResult",
+            "WriteResult"
+          ]
+        },
+        {
+          "source": "deepagents.backends.utils",
+          "specifiers": [
+            "create_file_data",
+            "validate_path"
+          ]
+        },
+        {
+          "source": "langgraph.runtime",
+          "specifiers": [
+            "get_runtime"
+          ]
+        },
+        {
+          "source": "langgraph.store.postgres.aio",
+          "specifiers": [
+            "AsyncPostgresStore"
+          ]
+        }
+      ],
+      "exports": [
+        "public_namespace",
+        "PublicMountBackend",
+        "PublicWorkspaceStore",
+        "_public_key"
+      ],
+      "totalLines": 280,
+      "hasStructuralAnalysis": true
+    },
+    "agents/readme.md": {
+      "filePath": "agents/readme.md",
+      "contentHash": "32487c477d3c015e2a4fec9c3a47d43d6c3a627a12a85459e1470345dda2e101",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 93,
+      "hasStructuralAnalysis": false
     },
     "alembic.ini": {
       "filePath": "alembic.ini",
@@ -266,6 +814,60 @@
       "totalLines": 14,
       "hasStructuralAnalysis": true
     },
+    "dependencies/agent.py": {
+      "filePath": "dependencies/agent.py",
+      "contentHash": "6956aa9f0e85a669338bb163bdcefc70b127c763c167bd17aa0b9493f6338b4f",
+      "functions": [
+        {
+          "name": "get_agent",
+          "params": [
+            "request"
+          ],
+          "returnType": "GeneralAgent",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "get_optional_agent",
+          "params": [
+            "request"
+          ],
+          "returnType": "GeneralAgent | None",
+          "exported": true,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "Annotated"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "Depends",
+            "HTTPException",
+            "Request",
+            "status"
+          ]
+        },
+        {
+          "source": "agents.agent",
+          "specifiers": [
+            "GeneralAgent"
+          ]
+        }
+      ],
+      "exports": [
+        "get_agent",
+        "get_optional_agent"
+      ],
+      "totalLines": 41,
+      "hasStructuralAnalysis": true
+    },
     "dependencies/auth.py": {
       "filePath": "dependencies/auth.py",
       "contentHash": "09ac8b399bd8b3070d597e21e4767674b308c205157b3e761e65dbd38d455cc6",
@@ -405,6 +1007,120 @@
       "totalLines": 49,
       "hasStructuralAnalysis": true
     },
+    "dependencies/public_workspace.py": {
+      "filePath": "dependencies/public_workspace.py",
+      "contentHash": "c502234fe2033498e8f629ca7994242423b20cceaf6e723add7816890c192ab3",
+      "functions": [
+        {
+          "name": "get_public_workspaces",
+          "params": [
+            "current_user",
+            "session"
+          ],
+          "returnType": "dict[str, str]",
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "Annotated"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "Depends"
+          ]
+        },
+        {
+          "source": "dependencies",
+          "specifiers": [
+            "SessionDep"
+          ]
+        },
+        {
+          "source": "dependencies.auth",
+          "specifiers": [
+            "CurrentUser"
+          ]
+        },
+        {
+          "source": "services",
+          "specifiers": [
+            "PublicWorkspaceService"
+          ]
+        }
+      ],
+      "exports": [
+        "get_public_workspaces"
+      ],
+      "totalLines": 27,
+      "hasStructuralAnalysis": true
+    },
+    "docs/UA_ONBOARDING.md": {
+      "filePath": "docs/UA_ONBOARDING.md",
+      "contentHash": "9113d43b21a2f5e389d3a8c7bc2dba39b97f580444480958eccb95b9ddc81432",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 200,
+      "hasStructuralAnalysis": false
+    },
+    "docs/adr/0001-public-workspace-is-a-separate-entity.md": {
+      "filePath": "docs/adr/0001-public-workspace-is-a-separate-entity.md",
+      "contentHash": "6b90c46b5ebb8cc6037021b31a386b3a71c91da5ad8ed15bb940b1fa4b0823cb",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 11,
+      "hasStructuralAnalysis": false
+    },
+    "docs/adr/0002-public-workspace-name-is-the-agent-path.md": {
+      "filePath": "docs/adr/0002-public-workspace-name-is-the-agent-path.md",
+      "contentHash": "80ab6ef7ff617004dd03cce2e24dadb1397247ee9a83410ba5abaf363d949cd3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 11,
+      "hasStructuralAnalysis": false
+    },
+    "docs/adr/0003-public-mount-is-read-only-for-the-agent.md": {
+      "filePath": "docs/adr/0003-public-mount-is-read-only-for-the-agent.md",
+      "contentHash": "ad0d7b9fd79987c76a39f11d88b1aa48483440732baa3d9273829337e24b9651",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 13,
+      "hasStructuralAnalysis": false
+    },
+    "docs/adr/0004-public-workspaces-are-requeried-every-turn.md": {
+      "filePath": "docs/adr/0004-public-workspaces-are-requeried-every-turn.md",
+      "contentHash": "33155a283f0a55a460d28120866a7058ec16732c36634e9062cd29b4e63a4304",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 13,
+      "hasStructuralAnalysis": false
+    },
+    "docs/adr/0005-delete-table-before-store.md": {
+      "filePath": "docs/adr/0005-delete-table-before-store.md",
+      "contentHash": "1e92c025bae7f44b22043224879f62b241d198692fdc56fd9a667bb8a33118aa",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 12,
+      "hasStructuralAnalysis": false
+    },
     "logger/__init__.py": {
       "filePath": "logger/__init__.py",
       "contentHash": "203397bd5f6faf289dcd7d90b981774cf346214ac5923c77441bf82de02989ff",
@@ -462,7 +1178,7 @@
     },
     "main.py": {
       "filePath": "main.py",
-      "contentHash": "5d7e91a3acb61fa32b5c397dcda2aeed308dffa89e33f9a16c813f98ff08b718",
+      "contentHash": "ad48e48c84aa01e5c50fb14e033b0981c93119d8a381be741a69c7c444005340",
       "functions": [
         {
           "name": "lifespan",
@@ -470,7 +1186,7 @@
             "app"
           ],
           "exported": true,
-          "lineCount": 6
+          "lineCount": 16
         },
         {
           "name": "health",
@@ -491,6 +1207,7 @@
         {
           "source": "contextlib",
           "specifiers": [
+            "AsyncExitStack",
             "asynccontextmanager"
           ]
         },
@@ -498,6 +1215,18 @@
           "source": "fastapi",
           "specifiers": [
             "FastAPI"
+          ]
+        },
+        {
+          "source": "agents.agent",
+          "specifiers": [
+            "GeneralAgent"
+          ]
+        },
+        {
+          "source": "agents.config",
+          "specifiers": [
+            "model_cfg"
           ]
         },
         {
@@ -522,6 +1251,9 @@
           "source": "routers",
           "specifiers": [
             "auth",
+            "chat",
+            "memory",
+            "public_workspace",
             "workspace"
           ]
         }
@@ -530,7 +1262,7 @@
         "lifespan",
         "health"
       ],
-      "totalLines": 56,
+      "totalLines": 71,
       "hasStructuralAnalysis": true
     },
     "migrations/env.py": {
@@ -699,6 +1431,54 @@
       "totalLines": 33,
       "hasStructuralAnalysis": true
     },
+    "migrations/versions/89f54e43803a_add_public_workspaces_user_public_.py": {
+      "filePath": "migrations/versions/89f54e43803a_add_public_workspaces_user_public_.py",
+      "contentHash": "29463f57df22581bccda3c8f2e47fb404cb1b2d6ad9465ed6a6adb29b9ca406e",
+      "functions": [
+        {
+          "name": "upgrade",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 26
+        },
+        {
+          "name": "downgrade",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 9
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "Sequence",
+            "Union"
+          ]
+        },
+        {
+          "source": "alembic",
+          "specifiers": [
+            "op"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "sa"
+          ]
+        }
+      ],
+      "exports": [
+        "upgrade",
+        "downgrade"
+      ],
+      "totalLines": 58,
+      "hasStructuralAnalysis": true
+    },
     "migrations/versions/ce9e484f27fb_create_users_table.py": {
       "filePath": "migrations/versions/ce9e484f27fb_create_users_table.py",
       "contentHash": "3e3207d8cdb58f24b77feea9c4e022c2564e3fa909e98b1f97a5dd42e10a5bf9",
@@ -797,7 +1577,7 @@
     },
     "models/__init__.py": {
       "filePath": "models/__init__.py",
-      "contentHash": "4d9f28ed38751feb8b9cda7e52b04e3600551a5ffe6a6f2d4b535a224a7cb6c2",
+      "contentHash": "99f9bf045ab2e4b889f537c74ec3d8138859f338ad46f77eded4980bed653322",
       "functions": [],
       "classes": [
         {
@@ -865,7 +1645,20 @@
         {
           "source": ".workspace",
           "specifiers": [
+            "DEFAULT_WORKSPACE",
             "Workspace"
+          ]
+        },
+        {
+          "source": ".public_workspace",
+          "specifiers": [
+            "PublicWorkspace"
+          ]
+        },
+        {
+          "source": ".user_public_workspace",
+          "specifiers": [
+            "UserPublicWorkspace"
           ]
         }
       ],
@@ -873,7 +1666,60 @@
         "Base",
         "BaseModel"
       ],
-      "totalLines": 47,
+      "totalLines": 59,
+      "hasStructuralAnalysis": true
+    },
+    "models/public_workspace.py": {
+      "filePath": "models/public_workspace.py",
+      "contentHash": "48034293335b71b2d5759e600c34ab486e5437eea78c421fff2d984834a71770",
+      "functions": [],
+      "classes": [
+        {
+          "name": "PublicWorkspace",
+          "methods": [
+            "__repr__"
+          ],
+          "properties": [
+            "name",
+            "description",
+            "users"
+          ],
+          "exported": true,
+          "lineCount": 34
+        }
+      ],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "TYPE_CHECKING"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "String"
+          ]
+        },
+        {
+          "source": "sqlalchemy.orm",
+          "specifiers": [
+            "Mapped",
+            "mapped_column",
+            "relationship"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "BaseModel"
+          ]
+        }
+      ],
+      "exports": [
+        "PublicWorkspace"
+      ],
+      "totalLines": 51,
       "hasStructuralAnalysis": true
     },
     "models/user.py": {
@@ -934,6 +1780,53 @@
         "User"
       ],
       "totalLines": 53,
+      "hasStructuralAnalysis": true
+    },
+    "models/user_public_workspace.py": {
+      "filePath": "models/user_public_workspace.py",
+      "contentHash": "0260b7281ea535e6ffa248f6ee14b5dd8e3e2e682ac09e8d19f5ca8cd0dc06fc",
+      "functions": [],
+      "classes": [
+        {
+          "name": "UserPublicWorkspace",
+          "methods": [
+            "__repr__"
+          ],
+          "properties": [
+            "user_id",
+            "public_workspace_id"
+          ],
+          "exported": true,
+          "lineCount": 33
+        }
+      ],
+      "imports": [
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "ForeignKey",
+            "String",
+            "UniqueConstraint"
+          ]
+        },
+        {
+          "source": "sqlalchemy.orm",
+          "specifiers": [
+            "Mapped",
+            "mapped_column"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "BaseModel"
+          ]
+        }
+      ],
+      "exports": [
+        "UserPublicWorkspace"
+      ],
+      "totalLines": 44,
       "hasStructuralAnalysis": true
     },
     "models/user_workspace.py": {
@@ -1002,7 +1895,7 @@
     },
     "models/workspace.py": {
       "filePath": "models/workspace.py",
-      "contentHash": "15ed57246db951f91ed1148c01395b81274cd1e7161446eb160d0194ef25ea40",
+      "contentHash": "fcc14c42bab4df8917795bda0d1da6efbbd8d0101bcb8728e1cdbe7f548beae0",
       "functions": [],
       "classes": [
         {
@@ -1050,7 +1943,7 @@
       "exports": [
         "Workspace"
       ],
-      "totalLines": 33,
+      "totalLines": 41,
       "hasStructuralAnalysis": true
     },
     "pyproject.toml": {
@@ -1065,14 +1958,26 @@
     },
     "repositories/__init__.py": {
       "filePath": "repositories/__init__.py",
-      "contentHash": "44c604250c55c1423aeec6d918ff59e77edc68c72bf584e46640b8283e8e8831",
+      "contentHash": "645c32887e796c869f5510a8547f8b481fc1773a989c82b44304dd1d0fb517a5",
       "functions": [],
       "classes": [],
       "imports": [
         {
+          "source": ".public_workspace",
+          "specifiers": [
+            "PublicWorkspaceRepository"
+          ]
+        },
+        {
           "source": ".user",
           "specifiers": [
             "UserRepository"
+          ]
+        },
+        {
+          "source": ".user_public_workspace",
+          "specifiers": [
+            "UserPublicWorkspaceRepository"
           ]
         },
         {
@@ -1089,12 +1994,59 @@
         }
       ],
       "exports": [],
-      "totalLines": 8,
+      "totalLines": 16,
+      "hasStructuralAnalysis": true
+    },
+    "repositories/public_workspace.py": {
+      "filePath": "repositories/public_workspace.py",
+      "contentHash": "b6c0fef7dce67492d571b4d2bb1158dcae45bc905bd3cee7a7bd52543130cd72",
+      "functions": [],
+      "classes": [
+        {
+          "name": "PublicWorkspaceRepository",
+          "methods": [
+            "__init__",
+            "get_by_id",
+            "get_by_name",
+            "list_all",
+            "create",
+            "update",
+            "delete"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 46
+        }
+      ],
+      "imports": [
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "select"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "PublicWorkspace"
+          ]
+        }
+      ],
+      "exports": [
+        "PublicWorkspaceRepository"
+      ],
+      "totalLines": 57,
       "hasStructuralAnalysis": true
     },
     "repositories/user.py": {
       "filePath": "repositories/user.py",
-      "contentHash": "c5463b5a98089c8481b6b48af5698df09685c0bbd2f32baadbafa49e4f04a0a3",
+      "contentHash": "e1cf9386d59e7bf7d1aa82a6cfdceac9113ea3fee350c61b85ae8228d393d002",
       "functions": [],
       "classes": [
         {
@@ -1103,12 +2055,13 @@
             "__init__",
             "get_by_id",
             "get_by_account",
+            "get_by_name",
             "create",
             "update_refresh_token"
           ],
           "properties": [],
           "exported": true,
-          "lineCount": 25
+          "lineCount": 33
         }
       ],
       "imports": [
@@ -1135,7 +2088,62 @@
       "exports": [
         "UserRepository"
       ],
-      "totalLines": 36,
+      "totalLines": 44,
+      "hasStructuralAnalysis": true
+    },
+    "repositories/user_public_workspace.py": {
+      "filePath": "repositories/user_public_workspace.py",
+      "contentHash": "e0d2ce09dc9b63844d0df02021c68d44875b52c08b9e25db93429312e4058160",
+      "functions": [],
+      "classes": [
+        {
+          "name": "UserPublicWorkspaceRepository",
+          "methods": [
+            "__init__",
+            "grant",
+            "revoke",
+            "has_access",
+            "list_by_user",
+            "list_members"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 65
+        }
+      ],
+      "imports": [
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "delete",
+            "select"
+          ]
+        },
+        {
+          "source": "sqlalchemy.dialects.postgresql",
+          "specifiers": [
+            "insert"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "PublicWorkspace",
+            "User",
+            "UserPublicWorkspace"
+          ]
+        }
+      ],
+      "exports": [
+        "UserPublicWorkspaceRepository"
+      ],
+      "totalLines": 77,
       "hasStructuralAnalysis": true
     },
     "repositories/user_workspace.py": {
@@ -1250,7 +2258,7 @@
     },
     "routers/__init__.py": {
       "filePath": "routers/__init__.py",
-      "contentHash": "03092295d6f7843035ae800da49b5c21d2c61fad8f475ba061bc45d1bf1bad33",
+      "contentHash": "f0d8f01282edd3d3bbcc189fb3e40d66adc90eeaa20457df40da98fb8db604ac",
       "functions": [],
       "classes": [],
       "imports": [
@@ -1258,6 +2266,9 @@
           "source": ".",
           "specifiers": [
             "auth",
+            "chat",
+            "memory",
+            "public_workspace",
             "workspace"
           ]
         }
@@ -1392,9 +2403,549 @@
       "totalLines": 76,
       "hasStructuralAnalysis": true
     },
+    "routers/chat.py": {
+      "filePath": "routers/chat.py",
+      "contentHash": "7feb416eb9004d71bab9d2d89ba5f281c4b45c20a72babab438b91458718343b",
+      "functions": [
+        {
+          "name": "send_message",
+          "params": [
+            "payload",
+            "current_user",
+            "agent",
+            "session",
+            "public_workspaces"
+          ],
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "stream_message",
+          "params": [
+            "payload",
+            "current_user",
+            "agent",
+            "session",
+            "public_workspaces"
+          ],
+          "returnType": "StreamingResponse",
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "approve_message",
+          "params": [
+            "payload",
+            "current_user",
+            "agent",
+            "session",
+            "public_workspaces"
+          ],
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "list_my_threads",
+          "params": [
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "get_thread_state",
+          "params": [
+            "thread_id",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "get_thread_history",
+          "params": [
+            "thread_id",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "delete_thread_messages",
+          "params": [
+            "payload",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "delete_thread_files",
+          "params": [
+            "payload",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "delete_thread",
+          "params": [
+            "thread_id",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "_sse",
+          "params": [
+            "events"
+          ],
+          "returnType": "AsyncIterator[str]",
+          "exported": true,
+          "lineCount": 15
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "collections.abc",
+          "specifiers": [
+            "AsyncIterator"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "APIRouter",
+            "Response",
+            "status"
+          ]
+        },
+        {
+          "source": "fastapi.responses",
+          "specifiers": [
+            "StreamingResponse"
+          ]
+        },
+        {
+          "source": "agents.agent",
+          "specifiers": [
+            "AgentEvent"
+          ]
+        },
+        {
+          "source": "dependencies",
+          "specifiers": [
+            "SessionDep"
+          ]
+        },
+        {
+          "source": "dependencies.agent",
+          "specifiers": [
+            "AgentDep"
+          ]
+        },
+        {
+          "source": "dependencies.auth",
+          "specifiers": [
+            "CurrentUser"
+          ]
+        },
+        {
+          "source": "dependencies.public_workspace",
+          "specifiers": [
+            "PublicWorkspaceDep"
+          ]
+        },
+        {
+          "source": "routers.schemas",
+          "specifiers": [
+            "ChatApprove",
+            "ChatDeleteFiles",
+            "ChatDeleteMessages",
+            "ChatHistoryOut",
+            "ChatMessageOut",
+            "ChatRunOut",
+            "ChatSend",
+            "ChatStateOut",
+            "ChatThreadOut",
+            "ChatThreadsOut"
+          ]
+        },
+        {
+          "source": "services",
+          "specifiers": [
+            "ChatService"
+          ]
+        }
+      ],
+      "exports": [
+        "send_message",
+        "stream_message",
+        "approve_message",
+        "list_my_threads",
+        "get_thread_state",
+        "get_thread_history",
+        "delete_thread_messages",
+        "delete_thread_files",
+        "delete_thread",
+        "_sse"
+      ],
+      "totalLines": 244,
+      "hasStructuralAnalysis": true
+    },
+    "routers/memory.py": {
+      "filePath": "routers/memory.py",
+      "contentHash": "6cf1cf685c2bff5f20bf3cbdcbb9ef49da4cf2566f135a43c933596a527b7c6e",
+      "functions": [
+        {
+          "name": "list_memories",
+          "params": [
+            "current_user",
+            "agent",
+            "session",
+            "workspace_id"
+          ],
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "read_memory",
+          "params": [
+            "payload",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "write_memory",
+          "params": [
+            "payload",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "delete_memory",
+          "params": [
+            "payload",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 9
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "APIRouter",
+            "Response",
+            "status"
+          ]
+        },
+        {
+          "source": "dependencies",
+          "specifiers": [
+            "SessionDep"
+          ]
+        },
+        {
+          "source": "dependencies.agent",
+          "specifiers": [
+            "AgentDep"
+          ]
+        },
+        {
+          "source": "dependencies.auth",
+          "specifiers": [
+            "CurrentUser"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "DEFAULT_WORKSPACE"
+          ]
+        },
+        {
+          "source": "routers.schemas",
+          "specifiers": [
+            "MemoryListOut",
+            "MemoryOut",
+            "MemoryPath",
+            "MemoryStored",
+            "MemoryWrite"
+          ]
+        },
+        {
+          "source": "services",
+          "specifiers": [
+            "MemoryService"
+          ]
+        }
+      ],
+      "exports": [
+        "list_memories",
+        "read_memory",
+        "write_memory",
+        "delete_memory"
+      ],
+      "totalLines": 93,
+      "hasStructuralAnalysis": true
+    },
+    "routers/public_workspace.py": {
+      "filePath": "routers/public_workspace.py",
+      "contentHash": "6c4ba6492684f36d854f3230f3bba121c2dc3c5e8387f5baa1b795ffd8a43377",
+      "functions": [
+        {
+          "name": "create_public_workspace",
+          "params": [
+            "payload",
+            "current_user",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "list_public_workspaces",
+          "params": [
+            "current_user",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "list_my_public_workspaces",
+          "params": [
+            "current_user",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "get_public_workspace",
+          "params": [
+            "public_workspace_id",
+            "current_user",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "update_public_workspace",
+          "params": [
+            "public_workspace_id",
+            "payload",
+            "current_user",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "delete_public_workspace",
+          "params": [
+            "public_workspace_id",
+            "current_user",
+            "session",
+            "agent"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "grant_public_member",
+          "params": [
+            "public_workspace_id",
+            "payload",
+            "current_user",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "revoke_public_member",
+          "params": [
+            "public_workspace_id",
+            "user_name",
+            "current_user",
+            "session"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "list_public_members",
+          "params": [
+            "public_workspace_id",
+            "current_user",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "list_public_files",
+          "params": [
+            "public_workspace_id",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "read_public_file",
+          "params": [
+            "public_workspace_id",
+            "payload",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "write_public_file",
+          "params": [
+            "public_workspace_id",
+            "payload",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "delete_public_file",
+          "params": [
+            "public_workspace_id",
+            "payload",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 10
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "APIRouter",
+            "Response",
+            "status"
+          ]
+        },
+        {
+          "source": "dependencies",
+          "specifiers": [
+            "SessionDep"
+          ]
+        },
+        {
+          "source": "dependencies.agent",
+          "specifiers": [
+            "AgentDep",
+            "OptionalAgentDep"
+          ]
+        },
+        {
+          "source": "dependencies.auth",
+          "specifiers": [
+            "CurrentUser",
+            "SuperUser"
+          ]
+        },
+        {
+          "source": "routers.schemas",
+          "specifiers": [
+            "PublicFileListOut",
+            "PublicFileOut",
+            "PublicFilePath",
+            "PublicFileWrite",
+            "PublicMemberGrant",
+            "PublicMemberOut",
+            "PublicWorkspaceCreate",
+            "PublicWorkspaceOut",
+            "PublicWorkspaceUpdate"
+          ]
+        },
+        {
+          "source": "services",
+          "specifiers": [
+            "PublicWorkspaceService"
+          ]
+        }
+      ],
+      "exports": [
+        "create_public_workspace",
+        "list_public_workspaces",
+        "list_my_public_workspaces",
+        "get_public_workspace",
+        "update_public_workspace",
+        "delete_public_workspace",
+        "grant_public_member",
+        "revoke_public_member",
+        "list_public_members",
+        "list_public_files",
+        "read_public_file",
+        "write_public_file",
+        "delete_public_file"
+      ],
+      "totalLines": 261,
+      "hasStructuralAnalysis": true
+    },
     "routers/schemas/__init__.py": {
       "filePath": "routers/schemas/__init__.py",
-      "contentHash": "815eac3638ddbbff82c63f4477d664eb4d5109362474f32186943c04accf8759",
+      "contentHash": "f60f6479e0e4b64a2e6294326259d36288fb0facee536c12e75fcf01f99d41bd",
       "functions": [],
       "classes": [],
       "imports": [
@@ -1409,11 +2960,51 @@
           ]
         },
         {
+          "source": ".chat",
+          "specifiers": [
+            "ChatApprove",
+            "ChatDeleteFiles",
+            "ChatDeleteMessages",
+            "ChatHistoryOut",
+            "ChatMessageOut",
+            "ChatRunOut",
+            "ChatSend",
+            "ChatStateOut",
+            "ChatThreadOut",
+            "ChatThreadsOut"
+          ]
+        },
+        {
+          "source": ".memory",
+          "specifiers": [
+            "MemoryListOut",
+            "MemoryOut",
+            "MemoryPath",
+            "MemoryStored",
+            "MemoryWrite"
+          ]
+        },
+        {
+          "source": ".public_workspace",
+          "specifiers": [
+            "PublicFileListOut",
+            "PublicFileOut",
+            "PublicFilePath",
+            "PublicFileWrite",
+            "PublicMemberGrant",
+            "PublicMemberOut",
+            "PublicWorkspaceCreate",
+            "PublicWorkspaceOut",
+            "PublicWorkspaceUpdate"
+          ]
+        },
+        {
           "source": ".workspace",
           "specifiers": [
             "MemberGrant",
             "MemberOut",
             "MyWorkspaceOut",
+            "WorkspaceAccessOut",
             "WorkspaceCreate",
             "WorkspaceOut",
             "WorkspaceUpdate"
@@ -1421,7 +3012,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 32,
+      "totalLines": 88,
       "hasStructuralAnalysis": true
     },
     "routers/schemas/auth.py": {
@@ -1512,9 +3103,419 @@
       "totalLines": 53,
       "hasStructuralAnalysis": true
     },
+    "routers/schemas/chat.py": {
+      "filePath": "routers/schemas/chat.py",
+      "contentHash": "99ed154cb827d6d86335ba83ff8d0df5ef9fe7760b38da0b910895cf2afba920",
+      "functions": [],
+      "classes": [
+        {
+          "name": "ChatSend",
+          "methods": [],
+          "properties": [
+            "workspace_id",
+            "message",
+            "thread_id"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "ChatApprove",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "decisions"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "ChatRunOut",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "answer",
+            "interrupt"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "ChatStateOut",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "workspace_id",
+            "messages",
+            "answer",
+            "files"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "ChatThreadOut",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "workspace_id",
+            "updated_at"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "ChatThreadsOut",
+          "methods": [],
+          "properties": [
+            "threads"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "ChatMessageOut",
+          "methods": [],
+          "properties": [
+            "id",
+            "role",
+            "content"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "ChatHistoryOut",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "messages"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "ChatDeleteMessages",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "message_ids"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "ChatDeleteFiles",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "paths"
+          ],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any"
+          ]
+        },
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel",
+            "ConfigDict",
+            "Field"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "DEFAULT_WORKSPACE"
+          ]
+        }
+      ],
+      "exports": [
+        "ChatSend",
+        "ChatApprove",
+        "ChatRunOut",
+        "ChatStateOut",
+        "ChatThreadOut",
+        "ChatThreadsOut",
+        "ChatMessageOut",
+        "ChatHistoryOut",
+        "ChatDeleteMessages",
+        "ChatDeleteFiles"
+      ],
+      "totalLines": 114,
+      "hasStructuralAnalysis": true
+    },
+    "routers/schemas/memory.py": {
+      "filePath": "routers/schemas/memory.py",
+      "contentHash": "6247b0c9ad74e9c3cbfae6b85328742ba0db1f1fc51c5d4656e7412af6095e72",
+      "functions": [],
+      "classes": [
+        {
+          "name": "MemoryPath",
+          "methods": [
+            "_safe_path"
+          ],
+          "properties": [
+            "workspace_id",
+            "path"
+          ],
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "MemoryWrite",
+          "methods": [],
+          "properties": [
+            "content"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "MemoryStored",
+          "methods": [],
+          "properties": [
+            "path"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "MemoryOut",
+          "methods": [],
+          "properties": [
+            "content"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "MemoryListOut",
+          "methods": [],
+          "properties": [
+            "workspace_id",
+            "memories"
+          ],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "imports": [
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel",
+            "ConfigDict",
+            "Field",
+            "field_validator"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "DEFAULT_WORKSPACE"
+          ]
+        },
+        {
+          "source": "routers.schemas.paths",
+          "specifiers": [
+            "safe_store_path"
+          ]
+        }
+      ],
+      "exports": [
+        "MemoryPath",
+        "MemoryWrite",
+        "MemoryStored",
+        "MemoryOut",
+        "MemoryListOut"
+      ],
+      "totalLines": 64,
+      "hasStructuralAnalysis": true
+    },
+    "routers/schemas/paths.py": {
+      "filePath": "routers/schemas/paths.py",
+      "contentHash": "26507057b701e2f53d5a69574be4400c1fe6c078184b2d2a4c05934677c5a018",
+      "functions": [
+        {
+          "name": "safe_store_path",
+          "params": [
+            "value",
+            "label"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "PurePosixPath"
+          ]
+        }
+      ],
+      "exports": [
+        "safe_store_path"
+      ],
+      "totalLines": 23,
+      "hasStructuralAnalysis": true
+    },
+    "routers/schemas/public_workspace.py": {
+      "filePath": "routers/schemas/public_workspace.py",
+      "contentHash": "c628c65dc6f56bc36dc09fe9566253ba1a8223d6b7aa6c1e6218f93062295379",
+      "functions": [],
+      "classes": [
+        {
+          "name": "PublicWorkspaceCreate",
+          "methods": [],
+          "properties": [
+            "name",
+            "description"
+          ],
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "PublicWorkspaceUpdate",
+          "methods": [],
+          "properties": [
+            "description"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "PublicWorkspaceOut",
+          "methods": [],
+          "properties": [
+            "id",
+            "name",
+            "description",
+            "created_at",
+            "updated_at"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "PublicMemberGrant",
+          "methods": [],
+          "properties": [
+            "user_name"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "PublicMemberOut",
+          "methods": [
+            "of"
+          ],
+          "properties": [
+            "user_id",
+            "account",
+            "email"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "PublicFilePath",
+          "methods": [
+            "_safe_path"
+          ],
+          "properties": [
+            "path"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "PublicFileWrite",
+          "methods": [],
+          "properties": [
+            "content"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "PublicFileOut",
+          "methods": [],
+          "properties": [
+            "content"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "PublicFileListOut",
+          "methods": [],
+          "properties": [
+            "public_workspace_id",
+            "files"
+          ],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "imports": [
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime"
+          ]
+        },
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel",
+            "ConfigDict",
+            "Field",
+            "field_validator"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "User"
+          ]
+        },
+        {
+          "source": "routers.schemas.paths",
+          "specifiers": [
+            "NAME_PATTERN",
+            "safe_store_path"
+          ]
+        }
+      ],
+      "exports": [
+        "PublicWorkspaceCreate",
+        "PublicWorkspaceUpdate",
+        "PublicWorkspaceOut",
+        "PublicMemberGrant",
+        "PublicMemberOut",
+        "PublicFilePath",
+        "PublicFileWrite",
+        "PublicFileOut",
+        "PublicFileListOut"
+      ],
+      "totalLines": 116,
+      "hasStructuralAnalysis": true
+    },
     "routers/schemas/workspace.py": {
       "filePath": "routers/schemas/workspace.py",
-      "contentHash": "78df5d50e0a068af5bd2f6c2190f21574a59aff082870193db8aec36ace9a7a0",
+      "contentHash": "a19a86d411bb19494734f12890257cb9b0fea1ba59221c3275dcef5282472091",
       "functions": [],
       "classes": [
         {
@@ -1553,23 +3554,29 @@
         {
           "name": "MyWorkspaceOut",
           "methods": [
-            "of"
+            "of",
+            "default"
           ],
           "properties": [
+            "id",
+            "name",
+            "path",
+            "created_at",
+            "updated_at",
             "permission"
           ],
           "exported": true,
-          "lineCount": 12
+          "lineCount": 35
         },
         {
           "name": "MemberGrant",
           "methods": [],
           "properties": [
-            "user_id",
+            "user_name",
             "permission"
           ],
           "exported": true,
-          "lineCount": 5
+          "lineCount": 11
         },
         {
           "name": "MemberOut",
@@ -1584,6 +3591,17 @@
           ],
           "exported": true,
           "lineCount": 14
+        },
+        {
+          "name": "WorkspaceAccessOut",
+          "methods": [],
+          "properties": [
+            "workspace_id",
+            "has_access",
+            "permission"
+          ],
+          "exported": true,
+          "lineCount": 8
         }
       ],
       "imports": [
@@ -1604,9 +3622,16 @@
         {
           "source": "models",
           "specifiers": [
+            "DEFAULT_WORKSPACE",
             "User",
             "Workspace",
             "WorkspacePermission"
+          ]
+        },
+        {
+          "source": "routers.schemas.paths",
+          "specifiers": [
+            "NAME_PATTERN"
           ]
         }
       ],
@@ -1616,14 +3641,15 @@
         "WorkspaceOut",
         "MyWorkspaceOut",
         "MemberGrant",
-        "MemberOut"
+        "MemberOut",
+        "WorkspaceAccessOut"
       ],
-      "totalLines": 85,
+      "totalLines": 123,
       "hasStructuralAnalysis": true
     },
     "routers/workspace.py": {
       "filePath": "routers/workspace.py",
-      "contentHash": "08bc89dcaca8c74efc97ddc95a0f624d6586398b19b1a293b91c7a559493c832",
+      "contentHash": "7b2f3c7e07cf92063db8119724dfb1b07a99560d7c1dcc60ca4df7938db29f73",
       "functions": [
         {
           "name": "list_my_workspaces",
@@ -1632,7 +3658,7 @@
             "session"
           ],
           "exported": true,
-          "lineCount": 3
+          "lineCount": 7
         },
         {
           "name": "create_workspace",
@@ -1653,6 +3679,16 @@
           ],
           "exported": true,
           "lineCount": 4
+        },
+        {
+          "name": "check_workspace_access",
+          "params": [
+            "workspace_id",
+            "current_user",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 13
         },
         {
           "name": "update_workspace",
@@ -1684,7 +3720,7 @@
             "session"
           ],
           "exported": true,
-          "lineCount": 5
+          "lineCount": 3
         },
         {
           "name": "grant_member",
@@ -1694,15 +3730,14 @@
             "current_user",
             "session"
           ],
-          "returnType": "None",
           "exported": true,
-          "lineCount": 9
+          "lineCount": 11
         },
         {
           "name": "revoke_member",
           "params": [
             "workspace_id",
-            "user_id",
+            "user_name",
             "current_user",
             "session"
           ],
@@ -1740,6 +3775,7 @@
             "MemberGrant",
             "MemberOut",
             "MyWorkspaceOut",
+            "WorkspaceAccessOut",
             "WorkspaceCreate",
             "WorkspaceOut",
             "WorkspaceUpdate"
@@ -1756,18 +3792,19 @@
         "list_my_workspaces",
         "create_workspace",
         "get_workspace",
+        "check_workspace_access",
         "update_workspace",
         "delete_workspace",
         "list_members",
         "grant_member",
         "revoke_member"
       ],
-      "totalLines": 141,
+      "totalLines": 172,
       "hasStructuralAnalysis": true
     },
     "services/__init__.py": {
       "filePath": "services/__init__.py",
-      "contentHash": "4d9bae8b9347b6fabb57d40100b191e82ff868a9701378a23c2ade9db42e096b",
+      "contentHash": "daa60edba4ae2316c5aa00818d37f289c9ceb3ed683589d9ebfabaef024e890e",
       "functions": [],
       "classes": [],
       "imports": [
@@ -1787,10 +3824,87 @@
           "specifiers": [
             "WorkspaceService"
           ]
+        },
+        {
+          "source": ".access",
+          "specifiers": [
+            "WorkspaceAccess"
+          ]
+        },
+        {
+          "source": ".chat",
+          "specifiers": [
+            "ChatService"
+          ]
+        },
+        {
+          "source": ".memory",
+          "specifiers": [
+            "MemoryService"
+          ]
+        },
+        {
+          "source": ".public_workspace",
+          "specifiers": [
+            "PublicWorkspaceService"
+          ]
         }
       ],
       "exports": [],
-      "totalLines": 22,
+      "totalLines": 30,
+      "hasStructuralAnalysis": true
+    },
+    "services/access.py": {
+      "filePath": "services/access.py",
+      "contentHash": "74a08004fa5f1b6dd8ff11db674cc09c07ae36ae09352dde27e8802929d759f8",
+      "functions": [],
+      "classes": [
+        {
+          "name": "WorkspaceAccess",
+          "methods": [
+            "__init__",
+            "permission",
+            "require_writer"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 31
+        }
+      ],
+      "imports": [
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "HTTPException",
+            "status"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "DEFAULT_WORKSPACE",
+            "User",
+            "WorkspacePermission"
+          ]
+        },
+        {
+          "source": "repositories",
+          "specifiers": [
+            "UserWorkspaceRepository",
+            "WorkspaceRepository"
+          ]
+        }
+      ],
+      "exports": [
+        "WorkspaceAccess"
+      ],
+      "totalLines": 55,
       "hasStructuralAnalysis": true
     },
     "services/auth.py": {
@@ -1941,9 +4055,249 @@
       "totalLines": 158,
       "hasStructuralAnalysis": true
     },
+    "services/chat.py": {
+      "filePath": "services/chat.py",
+      "contentHash": "ddb37e54e220b270e5d5f62b623c057283fde89594cdbcd1b40909e1227fd102",
+      "functions": [],
+      "classes": [
+        {
+          "name": "ChatService",
+          "methods": [
+            "__init__",
+            "open_turn",
+            "send",
+            "stream",
+            "approve",
+            "state",
+            "list_threads",
+            "history",
+            "delete_messages",
+            "delete_files",
+            "delete_thread",
+            "own"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 123
+        }
+      ],
+      "imports": [
+        {
+          "source": "collections.abc",
+          "specifiers": [
+            "AsyncIterator"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "HTTPException",
+            "status"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": "agents.agent",
+          "specifiers": [
+            "AgentEvent",
+            "AgentMemory",
+            "AgentRun",
+            "GeneralAgent"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "DEFAULT_WORKSPACE",
+            "User"
+          ]
+        },
+        {
+          "source": "services.access",
+          "specifiers": [
+            "WorkspaceAccess"
+          ]
+        }
+      ],
+      "exports": [
+        "ChatService"
+      ],
+      "totalLines": 155,
+      "hasStructuralAnalysis": true
+    },
+    "services/memory.py": {
+      "filePath": "services/memory.py",
+      "contentHash": "c4035961ba1370124fd52e4e64645c45e9df9a2b663b303a7f590100a6ee4232",
+      "functions": [],
+      "classes": [
+        {
+          "name": "MemoryService",
+          "methods": [
+            "__init__",
+            "list_memories",
+            "read",
+            "write",
+            "delete",
+            "_call"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 44
+        }
+      ],
+      "imports": [
+        {
+          "source": "collections.abc",
+          "specifiers": [
+            "Awaitable",
+            "Callable"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "HTTPException",
+            "status"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": "agents.agent",
+          "specifiers": [
+            "AgentMemory"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "User"
+          ]
+        },
+        {
+          "source": "services.access",
+          "specifiers": [
+            "WorkspaceAccess"
+          ]
+        }
+      ],
+      "exports": [
+        "MemoryService"
+      ],
+      "totalLines": 69,
+      "hasStructuralAnalysis": true
+    },
+    "services/public_workspace.py": {
+      "filePath": "services/public_workspace.py",
+      "contentHash": "f8e47d12000abfe813f17df4d42be1463f1a46e8d54ec6d74e20bf4ae511e9f4",
+      "functions": [],
+      "classes": [
+        {
+          "name": "PublicWorkspaceService",
+          "methods": [
+            "__init__",
+            "visible",
+            "_visible",
+            "create",
+            "list_all",
+            "list_mine",
+            "get",
+            "update",
+            "delete",
+            "grant",
+            "revoke",
+            "list_members",
+            "list_files",
+            "read_file",
+            "write_file",
+            "delete_file",
+            "_require_store",
+            "_get_or_404",
+            "_get_user_or_404"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 165
+        }
+      ],
+      "imports": [
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "HTTPException",
+            "status"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": "agents.public_workspace",
+          "specifiers": [
+            "PublicWorkspaceStore"
+          ]
+        },
+        {
+          "source": "logger",
+          "specifiers": [
+            "logger"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "PublicWorkspace",
+            "User"
+          ]
+        },
+        {
+          "source": "repositories",
+          "specifiers": [
+            "PublicWorkspaceRepository",
+            "UserPublicWorkspaceRepository",
+            "UserRepository"
+          ]
+        },
+        {
+          "source": "services.chat",
+          "specifiers": [
+            "AGENT_NOT_READY"
+          ]
+        }
+      ],
+      "exports": [
+        "PublicWorkspaceService"
+      ],
+      "totalLines": 201,
+      "hasStructuralAnalysis": true
+    },
     "services/workspace.py": {
       "filePath": "services/workspace.py",
-      "contentHash": "ee1350e704a8af6e440d6cc6fa59b13847ad6c4379d896c97ae096b378fdcd69",
+      "contentHash": "0dae6194d0051a57c6b4094f7e42b76698ee647445388cb13c7f462c88fafad5",
       "functions": [],
       "classes": [
         {
@@ -1953,17 +4307,20 @@
             "create",
             "get",
             "list_mine",
+            "check_access",
             "update",
             "delete",
             "list_members",
             "grant_member",
             "revoke_member",
+            "_reject_reserved",
             "_get_or_404",
+            "_get_user_or_404",
             "_access"
           ],
           "properties": [],
           "exported": true,
-          "lineCount": 112
+          "lineCount": 151
         }
       ],
       "imports": [
@@ -1983,6 +4340,7 @@
         {
           "source": "models",
           "specifiers": [
+            "DEFAULT_WORKSPACE",
             "User",
             "UserWorkspace",
             "Workspace",
@@ -2001,7 +4359,337 @@
       "exports": [
         "WorkspaceService"
       ],
-      "totalLines": 138,
+      "totalLines": 188,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_agent_api.py": {
+      "filePath": "tests/test_agent_api.py",
+      "contentHash": "edb5761b35cf155d80918b60c0998f48dabfa516d399812eb84a735fc864bfd5",
+      "functions": [
+        {
+          "name": "step",
+          "params": [
+            "name"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "db_execute",
+          "params": [
+            "sql",
+            "params"
+          ],
+          "returnType": "list[tuple]",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "agent_db_execute",
+          "params": [
+            "sql",
+            "params"
+          ],
+          "returnType": "list[tuple]",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "cleanup",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 500
+        }
+      ],
+      "classes": [
+        {
+          "name": "ScriptedChatModel",
+          "methods": [
+            "bind_tools",
+            "_generate"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 43
+        }
+      ],
+      "imports": [
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "psycopg",
+          "specifiers": [
+            "psycopg"
+          ]
+        },
+        {
+          "source": "fastapi.testclient",
+          "specifiers": [
+            "TestClient"
+          ]
+        },
+        {
+          "source": "langchain_core.language_models.fake_chat_models",
+          "specifiers": [
+            "FakeMessagesListChatModel"
+          ]
+        },
+        {
+          "source": "langchain_core.messages",
+          "specifiers": [
+            "AIMessage",
+            "ToolMessage"
+          ]
+        },
+        {
+          "source": "langchain_core.outputs",
+          "specifiers": [
+            "ChatGeneration",
+            "ChatResult"
+          ]
+        },
+        {
+          "source": "agents.agent",
+          "specifiers": [
+            "GeneralAgent"
+          ]
+        },
+        {
+          "source": "agents.config",
+          "specifiers": [
+            "AgentPostgreConfig"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        },
+        {
+          "source": "main",
+          "specifiers": [
+            "app"
+          ]
+        }
+      ],
+      "exports": [
+        "ScriptedChatModel",
+        "step",
+        "db_execute",
+        "agent_db_execute",
+        "cleanup",
+        "main"
+      ],
+      "totalLines": 628,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_agent_chat_memory.py": {
+      "filePath": "tests/test_agent_chat_memory.py",
+      "contentHash": "983cd5a1f22161398f0025f19c88b31cab3185336734623e00d1b4a7f62fe2cb",
+      "functions": [
+        {
+          "name": "model_for",
+          "params": [
+            "path"
+          ],
+          "returnType": "FakeToolModel",
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 63
+        }
+      ],
+      "classes": [
+        {
+          "name": "FakeToolModel",
+          "methods": [
+            "bind_tools"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "langchain_core.language_models.fake_chat_models",
+          "specifiers": [
+            "FakeMessagesListChatModel"
+          ]
+        },
+        {
+          "source": "langchain_core.messages",
+          "specifiers": [
+            "AIMessage"
+          ]
+        },
+        {
+          "source": "agents.agent",
+          "specifiers": [
+            "GeneralAgent"
+          ]
+        }
+      ],
+      "exports": [
+        "FakeToolModel",
+        "model_for",
+        "main"
+      ],
+      "totalLines": 124,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_agent_memory_scope.py": {
+      "filePath": "tests/test_agent_memory_scope.py",
+      "contentHash": "ab4d300d86e02a6e2a387a914a982db70640871bf6ef9a3bca8b7302cf872ec3",
+      "functions": [
+        {
+          "name": "backend_for",
+          "params": [
+            "user_id"
+          ],
+          "returnType": "CompositeBackend",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 141
+        }
+      ],
+      "classes": [
+        {
+          "name": "FakeToolModel",
+          "methods": [
+            "bind_tools"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "imports": [
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "deepagents",
+          "specifiers": [
+            "FilesystemPermission",
+            "create_deep_agent"
+          ]
+        },
+        {
+          "source": "deepagents.backends",
+          "specifiers": [
+            "CompositeBackend",
+            "StateBackend",
+            "StoreBackend"
+          ]
+        },
+        {
+          "source": "deepagents.middleware.filesystem",
+          "specifiers": [
+            "_check_fs_permission"
+          ]
+        },
+        {
+          "source": "langchain_core.language_models.fake_chat_models",
+          "specifiers": [
+            "FakeMessagesListChatModel"
+          ]
+        },
+        {
+          "source": "langchain_core.messages",
+          "specifiers": [
+            "AIMessage"
+          ]
+        },
+        {
+          "source": "langgraph.checkpoint.memory",
+          "specifiers": [
+            "InMemorySaver"
+          ]
+        },
+        {
+          "source": "langgraph.store.memory",
+          "specifiers": [
+            "InMemoryStore"
+          ]
+        }
+      ],
+      "exports": [
+        "FakeToolModel",
+        "backend_for",
+        "main"
+      ],
+      "totalLines": 198,
       "hasStructuralAnalysis": true
     },
     "tests/test_auth.py": {
@@ -2100,6 +4788,239 @@
         "main"
       ],
       "totalLines": 146,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_public_workspace_api.py": {
+      "filePath": "tests/test_public_workspace_api.py",
+      "contentHash": "bb0ef2f5eabcba7fd89c4dd52c9e91e7eef6db15a575891c7367dafbdf1bba7b",
+      "functions": [
+        {
+          "name": "step",
+          "params": [
+            "name"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "db_execute",
+          "params": [
+            "sql",
+            "params"
+          ],
+          "returnType": "list[tuple]",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "store_rows",
+          "params": [
+            "public_workspace_id"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "cleanup",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 207
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "psycopg",
+          "specifiers": [
+            "psycopg"
+          ]
+        },
+        {
+          "source": "fastapi.testclient",
+          "specifiers": [
+            "TestClient"
+          ]
+        },
+        {
+          "source": "agents.config",
+          "specifiers": [
+            "AgentPostgreConfig"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        },
+        {
+          "source": "main",
+          "specifiers": [
+            "app"
+          ]
+        }
+      ],
+      "exports": [
+        "step",
+        "db_execute",
+        "store_rows",
+        "cleanup",
+        "main"
+      ],
+      "totalLines": 281,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_public_workspace_mount.py": {
+      "filePath": "tests/test_public_workspace_mount.py",
+      "contentHash": "693f5821c5ce3bfb4e3e108992a7cc64b17dd807db3e625fa87b8d9de0aea4fa",
+      "functions": [
+        {
+          "name": "use",
+          "params": [
+            "**context_kwargs"
+          ],
+          "returnType": "pw.PublicMountBackend",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "paths",
+          "params": [
+            "result"
+          ],
+          "returnType": "list[str]",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 96
+        }
+      ],
+      "classes": [
+        {
+          "name": "FakeToolModel",
+          "methods": [
+            "bind_tools"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "imports": [
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "types",
+          "specifiers": [
+            "SimpleNamespace"
+          ]
+        },
+        {
+          "source": "deepagents",
+          "specifiers": [
+            "create_deep_agent"
+          ]
+        },
+        {
+          "source": "deepagents.backends",
+          "specifiers": [
+            "CompositeBackend",
+            "StateBackend"
+          ]
+        },
+        {
+          "source": "deepagents.middleware.filesystem",
+          "specifiers": [
+            "_check_fs_permission"
+          ]
+        },
+        {
+          "source": "langchain_core.language_models.fake_chat_models",
+          "specifiers": [
+            "FakeMessagesListChatModel"
+          ]
+        },
+        {
+          "source": "langchain_core.messages",
+          "specifiers": [
+            "AIMessage"
+          ]
+        },
+        {
+          "source": "langgraph.checkpoint.memory",
+          "specifiers": [
+            "InMemorySaver"
+          ]
+        },
+        {
+          "source": "langgraph.store.memory",
+          "specifiers": [
+            "InMemoryStore"
+          ]
+        },
+        {
+          "source": "agents",
+          "specifiers": [
+            "pw"
+          ]
+        },
+        {
+          "source": "agents.agent",
+          "specifiers": [
+            "AgentContext"
+          ]
+        }
+      ],
+      "exports": [
+        "FakeToolModel",
+        "use",
+        "paths",
+        "main"
+      ],
+      "totalLines": 167,
       "hasStructuralAnalysis": true
     },
     "tests/test_user_workspace.py": {
@@ -2249,7 +5170,7 @@
     },
     "tests/test_workspace_api.py": {
       "filePath": "tests/test_workspace_api.py",
-      "contentHash": "602dd1fb3829fd5ca9cbd55ce722e181016521781629935b8e2890e30f725319",
+      "contentHash": "becb8ab1098bf75b18e30656675d7d9c3580f6ac89a5f252e90c920f5c88b7d8",
       "functions": [
         {
           "name": "step",
@@ -2282,7 +5203,7 @@
           "params": [],
           "returnType": "None",
           "exported": true,
-          "lineCount": 164
+          "lineCount": 238
         }
       ],
       "classes": [],
@@ -2336,7 +5257,7 @@
         "cleanup",
         "main"
       ],
-      "totalLines": 223,
+      "totalLines": 297,
       "hasStructuralAnalysis": true
     }
   }

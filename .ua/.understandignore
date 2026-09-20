@@ -164,3 +164,6 @@ skills-lock.json
 # Swift
 # **/Tests/**/*.swift
 # **/Specs/**/*.swift
+
+# pi agent 的会话状态（goal 快照 / 事件日志），不是项目代码
+.pi/
