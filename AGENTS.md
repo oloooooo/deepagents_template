@@ -15,3 +15,4 @@
 - service 储存fastapi路由的功能实现逻辑
 - uv.lock 表明该项目的python环境管理由python实现
 
+docs/UA_ONBOARDING.md 是understand-anything生成的，请不要主动更改
