@@ -165,6 +165,8 @@ class RunningTurns:
         self._on_stop = on_stop
         self._registry: TurnRegistry | None = None
         self._control: psycopg.AsyncConnection | None = None
+        self._listener_conn: psycopg.AsyncConnection | None = None
+        """当前那条 LISTEN 连接。测试靠它注入断线（正常代码不碰）。"""
         self._listener: asyncio.Task[None] | None = None
         self._dispatches: set[asyncio.Task[None]] = set()
         self._lock = asyncio.Lock()
@@ -172,7 +174,15 @@ class RunningTurns:
     # ---------- 生命周期 ----------
 
     async def start(self, registry: TurnRegistry) -> None:
-        """建表、开控制连接、起 listener。"""
+        """开控制连接、起 listener、幂等建表。
+
+        建表用 ``create table if not exists``，和 langgraph 自己的 ``checkpoints`` / ``store``
+        一致 —— 这三个表都在 **agents 库**（不是 alembic 管的 ``user_related`` 库），
+        那个库就是靠各家的幂等 ``setup()`` 管起来的。
+
+        ponytail: 将来要给这张表**加列**，``if not exists`` 会静静不生效（表已存在），
+        得像 langgraph 那样上一个 migrations 列表。现在只有这一版 schema，不需要。
+        """
         self._registry = registry
         control = await psycopg.AsyncConnection.connect(self.uri, autocommit=True)
         self._control = control
@@ -326,6 +336,7 @@ class RunningTurns:
                 continue
             try:
                 await conn.execute(f"listen {CHANNEL}")
+                self._listener_conn = conn
                 logger.info("chat_drain 已订阅")
                 await self._replay_pending()
                 while True:
@@ -337,6 +348,7 @@ class RunningTurns:
             except Exception as exc:  # noqa: BLE001
                 logger.warning("chat_drain 连接断了，重连中：{}", exc)
             finally:
+                self._listener_conn = None
                 await conn.close()
 
     def _spawn_dispatch(self, thread_id: str) -> None:

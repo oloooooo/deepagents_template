@@ -34,7 +34,7 @@ from langchain_core.outputs import (  # noqa: E402
 
 from agents.agent import GeneralAgent  # noqa: E402
 from agents.config import AgentPostgreConfig  # noqa: E402
-from agents.turns import TURN_HEARTBEAT_TTL  # noqa: E402
+from agents.turns import CHANNEL, TURN_HEARTBEAT_TTL  # noqa: E402
 from models import User  # noqa: E402
 from services.chat import ChatService  # noqa: E402
 
@@ -106,6 +106,7 @@ async def start_turn(agent: GeneralAgent, thread_id: str, message: str) -> async
     turn = agent.turns.reserve(thread_id, USER, WORKSPACE)
 
     async def consume() -> None:
+        rows = agent.running_turns  # 捕获下来：__aexit__ 之后 self.running_turns 会是 None
         turn.task = asyncio.current_task()  # 和 ChatService._tracked 做的事一样
         try:
             async for event in agent.astream(
@@ -117,7 +118,8 @@ async def start_turn(agent: GeneralAgent, thread_id: str, message: str) -> async
                     turn.text = ""
         finally:
             agent.turns.release(turn)
-            await agent.running_turns.close_turn(thread_id)
+            if rows is not None:
+                await rows.close_turn(thread_id)
 
     return asyncio.create_task(consume())
 
@@ -128,6 +130,17 @@ async def settle(task: asyncio.Task) -> None:
         await asyncio.wait_for(task, timeout=5)
     except (asyncio.CancelledError, TimeoutError):
         pass
+
+
+async def wait_for(predicate, timeout: float, what: str) -> None:  # noqa: ANN001
+    """轮询等一个条件成立（测试用，不等就报错）。"""
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while loop.time() < deadline:
+        if predicate():
+            return
+        await asyncio.sleep(0.05)
+    raise AssertionError(f"等不到：{what}")
 
 
 def service(agent: GeneralAgent) -> ChatService:
@@ -259,6 +272,67 @@ async def part_a() -> None:
             f"孤儿那一轮必须被收尾（否则两条 human 会合并成一次请求）：{messages}"
         )
         assert run.answer == "第二轮回答"
+
+    print("-- A6 通知丢了：重连后靠补扫表兜底（_replay_pending）--")
+    thread = f"t_lost_{SUFFIX}"
+    worker_a = GeneralAgent(model=SlowModel())
+    async with worker_a:
+        rows_a = worker_a.running_turns
+        assert rows_a is not None
+        stream = await start_turn(worker_a, thread, "讲个长的")
+        await asyncio.sleep(0.3)
+
+        # 直接改表、**不发 NOTIFY** —— 这正是「通知丢了」留下的状态，
+        # 只要另一条路（重连后补扫）还通，这一轮就还能被收尾。
+        agent_db_execute(
+            "update running_turns set stop_requested_at = now() where thread_id = %s",
+            (thread,),
+        )
+        await asyncio.sleep(0.3)
+        snapshot = await worker_a.memory._graph.aget_state(  # type: ignore[union-attr]
+            {"configurable": {"thread_id": f"{USER}:{thread}"}}
+        )
+        step("没人收到通知 -> 这一轮还停在那里")
+        assert snapshot.next, "没收到通知就不该有人收尾"
+
+        # 从**服务器端**殺掉那条 LISTEN 连接（相当于 DB 重启/踢连接）：notifies() 会抛，
+        # _listen_forever 接住重连。不用 conn.close() —— Windows 上关一个正被 notifies()
+        # 使用的连接会报 WinError 10038。
+        old = rows_a._listener_conn
+        assert old is not None, "listener 应该已经订阅上了"
+        killed = agent_db_execute(
+            """
+            select pg_terminate_backend(pid)
+              from pg_stat_activity
+             where pid <> pg_backend_pid()
+               and query ilike %s
+            """,
+            (f"listen {CHANNEL}%",),
+        )
+        step(f"从服务器端踢掉 LISTEN 连接（{len(killed)} 条）")
+        assert killed, "应该能找到那条 LISTEN 连接"
+        await wait_for(
+            lambda: rows_a._listener_conn is not None and rows_a._listener_conn is not old,
+            10.0,
+            "listener 重连",
+        )
+        step("LISTEN 连接断了又重连")
+
+        answer = await rows_a.wait_stopped(thread, timeout=10.0)
+        step(f"重连后补扫把这一轮收尾了，答案 {answer!r}")
+        assert answer, "补扫应该让 owner 完成收尾并写回答案"
+        await settle(stream)
+        messages = await history(worker_a, thread)
+        assert messages[-1][0] == "ai", f"收尾后应该有一条 AI 消息：{messages}"
+        # 行要留着等请求方读走（这里就是请求方，所以 assert 完自己 drop）
+        stored = agent_db_execute(
+            "select answer, stopped_at is not null from running_turns where thread_id = %s",
+            (thread,),
+        )
+        assert stored and stored[0][1], f"owner 应该把答案写回表：{stored}"
+        assert await rows_a.wait_stopped(thread, timeout=1.0) == answer, "表里的答案要一致"
+        await rows_a.drop_stop(thread)
+        step("请求方读走结果后删行（下一轮开得起来）")
 
 
 def main() -> None:

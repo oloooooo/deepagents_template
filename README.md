@@ -52,11 +52,11 @@ uv sync --frozen      # 按 uv.lock 精确安装依赖（新增依赖用 uv add�
 │   └── public_workspace.py  #   公共空间：super 全通 + 成员看关联记录；删空间时顺带清 store
 ├── routers/                 # FastAPI 路由（auth.py、workspace.py、public_workspace.py、memory.py、chat.py）
 │   └── schemas/             #   请求/响应模型：auth.py、workspace.py、public_workspace.py、memory.py、chat.py、paths.py
-├── main.py                  # 应用入口：app / lifespan（起 agent）/ /health / 事件循环与 uvicorn 启动参数
+├── main.py                  # 应用入口：`create_app()`（每实例一份 state，测试靠它模拟多 worker）/ lifespan / /health / uvicorn 参数
 ├── migrations/              # alembic 迁移（连接串来自 config.yaml 的 postgresql.user 段）
 │   ├── env.py
 │   └── versions/*.py        #   users、workspaces、user_workspaces、is_super、public_workspaces 等 5 个迁移
-├── tests/                   # 端到端自检脚本（11 个，均无需 pytest，跑完自清理）
+├── tests/                   # 端到端自检脚本（12 个，均无需 pytest，跑完自清理）
 ├── CONTEXT.md               # 领域术语表：Workspace / Public workspace / Visibility / Turn owner…
 ├── docs/adr/                # 架构决定记录（0001~0008：公共空间为什么不复用 Workspace、停止为什么靠 LISTEN/NOTIFY…）
 ├── alembic.ini              # 只配 script_location / 日志，URL 由 env.py 注入
@@ -587,7 +587,8 @@ uv run python tests/test_agent_api.py                 # 42 项，需两个库，
 | `test_agent_chat_memory.py` | 真图 + 真检查点：agent 写记忆被拦下、批准后落库、换用户/换空间看不见、用户侧直写、短期记忆按用户隔离、会话元数据（user_id / workspace_id）已进检查点 |
 | `test_agent_api.py` | HTTP 层：`/memories/*` 写读列删、viewer 只读、非成员 404、跨空间隔离；`/chat/*` 九端点契约、SSE 事件序列、接力聊天、借别人 thread_id 404、`interrupt → approve` 后记忆落库、短期记忆的读/删消息/删文件/删会话 |
 | `test_chat_stop.py` | 停止：四种入口的收尾（工具中途 / 生成中途 / 等人批准 / 已跑完）、已流出文本写回历史、续聊不合并、幂等、409 互斥、404 鉴权、流式跑到一半按停止 |
-| `test_chat_stop_cross.py` | **跨进程**停止：停止请求落到没有那一轮的 worker 仍能停掉并拿回部分文本、跨进程 409、没人在跑时不靠超时、心跳回收陈行、孤儿检查点恢复不合并 |
+| `test_chat_stop_cross.py` | **跨进程**停止（两个裸 agent 当两个 worker）：停止请求落到没有那一轮的 worker、跨进程 409、心跳回收陈行、孤儿检查点恢复不合并、**通知丢了靠重连补扫兜底**（从服务器端踢掉 LISTEN 连接） |
+| `test_chat_stop_cross_http.py` | **HTTP 层跨进程**停止（两个 `create_app()` 当两个 worker）：`/chat/stop` 打到没有那一轮的进程仍能停掉并拿回部分文本、跨进程 409、没人在跑时不靠超时、404 不泄露存在性 |
 
 前三个业务脚本用 `tester_*` / `wsroot_*` / `wsuser_*` 前缀账号并在结束时清理；agent 相关脚本用 `agt_api_*` / `chat_stop_*` 前缀，
 并额外清 `agents` 库里的 `checkpoints` / `store` 残留。`/chat/*` 的测试全部注入假模型（不联真实 LLM）。
