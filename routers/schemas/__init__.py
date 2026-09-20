@@ -16,6 +16,8 @@ from .chat import (
     ChatRunOut,
     ChatSend,
     ChatStateOut,
+    ChatStop,
+    ChatStopOut,
     ChatThreadOut,
     ChatThreadsOut,
 )
@@ -56,6 +58,8 @@ __all__ = [
     "ChatRunOut",
     "ChatSend",
     "ChatStateOut",
+    "ChatStop",
+    "ChatStopOut",
     "ChatThreadOut",
     "ChatThreadsOut",
     "LoginRequest",

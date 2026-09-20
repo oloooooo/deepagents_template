@@ -8,6 +8,7 @@
 /chat/send              POST    跑一轮（阻塞），返回 answer，被拦下时返回 interrupt
 /chat/stream            POST    跑一轮（SSE：token / tool_call / interrupt / done）
 /chat/approve           POST    人工批准（或拒绝）后接着跑，decisions 原样透传
+/chat/stop              POST    停止这一轮（用户按暂停），返回最终留在历史里的文本
 /chat/mine              GET     我的会话列表（来自 checkpoint metadata）
 /chat/state/{thread}    GET     某个会话的短期记忆概况
 /chat/history/{thread}  GET     某个会话的消息列表（短期记忆读取）
@@ -27,9 +28,16 @@ SSE 事件格式（每个事件都是 ``event: <kind>`` + 一行 JSON）：
 - ``token``：``{"text": "增量文本"}``
 - ``tool_call``：``{"text": "工具名", "data": {"id": ...}}``
 - ``interrupt``：``{"text": "", "data": {"action_requests": [...], "review_configs": [...]}}``
-- ``done``：``{"text": "完整回答"}``（一定以它收尾）
+- ``done``：``{"text": "完整回答"}``（正常跑完一定以它收尾）
+
+被 ``/chat/stop`` 停掉时流是**直接断的**（任务被取消，没有机会再 yield）：按停止的那一端
+本来就知道自己停了，结果从 ``/chat/stop`` 的响应体里取；其它标签页重新拉 ``/chat/state``
+或 ``/chat/history`` 就能看到收尾后的历史。
 
 新建的 thread_id 通过响应头 ``X-Thread-Id`` 返回（SSE 场景没有 JSON body 可放）。
+
+同一会话同时只允许一轮在跑：重复提交返回 409（停止是异步的，``await`` 完 ``/chat/stop``
+再发新消息就不会撞上）。
 """
 
 import json
@@ -52,6 +60,8 @@ from routers.schemas import (
     ChatRunOut,
     ChatSend,
     ChatStateOut,
+    ChatStop,
+    ChatStopOut,
     ChatThreadOut,
     ChatThreadsOut,
 )
@@ -125,6 +135,27 @@ async def approve_message(
     return ChatRunOut(
         thread_id=payload.thread_id, answer=run.answer, interrupt=run.interrupt
     )
+
+
+@router.post(
+    "/stop",
+    response_model=ChatStopOut,
+    summary="停止这一轮（用户按暂停）",
+)
+async def stop_turn(
+    payload: ChatStop,
+    current_user: CurrentUser,
+    agent: AgentDep,
+    session: SessionDep,
+):
+    """取消在跑的那一轮并把短期记忆收尾；没有在跑的轮次也返回 200（幂等）。
+
+    三种情况都能调：正在跑（取消）、正等人批准（丢弃待批准请求）、已经跑完（什么都不做）。
+    """
+    answer = await ChatService(session, agent).stop(
+        current_user, thread_id=payload.thread_id
+    )
+    return ChatStopOut(thread_id=payload.thread_id, answer=answer)
 
 
 @router.get("/mine", response_model=ChatThreadsOut, summary="我的会话列表")

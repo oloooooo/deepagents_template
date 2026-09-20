@@ -303,6 +303,7 @@ WantedBy=multi-user.target
 POST /chat/send                 跑一轮（阻塞）
 POST /chat/stream               跑一轮（SSE 流式）
 POST /chat/approve              人工批准 / 拒绝后接着跑
+POST /chat/stop                 停止这一轮（用户按暂停）
 GET  /chat/mine                 我的会话列表
 GET  /chat/state/{thread_id}    会话的短期记忆概况
 GET  /chat/history/{thread_id}  会话的消息列表（带 message id）
@@ -316,12 +317,35 @@ DELETE /chat/delete/{thread_id} 删整条会话（只删短期记忆，不动 /m
 | POST | `/chat/send` | body `{"workspace_id"?, "message", "thread_id"?}`（`workspace_id` 不传就是虚拟的 `default`）；不传 `thread_id` 就新开会话并返回。返回 `{thread_id, answer, interrupt}`——`interrupt` 非空表示在等人批准 | 成员（viewer 也能聊；`default` 人人 admin） |
 | POST | `/chat/stream` | 同样的 body，返回 SSE：`event: token / tool_call / interrupt / done` + 一行 JSON（统一 `{"text":…, "data":{…}}`）。新建的 thread_id 走响应头 `X-Thread-Id` | 成员 |
 | POST | `/chat/approve` | body `{"thread_id", "decisions": [{"type": "approve"}]}`，`decisions` 原样透传给 langgraph（approve / edit / reject / respond）。**不接受 `workspace_id`**：空间取自会话绑定值 | 本人会话 |
+| POST | `/chat/stop` | body `{"thread_id"}`，返回 `{thread_id, answer}`——`answer` 是这一轮最终留在历史里的文本。**幂等**：已经跑完的会话再按一次不报错也不改历史 | 本人会话 |
 | GET | `/chat/mine` | 我的会话（`thread_id` / `workspace_id` / `updated_at`）。读的是 checkpoint metadata，不另建表（旧会话没记 `workspace_id` 时按 `default` 算） | 登录 |
 | GET | `/chat/state/{thread_id}` | `{thread_id, workspace_id, messages, answer, files}` | 本人会话 |
 | GET | `/chat/history/{thread_id}` | 消息列表（最旧→最新，带 `id` 与 `role`） | 本人会话 |
 | POST | `/chat/messages/delete` | body `{"thread_id", "message_ids": [...]}`，删单条消息后还能继续聊 | 本人会话 |
 | POST | `/chat/files/delete` | body `{"thread_id", "paths": ["/tmp.txt"]}`，删会话内临时文件 | 本人会话 |
 | DELETE | `/chat/delete/{thread_id}` | 删整条会话（检查点），**长期记忆不受影响** | 本人会话 |
+
+#### 中断（interrupt）与停止（stop）是两件事
+
+名字相近但方向相反，`CONTEXT.md` 里把词定死了：
+
+| | 中断 | 停止 |
+| --- | --- | --- |
+| 谁的动作 | agent（想写 `/memories/**`，等人点头） | 用户（按了暂停键） |
+| 之后 | **可以续跑同一轮**，走 `/chat/approve` | **不可续跑**，只能发新消息开新一轮 |
+| 实现 | `MEMORY_PERMISSIONS` 的 `mode="interrupt"` | `POST /chat/stop` 取消在跑的那一轮 |
+
+停止的语义（见 `docs/adr/0007`）：
+
+- **短期记忆保留**，并且**就地收尾**：已经流出去的文本会补成一条 AI 消息，一个字都没流出来时
+  用 `（用户停止了本轮）` 占位。不收尾的话下一轮会把停掉的那条消息和新消息**合并成一次请求**；
+- **不回滚已发生的副作用**：工具已经写过的文件、已经落库的 `/memories/` 都留着 ——
+  停止是「到此为止」，不是「撤销」；
+- 被停止时 SSE 流是**直接断的**（任务被取消，没有机会再 yield），结果从 `/chat/stop` 的响应体里取；
+- 一个会话同时只允许一轮在跑，重复提交返回 **409**（`await` 完 `/chat/stop` 再发新消息就不会撞上）。
+
+`/chat/stop` 靠进程内一张 `thread_id -> Turn` 的表找到要停的那一轮，**只在单进程有效** ——
+多 worker / 多实例部署前必须换成数据库里的取消标志（见 `docs/adr/0006`）。
 
 ### 7.4 长期记忆
 
@@ -465,6 +489,17 @@ curl -s $BASE/workspaces/access/$WS -H "Authorization: Bearer $TOKEN"
 curl -s -X POST $BASE/chat/send -H "Authorization: Bearer $TOKEN" \
      -H 'Content-Type: application/json' -d '{"message":"你好"}'
 
+# 跑一轮流式，中途按停止：流会直接断，收尾结果从 stop 的响应体里拿
+THREAD=$(curl -s -D - -o /dev/null -X POST $BASE/chat/stream -H "Authorization: Bearer $TOKEN" \
+     -H 'Content-Type: application/json' -d '{"message":"讲个长的"}' \
+     | grep -i '^x-thread-id:' | tr -d '\r' | awk '{print $2}')
+curl -s -X POST $BASE/chat/stop -H "Authorization: Bearer $TOKEN" \
+     -H 'Content-Type: application/json' -d "{\"thread_id\":\"$THREAD\"}"
+# => {"thread_id":"...","answer":"已经流出去的那部分文本"}
+# 历史里这一轮已经收尾，接着聊就是新的一轮
+curl -s -X POST $BASE/chat/send -H "Authorization: Bearer $TOKEN" \
+     -H 'Content-Type: application/json' -d "{\"message\":\"在吗\",\"thread_id\":\"$THREAD\"}"
+
 # 公共空间（需 super）：建一个、写一份内容、授权给某个账号
 PW=$(curl -s -X POST $BASE/public-workspaces/create -H "Authorization: Bearer $TOKEN" \
      -H 'Content-Type: application/json' -d '{"name":"handbook","description":"团队手册"}' \
@@ -538,9 +573,10 @@ uv run python tests/test_agent_api.py                 # 42 项，需两个库，
 | `test_public_workspace_mount.py` | 纯内存验证 `/public/` 挂载：成员只看得到自己被授权的、同一公共空间的两个人读到同一份、super 全部可见、`glob`/`grep` 跨空间合并且不越权、写操作被 deny、假模型端到端走 `ls`/`read_file`/`write_file` |
 | `test_public_workspace_api.py` | HTTP 层：非 super 建空间 403、`/list` 与 `/mine` 对 super 的口径差异、授权前不可见（404）与授权后可读、成员写删 403、路径校验 422、撤权后立即 404、删空间把 store 内容一起清掉、关联记录级联删除 |
 | `test_agent_chat_memory.py` | 真图 + 真检查点：agent 写记忆被拦下、批准后落库、换用户/换空间看不见、用户侧直写、短期记忆按用户隔离、会话元数据（user_id / workspace_id）已进检查点 |
-| `test_agent_api.py` | HTTP 层：`/memories/*` 写读列删、viewer 只读、非成员 404、跨空间隔离；`/chat/*` 八端点契约、SSE 事件序列、接力聊天、借别人 thread_id 404、`interrupt → approve` 后记忆落库、短期记忆的读/删消息/删文件/删会话 |
+| `test_agent_api.py` | HTTP 层：`/memories/*` 写读列删、viewer 只读、非成员 404、跨空间隔离；`/chat/*` 九端点契约、SSE 事件序列、接力聊天、借别人 thread_id 404、`interrupt → approve` 后记忆落库、短期记忆的读/删消息/删文件/删会话 |
+| `test_chat_stop.py` | 停止：四种入口的收尾（工具中途 / 生成中途 / 等人批准 / 已跑完）、已流出文本写回历史、续聊不合并、幂等、409 互斥、404 鉴权、流式跑到一半按停止 |
 
-前三个业务脚本用 `tester_*` / `wsroot_*` / `wsuser_*` 前缀账号并在结束时清理；agent 相关脚本用 `agt_api_*` 前缀，
+前三个业务脚本用 `tester_*` / `wsroot_*` / `wsuser_*` 前缀账号并在结束时清理；agent 相关脚本用 `agt_api_*` / `chat_stop_*` 前缀，
 并额外清 `agents` 库里的 `checkpoints` / `store` 残留。`/chat/*` 的测试全部注入假模型（不联真实 LLM）。
 
 ---

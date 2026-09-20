@@ -19,6 +19,8 @@ __all__ = [
     "ChatRunOut",
     "ChatSend",
     "ChatStateOut",
+    "ChatStop",
+    "ChatStopOut",
     "ChatThreadOut",
     "ChatThreadsOut",
 ]
@@ -61,6 +63,26 @@ class ChatRunOut(BaseModel):
     answer: str = Field(description="最终回答；被拦下时为空串")
     interrupt: dict[str, Any] | None = Field(
         default=None, description="非空表示这轮在等人批准，原样返回给前端展示"
+    )
+
+
+class ChatStop(BaseModel):
+    """停止这一轮（用户按暂停键）。
+
+    与 ``ChatApprove`` 的区别：批准是接着跑（中断，agent 的动作），
+    停止是到此为止（不可续跑，用户的动作）。见 ``CONTEXT.md``。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    thread_id: str = Field(pattern=THREAD_ID_PATTERN)
+
+
+class ChatStopOut(BaseModel):
+    thread_id: str
+    answer: str = Field(
+        description="这一轮最终留在历史里的文本：已流出的部分文本，或占位文案；"
+        "已经跑完的轮次返回原来的回答"
     )
 
 

@@ -10,6 +10,12 @@
   实现见 ``agents/public_workspace.py``，取舍见 ``docs/adr/0003`` 与 ``docs/adr/0004``；
 - 其余路径走 ``StateBackend``（线程内临时文件）。
 
+停止（用户按暂停键，见 ``CONTEXT.md`` 与 ``docs/adr/0006`` / ``0007``）：
+
+- 正在跑的轮次记在 ``GeneralAgent.turns``（进程内，``thread_id -> Turn``），``/chat/stop`` 取消它；
+- 取消之后必须**收尾**：检查点停在中途（``next`` 非空），不收尾则下一轮会把这一轮和下一轮
+  合并成一次请求。收尾见 :meth:`AgentMemory.astop`。
+
 记忆写入（两条路，互不干扰）：
 
 - **agent 写**：调文件工具写 ``/memories/**`` 会 ``interrupt``，等人批准（见 ``MEMORY_PERMISSIONS``）；
@@ -50,6 +56,7 @@ from collections.abc import AsyncIterator, Sequence
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from typing import Any, Literal
+from uuid import uuid4
 
 from deepagents import FilesystemPermission, create_deep_agent
 from deepagents.backends import CompositeBackend, StateBackend, StoreBackend
@@ -108,6 +115,63 @@ DEFAULT_SYSTEM_PROMPT = """你是一个可长期协作的中文助手。
 - 写 `/memories/` 会先请用户确认，确认后再落库。
 - 其它临时文件放普通路径即可，它们只在本会话内有效。
 - 回答简洁、直接，不要复述这些规则。"""
+
+
+STOP_PLACEHOLDER = "（用户停止了本轮）"
+"""停止后补进历史的那条 AI 消息（这一轮一个字都没流出来时用）。模型会读到它。"""
+
+
+@dataclass(slots=True)
+class Turn:
+    """一轮正在跑的对话（记录在 :class:`TurnRegistry` 里，停止时要用）。
+
+    ``text`` 是**已流出的增量文本**的累加：它不落检查点（AI 消息只在超步结束时才写），
+    所以停止时必须靠它把用户已经看到的字写回历史。
+    """
+
+    thread_id: str
+    task: asyncio.Task[Any] | None = None
+    """跑这一轮的那个 task，由服务层绑上（``None`` = 还没开始跑）。停止时取消它。"""
+    text: str = ""
+
+
+class TurnRegistry:
+    """本进程正在跑的轮次：``thread_id -> Turn``。
+
+    故意挂在 :class:`GeneralAgent` 上而不是做成模块级单例：生命周期跟着 agent（进程）走，
+    测试里每建一个 agent 就是一份干净的表。
+
+    **天花板：只在单进程有效。** 多 worker / 多实例时 ``/chat/stop`` 找不到别的进程里的
+    轮次（会当成“没在跑”），要换成数据库里的取消标志。见 ``docs/adr/0006``。
+    """
+
+    def __init__(self) -> None:
+        self._turns: dict[str, Turn] = {}
+
+    def get(self, thread_id: str) -> Turn | None:
+        return self._turns.get(thread_id)
+
+    def reserve(self, thread_id: str) -> Turn | None:
+        """占一个位置，已经有在跑的轮次就返回 ``None``（调用方转成 409）。
+
+        **同步、无 await**：调用方必须在任何 await 之前调它，否则两个并发请求会双双通过检查。
+        顺手把 ``task`` 绑成当前任务（阻塞式那一轮就是当前请求任务；流式会被 ``_tracked``
+        改成真正跑迭代的子任务）。
+
+        顺带自愈：上一轮的 task 已经结束却还赖在表里（客户端在响应体开始前就断了，
+        生成器的 ``finally`` 因此没跑到），就把它当陈的挤掉，不让一条会话永久 409。
+        """
+        existing = self._turns.get(thread_id)
+        if existing is not None and existing.task is not None and not existing.task.done():
+            return None
+        turn = Turn(thread_id=thread_id, task=asyncio.current_task())
+        self._turns[thread_id] = turn
+        return turn
+
+    def release(self, turn: Turn) -> None:
+        """释放。只在自己还是当前持有者时才删，不误删后来者的。"""
+        if self._turns.get(turn.thread_id) is turn:
+            del self._turns[turn.thread_id]
 
 
 class AgentContext(BaseModel):
@@ -172,6 +236,8 @@ class GeneralAgent:
         self.memory: AgentMemory | None = None
         # 启动后可用：公共空间内容的 store 读写（REST 侧与删除清理用）
         self.public_store: PublicWorkspaceStore | None = None
+        # 随时可用：本进程正在跑的轮次（停止用）；与连接无关，构造时就能用
+        self.turns = TurnRegistry()
 
     # ---------- 生命周期 ----------
 
@@ -444,6 +510,61 @@ class AgentMemory:
             workspace_id=(snapshot.metadata or {}).get("workspace_id"),
         )
         await self._graph.aupdate_state(config, state)
+
+    async def astop(
+        self,
+        thread_id: str,
+        user_id: str,
+        workspace_id: str,
+        *,
+        text: str = "",
+    ) -> str:
+        """把被停止的那一轮收尾，返回它最终留在历史里的文本。
+
+        被停下来的检查点停在中途（``next`` 非空），形状有两种，走同一条路径：
+
+        - **工具执行中途**：最后一条是只有 ``tool_calls``、没有文本的 AI 消息 —— 先删掉它，
+          否则前端会渲染出一个空气泡，模型下一轮还会收到一条“工具被取消”的补丁消息；
+        - **模型生成中途 / 正等人批准**：没有这种消息 —— 直接补。
+
+        补的内容是调用方攒下的**已流出文本**（用户已经看到的字不能凭空消失），
+        一个字都没有时用 ``STOP_PLACEHOLDER``。
+
+        两个关键点：
+
+        - ``as_node="model"``：让 langgraph 把这次写入当成 model 节点的产出，于是从 model
+          重新路由 —— 没有 tool_calls 就走到终点，``next`` 清空，这一轮才算真的结束；
+        - 之后还要 ``ainvoke(None)`` 排空：正等人批准时 ``next`` 停在
+          ``HumanInTheLoopMiddleware.after_model``，``aupdate_state`` 只清掉了待批准请求
+          （``interrupts`` 变空），剩下的节点得跑一下才到终点。``next`` 已经是空的时候
+          ``ainvoke(None)`` 是安全的（不会多调一次模型）。
+
+        已经跑完的轮次什么都不做（幂等）：不能因为用户晚按了一下就往正常历史里塞占位文案。
+        """
+        config = _run_config(thread_id, user_id, workspace_id=workspace_id)
+        snapshot = await self._graph.aget_state(config)
+        if not snapshot.next and not snapshot.interrupts:
+            return _last_text((snapshot.values or {}).get("messages", []))
+
+        answer = text or STOP_PLACEHOLDER
+        messages: Sequence[BaseMessage] = (snapshot.values or {}).get("messages", [])
+        update: list[BaseMessage] = []
+        last = messages[-1] if messages else None
+        if isinstance(last, AIMessage) and last.tool_calls and not _chunk_text(last):
+            update.append(RemoveMessage(id=last.id))
+        # 显式给 id：不给自己不会补，/chat/history 会因为 id 是 None 直接 500，
+        # 而且这条消息也就没法用 /chat/messages/delete 删掉了
+        update.append(AIMessage(answer, id=uuid4().hex))
+
+        await self._graph.aupdate_state(config, {"messages": update}, as_node="model")
+        if (await self._graph.aget_state(config)).next:
+            # 排空只会跑中间件钩子，碰不到后端；context 带上只是为了 rt.context 不为空
+            await self._graph.ainvoke(
+                None,
+                config,
+                context=AgentContext(user_id=user_id, workspace_id=workspace_id),
+            )
+        return answer
 
     async def adelete_thread(self, thread_id: str, user_id: str) -> None:
         """删整条会话（短期记忆）。
