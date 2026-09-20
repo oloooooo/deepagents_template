@@ -24,36 +24,49 @@ from routers import auth, chat, memory, public_workspace, workspace
 LOOP = "asyncio:SelectorEventLoop" if sys.platform == "win32" else "auto"
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    db = app_config.postgresql.user
-    logger.info("应用启动，业务库 {}@{}:{}/{}", db.user, db.host, db.port, db.db_name)
-    # 与业务库无关：auth / workspace 路由不依赖 agent，所以没配模型也照常起服务，
-    # 只有 agent 端点会 503（见 dependencies/agent.py）。配了模型但连不上库则直接启动失败。
-    async with AsyncExitStack() as stack:
-        if model_cfg.ready:
-            app.state.agent = await stack.enter_async_context(GeneralAgent())
-        else:
-            logger.warning(
-                "未读到模型配置（OPEN_MODEL / OPEN_BASE_URL / OPEN_API_KEY），agent 端点将返回 503"
-            )
-        yield
-        app.state.agent = None
-    await engine.dispose()
-    logger.info("应用退出，数据库连接池已释放")
+def create_app() -> FastAPI:
+    """造一整个 app。
+
+    存在的理由是**测试需要两个独立实例模拟两个 worker**：``app.state.agent`` 是每实例
+    一份的，所以两个 app 各自有自己的连接池、自己的 ``TurnRegistry``、自己的 ``chat_drain``
+    监听 —— 跟两个 uvicorn worker 等价，但不跨进程。
+
+    正常启动照旧用模块级的 ``app``。
+    """
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        db = app_config.postgresql.user
+        logger.info("应用启动，业务库 {}@{}:{}/{}", db.user, db.host, db.port, db.db_name)
+        # 与业务库无关：auth / workspace 路由不依赖 agent，所以没配模型也照常起服务，
+        # 只有 agent 端点会 503（见 dependencies/agent.py）。配了模型但连不上库则直接启动失败。
+        async with AsyncExitStack() as stack:
+            if model_cfg.ready:
+                app.state.agent = await stack.enter_async_context(GeneralAgent())
+            else:
+                logger.warning(
+                    "未读到模型配置（OPEN_MODEL / OPEN_BASE_URL / OPEN_API_KEY），agent 端点将返回 503"
+                )
+            yield
+            app.state.agent = None
+        await engine.dispose()
+        logger.info("应用退出，数据库连接池已释放")
+
+    application = FastAPI(title="DeepAgents Template", lifespan=lifespan)
+    application.include_router(auth.router)
+    application.include_router(workspace.router)
+    application.include_router(public_workspace.router)
+    application.include_router(memory.router)
+    application.include_router(chat.router)
+
+    @application.get("/health", tags=["system"], summary="健康检查")
+    async def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    return application
 
 
-app = FastAPI(title="DeepAgents Template", lifespan=lifespan)
-app.include_router(auth.router)
-app.include_router(workspace.router)
-app.include_router(public_workspace.router)
-app.include_router(memory.router)
-app.include_router(chat.router)
-
-
-@app.get("/health", tags=["system"], summary="健康检查")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+app = create_app()
 
 
 if __name__ == "__main__":
