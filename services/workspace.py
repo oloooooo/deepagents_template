@@ -7,8 +7,10 @@
 - **成员列表**：只有 super 能看（和写操作一样走路由层 ``SuperUser`` 依赖），
   空间内的 admin 也不行；
 - 不是成员一律按「空间不存在」返回 404，不泄露空间是否存在；
-- ``user_workspaces.permission``（admin/editor/viewer）暂不参与鉴权，
-  留给以后空间内的功能（跑 agent、写文件等）用。
+- ``default`` 是**虚拟空间**（``models.DEFAULT_WORKSPACE``，库里没有记录，权限规则在
+  ``services/access.py``）：建/改空间不许占用这个名字，这里也不给它详情/成员（没东西可给）；
+- ``user_workspaces.permission``（admin/editor/viewer）参与空间内鉴权（见 ``services/access.py``），
+  但改空间/成员仍然只认 ``users.is_super``。
 
 所以这个类里没有 super 判断，也没有权限等级比较：写操作和成员列表都在路由层拦。
 """
@@ -16,13 +18,20 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import User, UserWorkspace, Workspace, WorkspacePermission
+from models import (
+    DEFAULT_WORKSPACE,
+    User,
+    UserWorkspace,
+    Workspace,
+    WorkspacePermission,
+)
 from repositories import UserRepository, UserWorkspaceRepository, WorkspaceRepository
 
 __all__ = ["WorkspaceService"]
 
 NOT_MEMBER = "空间不存在或你不是该空间成员"
 WORKSPACE_NOT_FOUND = "空间不存在"
+RESERVED_NAME = f"{DEFAULT_WORKSPACE} 是保留的空间名（每个用户自带的虚拟空间）"
 
 
 class WorkspaceService:
@@ -34,6 +43,7 @@ class WorkspaceService:
 
     async def create(self, owner: User, *, name: str, path: str) -> Workspace:
         """建空间，建的人同时成为该空间 admin，一个事务提交。"""
+        self._reject_reserved(name)
         if await self.workspaces.get_by_name(name) is not None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="空间名已存在"
@@ -61,25 +71,24 @@ class WorkspaceService:
     async def list_mine(
         self, user: User
     ) -> list[tuple[Workspace, WorkspacePermission]]:
+        """我参与的真实空间（虚拟 default 不在库里，由路由层补上）。"""
         return await self.links.list_by_user(user.id)
 
     async def check_access(
-        self, user: User, workspace_name: str
-    ) -> tuple[Workspace, WorkspacePermission] | None:
-        """自查：按空间名返回 (空间, 我的权限)，没权限或空间不存在都返回 None。
+        self, user: User, workspace_id: str
+    ) -> WorkspacePermission | None:
+        """自查：按空间 id 返回我的权限，没权限或空间不存在都返回 None。
 
         故意不抛 404：调用方只需要一个「能不能进」的答案，
         而且两种情况返回同一个 None，不泄露空间是否存在。
+        空间不存在时关联表里自然查不到，不必先查 workspaces。
+        虚拟的 ``default`` 不查库，直接是 admin（见 ``services/access.py``）。
         """
-        workspace = await self.workspaces.get_by_name(workspace_name)
-        if workspace is None:
-            return None
-        permission = await self.links.get_permission(
-            user_id=user.id, workspace_id=workspace.id
+        if workspace_id == DEFAULT_WORKSPACE:
+            return WorkspacePermission.ADMIN
+        return await self.links.get_permission(
+            user_id=user.id, workspace_id=workspace_id
         )
-        if permission is None:
-            return None
-        return workspace, permission
 
     async def update(
         self,
@@ -90,6 +99,7 @@ class WorkspaceService:
     ) -> Workspace:
         workspace = await self._get_or_404(workspace_id)
         if name is not None and name != workspace.name:
+            self._reject_reserved(name)
             if await self.workspaces.get_by_name(name) is not None:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT, detail="空间名已存在"
@@ -128,6 +138,14 @@ class WorkspaceService:
         if not await self.links.revoke(user_id=user.id, workspace_id=workspace_id):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="该用户不在这个空间"
+            )
+
+    @staticmethod
+    def _reject_reserved(name: str) -> None:
+        """default 被虚拟空间占了（库里没有这条记录），真实空间不许叫这个名字。"""
+        if name == DEFAULT_WORKSPACE:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=RESERVED_NAME
             )
 
     async def _get_or_404(self, workspace_id: str) -> Workspace:

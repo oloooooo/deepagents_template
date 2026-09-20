@@ -569,6 +569,57 @@ def main() -> None:
             == ["/memories/prefs.md"]
         )
 
+        print("== 虚拟 default 空间（不传 workspace_id 的日常聊天）==")
+        step("POST /chat/send 不带 workspace_id -> 200，会话落在 default")
+        resp = client.post("/chat/send", json={"message": "随便聊聊"}, headers=editor_h)
+        assert resp.status_code == 200, resp.text
+        default_thread = resp.json()["thread_id"]
+        assert resp.json()["answer"] == "收到：随便聊聊", resp.json()
+        assert (
+            client.get(f"/chat/state/{default_thread}", headers=editor_h).json()[
+                "workspace_id"
+            ]
+            == "default"
+        )
+
+        step("/memories/* 不带 workspace_id -> 落在 default，且跟真实空间互不可见")
+        assert (
+            client.post(
+                "/memories/write",
+                json={"path": "daily.md", "content": "日常偏好"},
+                headers=editor_h,
+            ).status_code
+            == 200
+        )
+        assert client.get("/memories/mine", headers=editor_h).json() == {
+            "workspace_id": "default",
+            "memories": ["/memories/daily.md"],
+        }
+        assert (
+            client.get("/memories/mine", params={"workspace_id": ws_id}, headers=editor_h)
+            .json()["memories"]
+            == ["/memories/prefs.md"]
+        )
+        assert client.get("/memories/mine", headers=viewer_h).json()["memories"] == []
+
+        step("default 里记忆是私人的（同一个人才能看到）")
+        assert (
+            client.post(
+                "/memories/read",
+                json={"path": "daily.md"},
+                headers=editor_h,
+            ).json()["content"]
+            == "日常偏好"
+        )
+        assert (
+            client.post(
+                "/memories/read",
+                json={"path": "daily.md"},
+                headers=viewer_h,
+            ).status_code
+            == 404
+        )
+
     print(f"\n全部通过：{checks} 项检查")
 
 

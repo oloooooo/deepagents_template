@@ -8,6 +8,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from models import DEFAULT_WORKSPACE
+
 __all__ = [
     "ChatApprove",
     "ChatDeleteMessages",
@@ -28,7 +30,12 @@ THREAD_ID_PATTERN = r"^[A-Za-z0-9_-]{1,64}$"
 class ChatSend(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    workspace_id: str = Field(min_length=1, max_length=32, description="业务空间 id")
+    workspace_id: str = Field(
+        DEFAULT_WORKSPACE,
+        min_length=1,
+        max_length=32,
+        description="业务空间 id；不传就落虚拟的 default 空间（日常聊天）",
+    )
     message: str = Field(min_length=1, max_length=10_000, description="用户这一轮说的话")
     thread_id: str | None = Field(
         default=None,

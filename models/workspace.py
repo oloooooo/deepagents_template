@@ -11,7 +11,15 @@ from models import BaseModel
 if TYPE_CHECKING:
     from models.user import User
 
-__all__ = ["Workspace"]
+__all__ = ["DEFAULT_WORKSPACE", "Workspace"]
+
+DEFAULT_WORKSPACE = "default"
+"""虚拟的默认空间 id：每个登录用户都有、且都是 admin，库里**没有**对应记录。
+
+日常聊天与记忆不指定空间时就落在这里，不必给每个用户建一条 workspaces 记录。
+读写这个 id 的规则只有一处（``services/access.py``）；它也占用了空间名，
+所以建/改空间时不许用（``WorkspaceService`` 409）。
+"""
 
 
 class Workspace(BaseModel):

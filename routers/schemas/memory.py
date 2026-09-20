@@ -11,6 +11,8 @@ from pathlib import PurePosixPath
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from models import DEFAULT_WORKSPACE
+
 __all__ = [
     "MemoryListOut",
     "MemoryOut",
@@ -25,7 +27,12 @@ class MemoryPath(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    workspace_id: str = Field(min_length=1, max_length=32, description="业务空间 id")
+    workspace_id: str = Field(
+        DEFAULT_WORKSPACE,
+        min_length=1,
+        max_length=32,
+        description="业务空间 id；不传就落虚拟的 default 空间（日常聊天）",
+    )
     path: str = Field(
         min_length=1,
         max_length=256,

@@ -10,7 +10,7 @@
 路径                          方法      权限
 ===========================  ========  ================
 /workspaces/mine             GET       成员
-/workspaces/access/{name}    GET       登录用户（自查）
+/workspaces/access/{id}      GET       登录用户（自查）
 /workspaces/create           POST      super
 /workspaces/detail/{id}      GET       成员
 /workspaces/update/{id}      PATCH     super
@@ -19,6 +19,12 @@
 /workspaces/grant/{id}       POST      super    body: user_name + permission
 /workspaces/revoke/{id}/{u}  DELETE    super    u 是账号名（account）
 ===========================  ========  ================
+
+``default`` 是虚拟空间（库里没有记录）：``/mine`` 永远把它排在第一条（``path`` / 时间戳为空，
+``permission`` 恒为 admin），``/access/default`` 恒为 ``has_access=true``；它没有详情/成员，
+``/detail/default``、``/members/default`` 都是 404，建/改空间用这个名字一律 409。
+
+空间一律用 **id** 寻址（``default`` 只是其中一个合法值，即虚拟空间），不另设按名字查询的接口。
 """
 
 from fastapi import APIRouter, Response, status
@@ -44,7 +50,11 @@ router = APIRouter(prefix="/workspaces", tags=["workspace"])
 @router.get("/mine", response_model=list[MyWorkspaceOut], summary="我参与的空间")
 async def list_my_workspaces(current_user: CurrentUser, session: SessionDep):
     rows = await WorkspaceService(session).list_mine(current_user)
-    return [MyWorkspaceOut.of(workspace, permission) for workspace, permission in rows]
+    # 虚拟 default 空间库里没有记录，这里补在最前面（日常聊天入口）
+    return [
+        MyWorkspaceOut.default(),
+        *(MyWorkspaceOut.of(workspace, permission) for workspace, permission in rows),
+    ]
 
 
 @router.post(
@@ -71,22 +81,21 @@ async def get_workspace(
 
 
 @router.get(
-    "/access/{workspace_name}",
+    "/access/{workspace_id}",
     response_model=WorkspaceAccessOut,
-    summary="我有没有这个空间的权限（按空间名自查）",
+    summary="我有没有这个空间的权限（按空间 id 自查）",
 )
 async def check_workspace_access(
-    workspace_name: str, current_user: CurrentUser, session: SessionDep
+    workspace_id: str, current_user: CurrentUser, session: SessionDep
 ):
-    """任何登录用户都能问；没权限与空间不存在都返回 has_access=false（200）。"""
-    found = await WorkspaceService(session).check_access(current_user, workspace_name)
-    if found is None:
-        return WorkspaceAccessOut(workspace_name=workspace_name, has_access=False)
-    workspace, permission = found
+    """任何登录用户都能问；没权限与空间不存在都返回 has_access=false（200）。
+
+    ``default`` 是虚拟空间，永远是 has_access=true + admin（但没详情/成员可看）。
+    """
+    permission = await WorkspaceService(session).check_access(current_user, workspace_id)
     return WorkspaceAccessOut(
-        workspace_name=workspace.name,
-        has_access=True,
-        workspace_id=workspace.id,
+        workspace_id=workspace_id,
+        has_access=permission is not None,
         permission=permission,
     )
 

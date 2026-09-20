@@ -40,7 +40,7 @@ store 里实际存的      namespace = (user_id, workspace_id, "filesystem")
 
 ## 三、跑起来要带 context
 
-`AgentContext`（`user_id` + `workspace_id`，两个都必填）是长期记忆命名空间的唯一来源：
+`AgentContext`（`user_id` 必填 + `workspace_id`，默认虚拟的 `default` 空间）是长期记忆命名空间的唯一来源：
 
 - `ainvoke` / `astream` 内部已经传好了；**新增调用路径（子图、后台任务、直接 `graph.ainvoke`）必须自己传**；
 - 忘了传时命名空间工厂会 `AttributeError: 'NoneType' object has no attribute 'user_id'` —— 报错难看但不会静默串号；

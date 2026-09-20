@@ -7,7 +7,7 @@
    所以前端猜别人的 thread_id 也读不到任何东西；
 3. 归属校验读 checkpoint metadata（``AgentMemory.aget_meta``），查不到一律 404；
 4. ``workspace_id`` 从 metadata 取（不信任请求体），每轮再校验一次成员权限 ——
-   被移出空间后立刻失效。
+   被移出空间后立刻失效；metadata 里没有它（虚拟 default 空间之前建的会话）就当 ``default``。
 """
 
 from collections.abc import AsyncIterator
@@ -17,7 +17,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents.agent import AgentEvent, AgentMemory, AgentRun, GeneralAgent
-from models import User
+from models import DEFAULT_WORKSPACE, User
 from services.access import WorkspaceAccess
 
 __all__ = ["THREAD_NOT_FOUND", "ChatService"]
@@ -126,6 +126,7 @@ class ChatService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=THREAD_NOT_FOUND
             )
-        workspace_id = meta.get("workspace_id")
+        # 虚拟 default 空间之前建的会话 metadata 里没有 workspace_id，一律按 default 处理
+        workspace_id = meta.get("workspace_id") or DEFAULT_WORKSPACE
         await self.access.permission(user, workspace_id)  # 还在空间里才行
         return workspace_id

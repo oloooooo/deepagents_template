@@ -1,6 +1,8 @@
 """空间权限校验：记忆与聊天服务共用的唯一入口。
 
 - ``user_id`` 只来自登录态，这里只回答「这个人在这个空间里是什么权限」；
+- ``default`` 是虚拟空间（``models.DEFAULT_WORKSPACE``，库里没有记录）：每个登录用户
+  都是 admin，不查库、谁也删不掉，日常聊天与记忆默认落在这里；
 - 不是成员、或空间不存在，一律 404（两种情况不区分，不泄露空间是否存在）；
 - 在空间里但权限不够才 403（藏不住，他在空间里）。
 """
@@ -8,7 +10,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import User, WorkspacePermission
+from models import DEFAULT_WORKSPACE, User, WorkspacePermission
 from repositories import UserWorkspaceRepository, WorkspaceRepository
 
 __all__ = ["CANNOT_WRITE", "NOT_MEMBER", "WRITERS", "WorkspaceAccess"]
@@ -26,6 +28,8 @@ class WorkspaceAccess:
 
     async def permission(self, user: User, workspace_id: str) -> WorkspacePermission:
         """我在这空间的权限；非成员 / 空间不存在统一 404。"""
+        if workspace_id == DEFAULT_WORKSPACE:
+            return WorkspacePermission.ADMIN
         workspace = await self.workspaces.get_by_id(workspace_id)
         permission = (
             await self.links.get_permission(user_id=user.id, workspace_id=workspace.id)
@@ -38,7 +42,9 @@ class WorkspaceAccess:
             )
         return permission
 
-    async def require_writer(self, user: User, workspace_id: str) -> WorkspacePermission:
+    async def require_writer(
+        self, user: User, workspace_id: str
+    ) -> WorkspacePermission:
         """写操作：viewer 403。"""
         permission = await self.permission(user, workspace_id)
         if permission not in WRITERS:

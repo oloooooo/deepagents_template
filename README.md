@@ -267,15 +267,26 @@ WantedBy=multi-user.target
 
 | 方法 | 路径 | 说明 | 权限 |
 | --- | --- | --- | --- |
-| POST | `/workspaces/create` | 建空间（name 3–100 位、path）；创建者自动成为该空间 admin，重名 409 | **super** |
-| GET | `/workspaces/mine` | 我参与的空间列表，每项带 `permission` | 成员 |
-| GET | `/workspaces/detail/{workspace_id}` | 空间详情 | 成员 |
-| GET | `/workspaces/access/{workspace_name}` | **自查**：我有没有这个空间的权限（按空间名）。返回 `{workspace_name, has_access, workspace_id, permission}`，没权限与空间不存在都是 200 + `false` | 登录即可 |
+| POST | `/workspaces/create` | 建空间（name 3–100 位、path）；创建者自动成为该空间 admin，重名 409，`default` 是保留名也 409 | **super** |
+| GET | `/workspaces/mine` | 我参与的空间列表，每项带 `permission`；**第一条永远是虚拟的 `default`**（`path` / 时间戳为 `null`，`permission` 恒为 `admin`） | 成员 |
+| GET | `/workspaces/detail/{workspace_id}` | 空间详情（`default` 没有记录可给 -> 404） | 成员 |
+| GET | `/workspaces/access/{workspace_id}` | **自查**：我有没有这个空间的权限。返回 `{workspace_id, has_access, permission}`，没权限与空间不存在都是 200 + `false`；`default` 恒为 `true` + `admin` | 登录即可 |
 | PATCH | `/workspaces/update/{workspace_id}` | 改 name / path（只改传了的字段） | **super** |
 | DELETE | `/workspaces/delete/{workspace_id}` | 删空间（成员关联级联清理，204） | **super** |
 | GET | `/workspaces/members/{workspace_id}` | 成员列表（account / email / 权限） | **super** |
 | POST | `/workspaces/grant/{workspace_id}` | 加成员或改权限（按**账号名**），body `{"user_name":"…","permission":"admin / editor / viewer"}`；重复授权即更新，**成功返回 `{"result": true}`** | **super** |
 | DELETE | `/workspaces/revoke/{workspace_id}/{user_name}` | 按账号名移除成员（204） | **super** |
+
+**虚拟的 `default` 空间**（`models.DEFAULT_WORKSPACE`）：每个登录用户都自带一个 id/name 为
+`default` 的空间，用来放「不属于任何业务空间」的日常聊天与记忆，**库里没有这条记录**，因此：
+
+- `/workspaces/mine` 把它排在第一条，`/workspaces/access/default` 恒为 `has_access: true` + `admin`；
+- 它没有详情与成员（`/workspaces/detail/default`、`/workspaces/members/default` 都是 404），也删不掉；
+- `default` 是保留名：建/改空间用它一律 409（否则库里那条记录会被虚拟空间永远遮蔽）；
+- 权限规则只有一处实现：`services/access.py` 里直接返回 `ADMIN`，不查库。
+
+所以 `/chat/*` 与 `/memories/*` 的 `workspace_id` 都可以不传（不传就是 `default`），
+前端拿 `/workspaces/mine` 的第一条当日常聊天入口即可。
 
 ### 7.3 聊天（Agent）
 
@@ -293,10 +304,10 @@ DELETE /chat/delete/{thread_id} 删整条会话（只删短期记忆，不动 /m
 
 | 方法 | 路径 | 说明 | 权限 |
 | --- | --- | --- | --- |
-| POST | `/chat/send` | body `{"workspace_id", "message", "thread_id"?}`；不传 `thread_id` 就新开会话并返回。返回 `{thread_id, answer, interrupt}`——`interrupt` 非空表示在等人批准 | 成员（viewer 也能聊） |
+| POST | `/chat/send` | body `{"workspace_id"?, "message", "thread_id"?}`（`workspace_id` 不传就是虚拟的 `default`）；不传 `thread_id` 就新开会话并返回。返回 `{thread_id, answer, interrupt}`——`interrupt` 非空表示在等人批准 | 成员（viewer 也能聊；`default` 人人 admin） |
 | POST | `/chat/stream` | 同样的 body，返回 SSE：`event: token / tool_call / interrupt / done` + 一行 JSON（统一 `{"text":…, "data":{…}}`）。新建的 thread_id 走响应头 `X-Thread-Id` | 成员 |
 | POST | `/chat/approve` | body `{"thread_id", "decisions": [{"type": "approve"}]}`，`decisions` 原样透传给 langgraph（approve / edit / reject / respond）。**不接受 `workspace_id`**：空间取自会话绑定值 | 本人会话 |
-| GET | `/chat/mine` | 我的会话（`thread_id` / `workspace_id` / `updated_at`）。读的是 checkpoint metadata，不另建表 | 登录 |
+| GET | `/chat/mine` | 我的会话（`thread_id` / `workspace_id` / `updated_at`）。读的是 checkpoint metadata，不另建表（旧会话没记 `workspace_id` 时按 `default` 算） | 登录 |
 | GET | `/chat/state/{thread_id}` | `{thread_id, workspace_id, messages, answer, files}` | 本人会话 |
 | GET | `/chat/history/{thread_id}` | 消息列表（最旧→最新，带 `id` 与 `role`） | 本人会话 |
 | POST | `/chat/messages/delete` | body `{"thread_id", "message_ids": [...]}`，删单条消息后还能继续聊 | 本人会话 |
@@ -314,12 +325,13 @@ POST /memories/delete                   删一份记忆（204）
 
 | 方法 | 路径 | 说明 | 权限 |
 | --- | --- | --- | --- |
-| GET | `/memories/mine` | query `workspace_id`；返回 `{workspace_id, memories: ["/memories/…"]}` | 成员（viewer 起） |
-| POST | `/memories/read` | body `{"workspace_id", "path"}`（`path` 带斜杠所以放 body），不存在 404 | 成员 |
-| POST | `/memories/write` | body `{"workspace_id", "path", "content"}`，整份覆盖，返回 `{"path": "/memories/…"}` | **editor / admin** |
-| POST | `/memories/delete` | body `{"workspace_id", "path"}`，不存在 404 | **editor / admin** |
+| GET | `/memories/mine` | query `workspace_id`（可省，默认 `default`）；返回 `{workspace_id, memories: ["/memories/…"]}` | 成员（viewer 起） |
+| POST | `/memories/read` | body `{"workspace_id"?, "path"}`（`path` 带斜杠所以放 body，`workspace_id` 不传就是 `default`），不存在 404 | 成员 |
+| POST | `/memories/write` | body `{"workspace_id"?, "path", "content"}`，整份覆盖，返回 `{"path": "/memories/…"}` | **editor / admin** |
+| POST | `/memories/delete` | body `{"workspace_id"?, "path"}`，不存在 404 | **editor / admin** |
 
 记忆库按 **`(user_id, workspace_id)`** 隔离（store 命名空间）：同一个空间里，别人也看不到你的记忆文件。
+不传 `workspace_id` 就落虚拟的 `default` 空间（每个人自己的），所以「日常偏好」不必先建空间。
 agent 自己写 `/memories/**` 会先 `interrupt` 等人批准（`POST /chat/approve`），用户侧的 `/memories/write` 直写、不用批准；
 这两条链路的细节（含为什么裸内存路径也要单独列一条权限规则）见 `agents/readme.md`。
 
@@ -334,6 +346,9 @@ agent 自己写 `/memories/**` 会先 `interrupt` 等人批准（`POST /chat/app
   `viewer` 能聊天（`/chat/*`）与读自己的记忆（`/memories/mine`、`/memories/read`）；
   写/删记忆（`/memories/write`、`/memories/delete`）要 `editor` 或 `admin`，`viewer` 403。
   改空间/成员仍然只认 `users.is_super`，跟空间内权限无关。
+- **`default` 是虚拟空间**：库里没有记录，每个登录用户在里面都是 `admin`（`services/access.py` 里直接返回，
+  不查库）；`/workspaces/mine` 永远带上它、`/workspaces/access/default` 恒为 `true`，但它没有详情/成员、
+  也建不出来（保留名 409）。不传 `workspace_id` 的聊天与记忆都落在这里。
 - **记忆与聊天都不从请求体取 `user_id`**：归属一律来自登录态，另有会话归属校验
   （`thread_id` 非本人 404）与 `(user_id, workspace_id)` 双维度存储隔离；
   请求体里多塞 `user_id` / `workspace_id`（在不该出现的地方）会被 Pydantic 挡成 422。
@@ -345,9 +360,9 @@ update users set is_super = true where account = 'admin';
 
 标志**不写进 JWT**，每个请求都回库现查，所以改完立刻生效，**升权/降权都不必重新登录**。
 
-前端想决定「要不要给用户显示这个空间」时，用 `GET /workspaces/access/{workspace_name}`：
-它只回答「我能不能进」——有权限时带 `permission` 与 `workspace_id`（可接着调详情/成员接口），
-没权限或空间不存在都返回 `has_access: false`（**不是 404**，因此不会泄露空间是否存在）。
+前端想决定「要不要给用户显示这个空间」时，用 `GET /workspaces/access/{workspace_id}`：
+它只回答「我能不能进」——有权限时带 `permission`，没权限或空间不存在都返回
+`has_access: false`（**不是 404**，因此不会泄露空间是否存在）。
 
 ### 7.6 curl 示例
 
@@ -373,8 +388,13 @@ curl -s -X POST $BASE/workspaces/grant/$WS -H "Authorization: Bearer $TOKEN" \
 curl -s $BASE/workspaces/mine -H "Authorization: Bearer $TOKEN"
 curl -s $BASE/workspaces/members/$WS -H "Authorization: Bearer $TOKEN"
 
-# 按名字自查：我有没有 proj-a 的权限
-curl -s $BASE/workspaces/access/proj-a -H "Authorization: Bearer $TOKEN"
+# 自查：我有没有这个空间的权限（$WS 是 create 拿到的 id）
+curl -s $BASE/workspaces/access/$WS -H "Authorization: Bearer $TOKEN"
+
+# 日常聊天 / 日常记忆：不传 workspace_id 就落虚拟 default 空间（人人 admin，不用建空间）
+curl -s -X POST $BASE/chat/send -H "Authorization: Bearer $TOKEN" \
+     -H 'Content-Type: application/json' -d '{"message":"你好"}'
+curl -s $BASE/memories/mine -H "Authorization: Bearer $TOKEN"
 
 # 踢出空间（真删关联行）
 curl -s -X DELETE $BASE/workspaces/revoke/$WS/someone -H "Authorization: Bearer $TOKEN"

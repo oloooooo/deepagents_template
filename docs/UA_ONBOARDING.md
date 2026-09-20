@@ -64,11 +64,16 @@ uv run python tests/test_auth.py   # 18 项自检
 | --- | --- | --- |
 | 建 / 改 / 删空间、加成员 / 改权限 / 移除成员、**查看成员列表** | **只有 `users.is_super = true`** | 403（未登录 401） |
 | 空间详情 / 我参与的空间 | 该空间成员 | 非成员 404（不泄露空间是否存在） |
-| 按空间名自查（`/workspaces/access/{name}`） | 任何登录用户 | 200 + `has_access: false`（不是 404） |
+| 自查空间权限（`/workspaces/access/{workspace_id}`） | 任何登录用户 | 200 + `has_access: false`（不是 404） |
 | 注册 / 登录 / 刷新 | 任何人 | — |
 
 - `user_workspaces.permission`（`admin` / `editor` / `viewer`，默认 `viewer`，库侧有默认值 + CHECK）
-  **目前只描述成员身份，不参与鉴权**；空间内的 `admin` 同样不能改空间或成员。留给以后空间内的功能（跑 agent、写文件等）。
+  **参与空间内的鉴权**：`viewer` 能聊天与读自己的记忆，写/删记忆要 `editor` / `admin`（见 `services/access.py`）；
+  但改空间或成员仍然只认 `users.is_super`，空间内的 `admin` 也不行。
+- **虚拟 `default` 空间**（`models.DEFAULT_WORKSPACE`）：每个登录用户都有、在里面都是 `admin`，
+  **库里没有这条记录**（`services/access.py` 直接返回，不查库）。`/workspaces/mine` 永远带它，
+  `/workspaces/access/default` 恒为 `has_access: true`，但建/改空间不能用这个名字（409），
+  也没有详情/成员（404）。不传 `workspace_id` 的 `/chat/*`、`/memories/*` 都落在这里。
 - 建空间时会在**同一个事务**里把创建者写成该空间的 `admin`，所以不会出现「没人管的空间」。
 - 授权 super 的唯一途径是数据库：`update users set is_super = true where account = '...'`。
 

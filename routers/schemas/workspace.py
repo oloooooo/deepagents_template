@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from models import User, Workspace, WorkspacePermission
+from models import DEFAULT_WORKSPACE, User, Workspace, WorkspacePermission
 
 __all__ = [
     "MemberGrant",
@@ -48,9 +48,18 @@ class WorkspaceOut(BaseModel):
     updated_at: datetime
 
 
-class MyWorkspaceOut(WorkspaceOut):
-    """带「我的权限」，用于 GET /workspaces/mine。"""
+class MyWorkspaceOut(BaseModel):
+    """带「我的权限」，用于 GET /workspaces/mine。
 
+    ``default`` 是虚拟空间（库里没有记录，见 ``services/access.py``），所以 ``path`` /
+    时间戳为空；真实空间这几个字段一定有值。
+    """
+
+    id: str
+    name: str
+    path: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     permission: WorkspacePermission
 
     @classmethod
@@ -58,7 +67,21 @@ class MyWorkspaceOut(WorkspaceOut):
         cls, workspace: Workspace, permission: WorkspacePermission
     ) -> "MyWorkspaceOut":
         return cls(
-            **WorkspaceOut.model_validate(workspace).model_dump(), permission=permission
+            id=workspace.id,
+            name=workspace.name,
+            path=workspace.path,
+            created_at=workspace.created_at,
+            updated_at=workspace.updated_at,
+            permission=permission,
+        )
+
+    @classmethod
+    def default(cls) -> "MyWorkspaceOut":
+        """虚拟的 default 空间：每个人都是 admin，前端拿它当日常聊天入口。"""
+        return cls(
+            id=DEFAULT_WORKSPACE,
+            name=DEFAULT_WORKSPACE,
+            permission=WorkspacePermission.ADMIN,
         )
 
 
@@ -94,11 +117,8 @@ class MemberOut(BaseModel):
 class WorkspaceAccessOut(BaseModel):
     """自查结果：没权限也返回 200，用 has_access 表达，不泄露空间是否存在。"""
 
-    workspace_name: str
+    workspace_id: str = Field(description="回显入参的空间 id，default 表示虚拟空间")
     has_access: bool
-    workspace_id: str | None = Field(
-        default=None, description="有权限时才给，方便接着调详情/成员接口"
-    )
     permission: WorkspacePermission | None = Field(
         default=None, description="我在此空间的权限：admin / editor / viewer"
     )

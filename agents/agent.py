@@ -105,11 +105,12 @@ class AgentContext(BaseModel):
     """运行期上下文：透传给 StoreBackend，决定长期记忆落在哪个命名空间。
 
     ``(user_id, workspace_id)`` 等价于 store 里的 ``/memories/{user_id}/{workspace_id}/``。
-    两个字段都没有默认值：漏传直接报错，而不是静默写进同一个共享命名空间。
+    ``workspace_id`` 默认 ``"default"``（虚拟的日常聊天空间，人人都是 admin）；
+    ``user_id`` 没有默认值：漏传直接报错，而不是静默写进同一个共享命名空间。
     """
 
     user_id: str
-    workspace_id: str
+    workspace_id: str = "default"
 
 
 @dataclass(slots=True)
