@@ -1,0 +1,1332 @@
+{
+  "schemaVersion": 1,
+  "algorithm": "louvain",
+  "totalFiles": 83,
+  "totalBatches": 6,
+  "exportsByPath": {
+    "agents/__init__.py": [],
+    "agents/agent.py": [
+      "AgentContext",
+      "AgentEvent",
+      "AgentRun",
+      "GeneralAgent",
+      "AgentMemory",
+      "_conversation_id",
+      "_short_thread_id",
+      "_memory_ns",
+      "_memory_key",
+      "_pending",
+      "_payload",
+      "_run_config",
+      "_input",
+      "_chunk_text",
+      "_last_text"
+    ],
+    "agents/config.py": [
+      "AgentPostgreConfig",
+      "ModelConfig"
+    ],
+    "agents/public_workspace.py": [
+      "public_namespace",
+      "PublicMountBackend",
+      "PublicWorkspaceStore",
+      "_public_key"
+    ],
+    "agents/turns.py": [
+      "worker_id",
+      "Turn",
+      "TurnRegistry",
+      "StopRequest",
+      "RunningTurns"
+    ],
+    "config/__init__.py": [],
+    "config/config.py": [
+      "_Strict",
+      "PostgreConfig",
+      "PostgresConfig",
+      "LoggerConfig",
+      "AuthConfig",
+      "AppConfig",
+      "load_config"
+    ],
+    "dependencies/__init__.py": [],
+    "dependencies/agent.py": [
+      "get_agent",
+      "get_optional_agent"
+    ],
+    "dependencies/auth.py": [
+      "get_current_user",
+      "get_super_user"
+    ],
+    "dependencies/database.py": [
+      "get_session"
+    ],
+    "dependencies/public_workspace.py": [
+      "get_public_workspaces"
+    ],
+    "logger/__init__.py": [
+      "InterceptHandler",
+      "setup_logger"
+    ],
+    "main.py": [
+      "create_app"
+    ],
+    "migrations/env.py": [
+      "run_migrations_offline",
+      "run_migrations_online"
+    ],
+    "migrations/script.py.mako": [],
+    "migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py": [
+      "upgrade",
+      "downgrade"
+    ],
+    "migrations/versions/636fdf346107_add_users_is_super.py": [
+      "upgrade",
+      "downgrade"
+    ],
+    "migrations/versions/89f54e43803a_add_public_workspaces_user_public_.py": [
+      "upgrade",
+      "downgrade"
+    ],
+    "migrations/versions/ce9e484f27fb_create_users_table.py": [
+      "upgrade",
+      "downgrade"
+    ],
+    "migrations/versions/ed40a1145bb5_user_workspaces_permission_default_.py": [
+      "upgrade",
+      "downgrade"
+    ],
+    "models/__init__.py": [
+      "Base",
+      "BaseModel"
+    ],
+    "models/public_workspace.py": [
+      "PublicWorkspace"
+    ],
+    "models/user.py": [
+      "User"
+    ],
+    "models/user_public_workspace.py": [
+      "UserPublicWorkspace"
+    ],
+    "models/user_workspace.py": [
+      "WorkspacePermission",
+      "UserWorkspace"
+    ],
+    "models/workspace.py": [
+      "Workspace"
+    ],
+    "repositories/__init__.py": [],
+    "repositories/public_workspace.py": [
+      "PublicWorkspaceRepository"
+    ],
+    "repositories/user.py": [
+      "UserRepository"
+    ],
+    "repositories/user_public_workspace.py": [
+      "UserPublicWorkspaceRepository"
+    ],
+    "repositories/user_workspace.py": [
+      "UserWorkspaceRepository"
+    ],
+    "repositories/workspace.py": [
+      "WorkspaceRepository"
+    ],
+    "routers/__init__.py": [],
+    "routers/auth.py": [
+      "_token_pair",
+      "register",
+      "login",
+      "refresh",
+      "me",
+      "logout"
+    ],
+    "routers/chat.py": [
+      "send_message",
+      "stream_message",
+      "approve_message",
+      "stop_turn",
+      "list_my_threads",
+      "get_thread_state",
+      "get_thread_history",
+      "delete_thread_messages",
+      "delete_thread_files",
+      "delete_thread",
+      "_sse"
+    ],
+    "routers/memory.py": [
+      "list_memories",
+      "read_memory",
+      "write_memory",
+      "delete_memory"
+    ],
+    "routers/public_workspace.py": [
+      "create_public_workspace",
+      "list_public_workspaces",
+      "list_my_public_workspaces",
+      "get_public_workspace",
+      "update_public_workspace",
+      "delete_public_workspace",
+      "grant_public_member",
+      "revoke_public_member",
+      "list_public_members",
+      "list_public_files",
+      "read_public_file",
+      "write_public_file",
+      "delete_public_file"
+    ],
+    "routers/schemas/__init__.py": [],
+    "routers/schemas/auth.py": [
+      "RegisterRequest",
+      "LoginRequest",
+      "RefreshRequest",
+      "TokenPair",
+      "UserOut"
+    ],
+    "routers/schemas/chat.py": [
+      "ChatSend",
+      "ChatApprove",
+      "ChatRunOut",
+      "ChatStop",
+      "ChatStopOut",
+      "ChatStateOut",
+      "ChatThreadOut",
+      "ChatThreadsOut",
+      "ChatMessageOut",
+      "ChatHistoryOut",
+      "ChatDeleteMessages",
+      "ChatDeleteFiles"
+    ],
+    "routers/schemas/memory.py": [
+      "MemoryPath",
+      "MemoryWrite",
+      "MemoryStored",
+      "MemoryOut",
+      "MemoryListOut"
+    ],
+    "routers/schemas/paths.py": [
+      "safe_store_path"
+    ],
+    "routers/schemas/public_workspace.py": [
+      "PublicWorkspaceCreate",
+      "PublicWorkspaceUpdate",
+      "PublicWorkspaceOut",
+      "PublicMemberGrant",
+      "PublicMemberOut",
+      "PublicFilePath",
+      "PublicFileWrite",
+      "PublicFileOut",
+      "PublicFileListOut"
+    ],
+    "routers/schemas/workspace.py": [
+      "WorkspaceCreate",
+      "WorkspaceUpdate",
+      "WorkspaceOut",
+      "MyWorkspaceOut",
+      "MemberGrant",
+      "MemberOut",
+      "WorkspaceAccessOut"
+    ],
+    "routers/workspace.py": [
+      "list_my_workspaces",
+      "create_workspace",
+      "get_workspace",
+      "check_workspace_access",
+      "update_workspace",
+      "delete_workspace",
+      "list_members",
+      "grant_member",
+      "revoke_member"
+    ],
+    "services/__init__.py": [],
+    "services/access.py": [
+      "WorkspaceAccess"
+    ],
+    "services/auth.py": [
+      "_encode_password",
+      "hash_password",
+      "verify_password",
+      "create_token",
+      "decode_token",
+      "AuthService"
+    ],
+    "services/chat.py": [
+      "ChatService"
+    ],
+    "services/memory.py": [
+      "MemoryService"
+    ],
+    "services/public_workspace.py": [
+      "PublicWorkspaceService"
+    ],
+    "services/workspace.py": [
+      "WorkspaceService"
+    ],
+    "tests/test_agent_api.py": [
+      "ScriptedChatModel",
+      "step",
+      "db_execute",
+      "agent_db_execute",
+      "cleanup",
+      "main"
+    ],
+    "tests/test_agent_chat_memory.py": [
+      "FakeToolModel",
+      "model_for",
+      "main"
+    ],
+    "tests/test_agent_memory_scope.py": [
+      "FakeToolModel",
+      "backend_for",
+      "main"
+    ],
+    "tests/test_auth.py": [
+      "step",
+      "db_execute",
+      "cleanup",
+      "main"
+    ],
+    "tests/test_chat_stop.py": [
+      "step",
+      "ToolModel",
+      "SlowStreamModel",
+      "EchoModel",
+      "slow_tool",
+      "agent_db_execute",
+      "db_execute",
+      "cleanup",
+      "abort_midway",
+      "history",
+      "raw_state",
+      "part_a",
+      "part_b",
+      "main"
+    ],
+    "tests/test_chat_stop_cross.py": [
+      "step",
+      "ToolModel",
+      "SlowModel",
+      "agent_db_execute",
+      "cleanup",
+      "history",
+      "start_turn",
+      "settle",
+      "wait_for",
+      "service",
+      "part_a",
+      "main"
+    ],
+    "tests/test_chat_stop_cross_http.py": [
+      "step",
+      "SlowModel",
+      "agent_db_execute",
+      "db_execute",
+      "cleanup",
+      "headers",
+      "main",
+      "run"
+    ],
+    "tests/test_public_workspace_api.py": [
+      "step",
+      "db_execute",
+      "store_rows",
+      "cleanup",
+      "main"
+    ],
+    "tests/test_public_workspace_mount.py": [
+      "FakeToolModel",
+      "use",
+      "paths",
+      "main"
+    ],
+    "tests/test_user_workspace.py": [
+      "main"
+    ],
+    "tests/test_user_workspace_repository.py": [
+      "main"
+    ],
+    "tests/test_workspace_api.py": [
+      "step",
+      "db_execute",
+      "cleanup",
+      "main"
+    ]
+  },
+  "batches": [
+    {
+      "batchIndex": 2,
+      "files": [
+        {
+          "path": "agents/agent.py",
+          "language": "python",
+          "sizeLines": 707,
+          "fileCategory": "code"
+        },
+        {
+          "path": "config/__init__.py",
+          "language": "python",
+          "sizeLines": 27,
+          "fileCategory": "code"
+        },
+        {
+          "path": "config/config.py",
+          "language": "python",
+          "sizeLines": 133,
+          "fileCategory": "code"
+        },
+        {
+          "path": "main.py",
+          "language": "python",
+          "sizeLines": 83,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/test_chat_stop.py",
+          "language": "python",
+          "sizeLines": 432,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/test_chat_stop_cross_http.py",
+          "language": "python",
+          "sizeLines": 259,
+          "fileCategory": "code"
+        }
+      ],
+      "batchImportData": {
+        "agents/agent.py": [
+          "agents/config.py",
+          "agents/public_workspace.py",
+          "agents/turns.py",
+          "logger/__init__.py"
+        ],
+        "config/__init__.py": [
+          "config/config.py"
+        ],
+        "config/config.py": [],
+        "main.py": [
+          "agents/agent.py",
+          "agents/config.py",
+          "config/__init__.py",
+          "dependencies/__init__.py",
+          "logger/__init__.py",
+          "routers/__init__.py",
+          "routers/auth.py",
+          "routers/chat.py",
+          "routers/memory.py",
+          "routers/public_workspace.py",
+          "routers/workspace.py"
+        ],
+        "tests/test_chat_stop.py": [
+          "agents/agent.py",
+          "agents/config.py",
+          "config/__init__.py",
+          "main.py"
+        ],
+        "tests/test_chat_stop_cross_http.py": [
+          "agents/agent.py",
+          "agents/config.py",
+          "config/__init__.py",
+          "main.py"
+        ]
+      },
+      "neighborMap": {
+        "agents/agent.py": [
+          {
+            "path": "agents/config.py",
+            "batchIndex": 2,
+            "symbols": [
+              "AgentPostgreConfig",
+              "ModelConfig"
+            ]
+          },
+          {
+            "path": "agents/public_workspace.py",
+            "batchIndex": 4,
+            "symbols": [
+              "public_namespace",
+              "PublicMountBackend",
+              "PublicWorkspaceStore",
+              "_public_key"
+            ]
+          },
+          {
+            "path": "agents/turns.py",
+            "batchIndex": 4,
+            "symbols": [
+              "worker_id",
+              "Turn",
+              "TurnRegistry",
+              "StopRequest",
+              "RunningTurns"
+            ]
+          },
+          {
+            "path": "logger/__init__.py",
+            "batchIndex": 4,
+            "symbols": [
+              "InterceptHandler",
+              "setup_logger"
+            ]
+          },
+          {
+            "path": "dependencies/agent.py",
+            "batchIndex": 3,
+            "symbols": [
+              "get_agent",
+              "get_optional_agent"
+            ]
+          },
+          {
+            "path": "routers/chat.py",
+            "batchIndex": 3,
+            "symbols": [
+              "send_message",
+              "stream_message",
+              "approve_message",
+              "stop_turn",
+              "list_my_threads",
+              "get_thread_state",
+              "get_thread_history",
+              "delete_thread_messages",
+              "delete_thread_files",
+              "delete_thread",
+              "_sse"
+            ]
+          },
+          {
+            "path": "services/chat.py",
+            "batchIndex": 4,
+            "symbols": [
+              "ChatService"
+            ]
+          },
+          {
+            "path": "services/memory.py",
+            "batchIndex": 1,
+            "symbols": [
+              "MemoryService"
+            ]
+          },
+          {
+            "path": "tests/test_agent_api.py",
+            "batchIndex": 2,
+            "symbols": [
+              "ScriptedChatModel",
+              "step",
+              "db_execute",
+              "agent_db_execute",
+              "cleanup",
+              "main"
+            ]
+          },
+          {
+            "path": "tests/test_agent_chat_memory.py",
+            "batchIndex": 2,
+            "symbols": [
+              "FakeToolModel",
+              "model_for",
+              "main"
+            ]
+          },
+          {
+            "path": "tests/test_chat_stop_cross.py",
+            "batchIndex": 4,
+            "symbols": [
+              "step",
+              "ToolModel",
+              "SlowModel",
+              "agent_db_execute",
+              "cleanup",
+              "history",
+              "start_turn",
+              "settle",
+              "wait_for",
+              "service",
+              "part_a",
+              "main"
+            ]
+          },
+          {
+            "path": "tests/test_public_workspace_mount.py",
+            "batchIndex": 2,
+            "symbols": [
+              "FakeToolModel",
+              "use",
+              "paths",
+              "main"
+            ]
+          }
+        ],
+        "config/__init__.py": [
+          {
+            "path": "dependencies/database.py",
+            "batchIndex": 3,
+            "symbols": [
+              "get_session"
+            ]
+          },
+          {
+            "path": "logger/__init__.py",
+            "batchIndex": 4,
+            "symbols": [
+              "InterceptHandler",
+              "setup_logger"
+            ]
+          },
+          {
+            "path": "migrations/env.py",
+            "batchIndex": 2,
+            "symbols": [
+              "run_migrations_offline",
+              "run_migrations_online"
+            ]
+          },
+          {
+            "path": "routers/auth.py",
+            "batchIndex": 3,
+            "symbols": [
+              "_token_pair",
+              "register",
+              "login",
+              "refresh",
+              "me",
+              "logout"
+            ]
+          },
+          {
+            "path": "services/auth.py",
+            "batchIndex": 2,
+            "symbols": [
+              "_encode_password",
+              "hash_password",
+              "verify_password",
+              "create_token",
+              "decode_token",
+              "AuthService"
+            ]
+          },
+          {
+            "path": "tests/test_agent_api.py",
+            "batchIndex": 2,
+            "symbols": [
+              "ScriptedChatModel",
+              "step",
+              "db_execute",
+              "agent_db_execute",
+              "cleanup",
+              "main"
+            ]
+          },
+          {
+            "path": "tests/test_auth.py",
+            "batchIndex": 2,
+            "symbols": [
+              "step",
+              "db_execute",
+              "cleanup",
+              "main"
+            ]
+          },
+          {
+            "path": "tests/test_public_workspace_api.py",
+            "batchIndex": 2,
+            "symbols": [
+              "step",
+              "db_execute",
+              "store_rows",
+              "cleanup",
+              "main"
+            ]
+          },
+          {
+            "path": "tests/test_workspace_api.py",
+            "batchIndex": 2,
+            "symbols": [
+              "step",
+              "db_execute",
+              "cleanup",
+              "main"
+            ]
+          }
+        ],
+        "main.py": [
+          {
+            "path": "agents/config.py",
+            "batchIndex": 2,
+            "symbols": [
+              "AgentPostgreConfig",
+              "ModelConfig"
+            ]
+          },
+          {
+            "path": "dependencies/__init__.py",
+            "batchIndex": 3,
+            "symbols": []
+          },
+          {
+            "path": "logger/__init__.py",
+            "batchIndex": 4,
+            "symbols": [
+              "InterceptHandler",
+              "setup_logger"
+            ]
+          },
+          {
+            "path": "routers/__init__.py",
+            "batchIndex": 3,
+            "symbols": []
+          },
+          {
+            "path": "routers/auth.py",
+            "batchIndex": 3,
+            "symbols": [
+              "_token_pair",
+              "register",
+              "login",
+              "refresh",
+              "me",
+              "logout"
+            ]
+          },
+          {
+            "path": "routers/chat.py",
+            "batchIndex": 3,
+            "symbols": [
+              "send_message",
+              "stream_message",
+              "approve_message",
+              "stop_turn",
+              "list_my_threads",
+              "get_thread_state",
+              "get_thread_history",
+              "delete_thread_messages",
+              "delete_thread_files",
+              "delete_thread",
+              "_sse"
+            ]
+          },
+          {
+            "path": "routers/memory.py",
+            "batchIndex": 3,
+            "symbols": [
+              "list_memories",
+              "read_memory",
+              "write_memory",
+              "delete_memory"
+            ]
+          },
+          {
+            "path": "routers/public_workspace.py",
+            "batchIndex": 3,
+            "symbols": [
+              "create_public_workspace",
+              "list_public_workspaces",
+              "list_my_public_workspaces",
+              "get_public_workspace",
+              "update_public_workspace",
+              "delete_public_workspace",
+              "grant_public_member",
+              "revoke_public_member",
+              "list_public_members",
+              "list_public_files",
+              "read_public_file",
+              "write_public_file",
+              "delete_public_file"
+            ]
+          },
+          {
+            "path": "routers/workspace.py",
+            "batchIndex": 3,
+            "symbols": [
+              "list_my_workspaces",
+              "create_workspace",
+              "get_workspace",
+              "check_workspace_access",
+              "update_workspace",
+              "delete_workspace",
+              "list_members",
+              "grant_member",
+              "revoke_member"
+            ]
+          },
+          {
+            "path": "tests/test_agent_api.py",
+            "batchIndex": 2,
+            "symbols": [
+              "ScriptedChatModel",
+              "step",
+              "db_execute",
+              "agent_db_execute",
+              "cleanup",
+              "main"
+            ]
+          },
+          {
+            "path": "tests/test_auth.py",
+            "batchIndex": 2,
+            "symbols": [
+              "step",
+              "db_execute",
+              "cleanup",
+              "main"
+            ]
+          },
+          {
+            "path": "tests/test_public_workspace_api.py",
+            "batchIndex": 2,
+            "symbols": [
+              "step",
+              "db_execute",
+              "store_rows",
+              "cleanup",
+              "main"
+            ]
+          },
+          {
+            "path": "tests/test_workspace_api.py",
+            "batchIndex": 2,
+            "symbols": [
+              "step",
+              "db_execute",
+              "cleanup",
+              "main"
+            ]
+          }
+        ],
+        "tests/test_chat_stop.py": [
+          {
+            "path": "agents/config.py",
+            "batchIndex": 2,
+            "symbols": [
+              "AgentPostgreConfig",
+              "ModelConfig"
+            ]
+          }
+        ],
+        "tests/test_chat_stop_cross_http.py": [
+          {
+            "path": "agents/config.py",
+            "batchIndex": 2,
+            "symbols": [
+              "AgentPostgreConfig",
+              "ModelConfig"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "batchIndex": 3,
+      "files": [
+        {
+          "path": "routers/chat.py",
+          "language": "python",
+          "sizeLines": 274,
+          "fileCategory": "code"
+        },
+        {
+          "path": "routers/schemas/__init__.py",
+          "language": "python",
+          "sizeLines": 91,
+          "fileCategory": "code"
+        },
+        {
+          "path": "routers/schemas/chat.py",
+          "language": "python",
+          "sizeLines": 135,
+          "fileCategory": "code"
+        }
+      ],
+      "batchImportData": {
+        "routers/chat.py": [
+          "agents/agent.py",
+          "dependencies/__init__.py",
+          "dependencies/agent.py",
+          "dependencies/auth.py",
+          "dependencies/public_workspace.py",
+          "routers/schemas/__init__.py",
+          "services/__init__.py"
+        ],
+        "routers/schemas/__init__.py": [
+          "routers/schemas/auth.py",
+          "routers/schemas/chat.py",
+          "routers/schemas/memory.py",
+          "routers/schemas/public_workspace.py",
+          "routers/schemas/workspace.py"
+        ],
+        "routers/schemas/chat.py": [
+          "models/__init__.py"
+        ]
+      },
+      "neighborMap": {
+        "routers/chat.py": [
+          {
+            "path": "agents/agent.py",
+            "batchIndex": 2,
+            "symbols": [
+              "AgentContext",
+              "AgentEvent",
+              "AgentRun",
+              "GeneralAgent",
+              "AgentMemory",
+              "_conversation_id",
+              "_short_thread_id",
+              "_memory_ns",
+              "_memory_key",
+              "_pending",
+              "_payload",
+              "_run_config",
+              "_input",
+              "_chunk_text",
+              "_last_text"
+            ]
+          },
+          {
+            "path": "dependencies/__init__.py",
+            "batchIndex": 3,
+            "symbols": []
+          },
+          {
+            "path": "dependencies/agent.py",
+            "batchIndex": 3,
+            "symbols": [
+              "get_agent",
+              "get_optional_agent"
+            ]
+          },
+          {
+            "path": "dependencies/auth.py",
+            "batchIndex": 3,
+            "symbols": [
+              "get_current_user",
+              "get_super_user"
+            ]
+          },
+          {
+            "path": "dependencies/public_workspace.py",
+            "batchIndex": 3,
+            "symbols": [
+              "get_public_workspaces"
+            ]
+          },
+          {
+            "path": "services/__init__.py",
+            "batchIndex": 3,
+            "symbols": []
+          },
+          {
+            "path": "main.py",
+            "batchIndex": 2,
+            "symbols": [
+              "create_app"
+            ]
+          },
+          {
+            "path": "routers/__init__.py",
+            "batchIndex": 3,
+            "symbols": []
+          }
+        ],
+        "routers/schemas/__init__.py": [
+          {
+            "path": "routers/schemas/auth.py",
+            "batchIndex": 3,
+            "symbols": [
+              "RegisterRequest",
+              "LoginRequest",
+              "RefreshRequest",
+              "TokenPair",
+              "UserOut"
+            ]
+          },
+          {
+            "path": "routers/schemas/memory.py",
+            "batchIndex": 1,
+            "symbols": [
+              "MemoryPath",
+              "MemoryWrite",
+              "MemoryStored",
+              "MemoryOut",
+              "MemoryListOut"
+            ]
+          },
+          {
+            "path": "routers/schemas/public_workspace.py",
+            "batchIndex": 1,
+            "symbols": [
+              "PublicWorkspaceCreate",
+              "PublicWorkspaceUpdate",
+              "PublicWorkspaceOut",
+              "PublicMemberGrant",
+              "PublicMemberOut",
+              "PublicFilePath",
+              "PublicFileWrite",
+              "PublicFileOut",
+              "PublicFileListOut"
+            ]
+          },
+          {
+            "path": "routers/schemas/workspace.py",
+            "batchIndex": 1,
+            "symbols": [
+              "WorkspaceCreate",
+              "WorkspaceUpdate",
+              "WorkspaceOut",
+              "MyWorkspaceOut",
+              "MemberGrant",
+              "MemberOut",
+              "WorkspaceAccessOut"
+            ]
+          },
+          {
+            "path": "routers/auth.py",
+            "batchIndex": 3,
+            "symbols": [
+              "_token_pair",
+              "register",
+              "login",
+              "refresh",
+              "me",
+              "logout"
+            ]
+          },
+          {
+            "path": "routers/memory.py",
+            "batchIndex": 3,
+            "symbols": [
+              "list_memories",
+              "read_memory",
+              "write_memory",
+              "delete_memory"
+            ]
+          },
+          {
+            "path": "routers/public_workspace.py",
+            "batchIndex": 3,
+            "symbols": [
+              "create_public_workspace",
+              "list_public_workspaces",
+              "list_my_public_workspaces",
+              "get_public_workspace",
+              "update_public_workspace",
+              "delete_public_workspace",
+              "grant_public_member",
+              "revoke_public_member",
+              "list_public_members",
+              "list_public_files",
+              "read_public_file",
+              "write_public_file",
+              "delete_public_file"
+            ]
+          },
+          {
+            "path": "routers/workspace.py",
+            "batchIndex": 3,
+            "symbols": [
+              "list_my_workspaces",
+              "create_workspace",
+              "get_workspace",
+              "check_workspace_access",
+              "update_workspace",
+              "delete_workspace",
+              "list_members",
+              "grant_member",
+              "revoke_member"
+            ]
+          }
+        ],
+        "routers/schemas/chat.py": [
+          {
+            "path": "models/__init__.py",
+            "batchIndex": 1,
+            "symbols": [
+              "Base",
+              "BaseModel"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "batchIndex": 4,
+      "files": [
+        {
+          "path": "agents/turns.py",
+          "language": "python",
+          "sizeLines": 409,
+          "fileCategory": "code"
+        },
+        {
+          "path": "services/chat.py",
+          "language": "python",
+          "sizeLines": 284,
+          "fileCategory": "code"
+        },
+        {
+          "path": "tests/test_chat_stop_cross.py",
+          "language": "python",
+          "sizeLines": 347,
+          "fileCategory": "code"
+        }
+      ],
+      "batchImportData": {
+        "agents/turns.py": [
+          "logger/__init__.py"
+        ],
+        "services/chat.py": [
+          "agents/agent.py",
+          "agents/turns.py",
+          "logger/__init__.py",
+          "models/__init__.py",
+          "services/access.py"
+        ],
+        "tests/test_chat_stop_cross.py": [
+          "agents/agent.py",
+          "agents/config.py",
+          "agents/turns.py",
+          "models/__init__.py",
+          "services/chat.py"
+        ]
+      },
+      "neighborMap": {
+        "agents/turns.py": [
+          {
+            "path": "logger/__init__.py",
+            "batchIndex": 4,
+            "symbols": [
+              "InterceptHandler",
+              "setup_logger"
+            ]
+          },
+          {
+            "path": "agents/agent.py",
+            "batchIndex": 2,
+            "symbols": [
+              "AgentContext",
+              "AgentEvent",
+              "AgentRun",
+              "GeneralAgent",
+              "AgentMemory",
+              "_conversation_id",
+              "_short_thread_id",
+              "_memory_ns",
+              "_memory_key",
+              "_pending",
+              "_payload",
+              "_run_config",
+              "_input",
+              "_chunk_text",
+              "_last_text"
+            ]
+          }
+        ],
+        "services/chat.py": [
+          {
+            "path": "agents/agent.py",
+            "batchIndex": 2,
+            "symbols": [
+              "AgentContext",
+              "AgentEvent",
+              "AgentRun",
+              "GeneralAgent",
+              "AgentMemory",
+              "_conversation_id",
+              "_short_thread_id",
+              "_memory_ns",
+              "_memory_key",
+              "_pending",
+              "_payload",
+              "_run_config",
+              "_input",
+              "_chunk_text",
+              "_last_text"
+            ]
+          },
+          {
+            "path": "logger/__init__.py",
+            "batchIndex": 4,
+            "symbols": [
+              "InterceptHandler",
+              "setup_logger"
+            ]
+          },
+          {
+            "path": "models/__init__.py",
+            "batchIndex": 1,
+            "symbols": [
+              "Base",
+              "BaseModel"
+            ]
+          },
+          {
+            "path": "services/access.py",
+            "batchIndex": 1,
+            "symbols": [
+              "WorkspaceAccess"
+            ]
+          },
+          {
+            "path": "services/__init__.py",
+            "batchIndex": 3,
+            "symbols": []
+          },
+          {
+            "path": "services/public_workspace.py",
+            "batchIndex": 4,
+            "symbols": [
+              "PublicWorkspaceService"
+            ]
+          }
+        ],
+        "tests/test_chat_stop_cross.py": [
+          {
+            "path": "agents/agent.py",
+            "batchIndex": 2,
+            "symbols": [
+              "AgentContext",
+              "AgentEvent",
+              "AgentRun",
+              "GeneralAgent",
+              "AgentMemory",
+              "_conversation_id",
+              "_short_thread_id",
+              "_memory_ns",
+              "_memory_key",
+              "_pending",
+              "_payload",
+              "_run_config",
+              "_input",
+              "_chunk_text",
+              "_last_text"
+            ]
+          },
+          {
+            "path": "agents/config.py",
+            "batchIndex": 2,
+            "symbols": [
+              "AgentPostgreConfig",
+              "ModelConfig"
+            ]
+          },
+          {
+            "path": "models/__init__.py",
+            "batchIndex": 1,
+            "symbols": [
+              "Base",
+              "BaseModel"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "batchIndex": 5,
+      "files": [
+        {
+          "path": ".env_example",
+          "language": "config",
+          "sizeLines": 27,
+          "fileCategory": "config"
+        },
+        {
+          "path": "AGENTS.md",
+          "language": "markdown",
+          "sizeLines": 17,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "CONTEXT.md",
+          "language": "markdown",
+          "sizeLines": 82,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "README.md",
+          "language": "markdown",
+          "sizeLines": 635,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "pyproject.toml",
+          "language": "toml",
+          "sizeLines": 20,
+          "fileCategory": "config"
+        }
+      ],
+      "batchImportData": {
+        ".env_example": [],
+        "AGENTS.md": [],
+        "CONTEXT.md": [],
+        "README.md": [],
+        "pyproject.toml": []
+      },
+      "neighborMap": {}
+    },
+    {
+      "batchIndex": 6,
+      "files": [
+        {
+          "path": "docs/adr/0006-stop-registry-is-process-local.md",
+          "language": "markdown",
+          "sizeLines": 28,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "docs/adr/0007-stop-finalizes-the-turn-in-place.md",
+          "language": "markdown",
+          "sizeLines": 24,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "docs/adr/0008-stop-uses-postgres-notify.md",
+          "language": "markdown",
+          "sizeLines": 61,
+          "fileCategory": "docs"
+        }
+      ],
+      "batchImportData": {
+        "docs/adr/0006-stop-registry-is-process-local.md": [],
+        "docs/adr/0007-stop-finalizes-the-turn-in-place.md": [],
+        "docs/adr/0008-stop-uses-postgres-notify.md": []
+      },
+      "neighborMap": {}
+    },
+    {
+      "batchIndex": 7,
+      "files": [
+        {
+          "path": "agents/readme.md",
+          "language": "markdown",
+          "sizeLines": 139,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "config/config.yaml",
+          "language": "yaml",
+          "sizeLines": 46,
+          "fileCategory": "config"
+        },
+        {
+          "path": "docs/UA_ONBOARDING.md",
+          "language": "markdown",
+          "sizeLines": 200,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "future_work/subagent.md",
+          "language": "markdown",
+          "sizeLines": 101,
+          "fileCategory": "docs"
+        }
+      ],
+      "batchImportData": {
+        "agents/readme.md": [],
+        "config/config.yaml": [],
+        "docs/UA_ONBOARDING.md": [],
+        "future_work/subagent.md": []
+      },
+      "neighborMap": {}
+    }
+  ]
+}

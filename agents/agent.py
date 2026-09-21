@@ -3,8 +3,10 @@
 持久化（连接参数见 agents/config.py，默认库 ``agents``）：
 
 - **短期记忆**：``AsyncPostgresSaver`` 检查点，按 ``user_id:thread_id`` 落库，跨进程续聊；
-- **长期记忆**：``AsyncPostgresStore`` + ``StoreBackend``，``/memories/`` 路径跨会话保留，
-  命名空间 ``(user_id, workspace_id)``，等价于 store 里的 ``/memories/{user_id}/{workspace_id}/``；
+- **长期记忆**：``AsyncPostgresStore`` + ``/memories/`` 扇出挂载，**一棵目录树**：
+  ``/memories/{业务空间名}/...``，每格一个命名空间 ``(user_id, workspace_id, "filesystem")``，
+  可见范围来自当轮 ``AgentContext.memory_workspaces``；agent **只写 default 那一格**（要人工批准），
+  其余格子是用户投喂的只读资料（走 REST，见 ``docs/adr/0010``）；
 - **公共空间挂载**：``/public/{公共空间名}/`` **只读**，命名空间 ``("public", id, "filesystem")``
   （不含 user_id，成员共享同一份），可见范围来自当轮 ``AgentContext.public_workspaces``；
   实现见 ``agents/public_workspace.py``，取舍见 ``docs/adr/0003`` 与 ``docs/adr/0004``；
@@ -21,7 +23,9 @@
 
 记忆写入（两条路，互不干扰）：
 
-- **agent 写**：调文件工具写 ``/memories/**`` 会 ``interrupt``，等人批准（见 ``MEMORY_PERMISSIONS``）；
+- **agent 写**：调文件工具写 ``/memories/default/**``（只有这一格可写）会 ``interrupt``，
+  等人批准（见 ``MEMORY_PERMISSIONS``）；写其它格子直接 ``deny`` —— 那些是用户的只读资料，
+  由 ``/memories/write`` 与 ``/memories/upload`` 投喂（``docs/adr/0010``）；
 - **用户写**：走 :class:`AgentMemory` 的 ``awrite_memory`` / ``adelete_memory``，不经模型、不需批准。
 
 职责分离（对应 agents/readme.md）：
@@ -62,7 +66,7 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from deepagents import FilesystemPermission, create_deep_agent
-from deepagents.backends import CompositeBackend, StateBackend, StoreBackend
+from deepagents.backends import CompositeBackend, StateBackend
 from deepagents.backends.utils import create_file_data, validate_path
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, RemoveMessage
@@ -74,6 +78,7 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from agents.config import ModelConfig, AgentPostgreConfig, model_cfg
+from agents.fanout import FanoutMountBackend
 from agents.public_workspace import (
     PUBLIC_PERMISSIONS,
     PUBLIC_ROUTE,
@@ -87,8 +92,10 @@ from agents.turns import (  # noqa: F401  ——  ``Turn`` / ``TurnRegistry`` �
     TurnRegistry,
 )
 from logger import logger
+from models import DEFAULT_WORKSPACE
 
 __all__ = [
+    "MEMORY_DENIED",
     "MEMORY_PERMISSIONS",
     "MEMORY_ROUTE",
     "AgentContext",
@@ -96,6 +103,7 @@ __all__ = [
     "AgentMemory",
     "AgentRun",
     "GeneralAgent",
+    "memory_mount",
 ]
 
 if sys.platform == "win32":
@@ -104,23 +112,60 @@ if sys.platform == "win32":
     # ponytail: 事件循环策略 API 将在 Python 3.16 移除，届时改用 loop_factory。
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-# 长期记忆（store）挂载的虚拟路径前缀；其余路径为线程内临时文件
+# 长期记忆（store）挂载的虚拟路径前缀；其余路径为线程内临时文件。
+# 它下面**每个业务空间一个子目录**（``/memories/{空间名}/...``），当前空间不再特殊。
 MEMORY_ROUTE = "/memories/"
 
-# agent（模型）对 /memories/** 的写入一律中断等人批准；用户侧写入走 AgentMemory，不经模型。
-# 裸 "/memories"（无尾斜杠）匹配不上 "/memories/**"，单独列一条，否则能绕过规则写到路由根。
+# agent（模型）对记忆的写入一律中断等人批准，**且只有 default 那一格可写**。
+# 静态规则表达不了“按人按轮决定哪格可写”，但 ``default`` 是保留空间名（真实空间不许叫它，
+# ``WorkspaceService._reject_reserved``），所以这一格是稳定无歧义的静态前缀。规则**按顺序
+# 第一条命中即生效**（``_check_fs_permission``），所以 interrupt 必须排在 deny 前面，否则
+# default 格会被下面的 deny 吃掉。裸 "/memories/default"（无尾斜杠）匹配不上 "**"，单独列一条，
+# 否则能绕过规则写到格子根。用户侧写入走 AgentMemory，不经模型、不需批准。
 MEMORY_PERMISSIONS = [
     FilesystemPermission(
         operations=["write"],
-        paths=[f"{MEMORY_ROUTE}**", MEMORY_ROUTE.rstrip("/")],
+        paths=[
+            f"{MEMORY_ROUTE}{DEFAULT_WORKSPACE}/**",
+            f"{MEMORY_ROUTE}{DEFAULT_WORKSPACE}",
+        ],
         mode="interrupt",
-    )
+    ),
+    FilesystemPermission(
+        operations=["write"],
+        paths=[f"{MEMORY_ROUTE}**", MEMORY_ROUTE.rstrip("/")],
+        mode="deny",
+    ),
 ]
+
+MEMORY_DENIED = (
+    f"记忆只有 {MEMORY_ROUTE}{DEFAULT_WORKSPACE}/ 能写（会先请用户确认）："
+    "其它业务空间里的资料由用户通过 API 投喂，agent 只能读"
+)
+
+
+def memory_mount(store: AsyncPostgresStore) -> FanoutMountBackend:
+    """``/memories/`` 挂载：可见的每个业务空间一个子目录，**只有 default 那格能写**。
+
+    可见范围来自当轮 ``AgentContext.memory_workspaces``（每轮查库，见 ``docs/adr/0004``）；
+    格子里的内容就是 ``AgentMemory`` 按 ``(user_id, 空间 id, "filesystem")`` 读写的那份。
+    单独写成函数，是为了让测试建出**同一个**挂载，而不是照拄一份配置。
+    """
+    return FanoutMountBackend(
+        store,
+        context_attr="memory_workspaces",
+        namespace=lambda context, workspace_id: _memory_ns(
+            context.user_id, workspace_id
+        ),
+        writable=DEFAULT_WORKSPACE,
+        denied=MEMORY_DENIED,
+    )
 
 DEFAULT_SYSTEM_PROMPT = """你是一个可长期协作的中文助手。
 
 - 需要规划时先拆解任务再执行。
-- 用户明确要求记住的内容，写入 `/memories/` 下的文件；该目录持久保存，重启后依然可读。
+- 用户明确要求记住的内容，写入 `/memories/default/` 下的文件；该目录持久保存，重启后依然可读。
+- `/memories/{空间名}/` 下各是你参与的业务空间：**只有 default 能写**，其它空间里的资料只读。
 - 写 `/memories/` 会先请用户确认，确认后再落库。
 - 其它临时文件放普通路径即可，它们只在本会话内有效。
 - 回答简洁、直接，不要复述这些规则。"""
@@ -131,20 +176,22 @@ STOP_PLACEHOLDER = "（用户停止了本轮）"
 
 
 class AgentContext(BaseModel):
-    """运行期上下文：透传给 StoreBackend，决定长期记忆落在哪个命名空间。
+    """运行期上下文：透传给挂载层，决定记忆落在哪个命名空间、两个挂载里各能看哪几格。
 
-    ``(user_id, workspace_id)`` 等价于 store 里的 ``/memories/{user_id}/{workspace_id}/``。
-    ``workspace_id`` 默认 ``"default"``（虚拟的日常聊天空间，人人都是 admin）；
+    ``(user_id, workspace_id)`` 是本次会话所在的格子（命名空间 ``(user_id, workspace_id,
+    "filesystem")``）。``workspace_id`` 默认 ``"default"``（虚拟的日常聊天空间，人人都是 admin）；
     ``user_id`` 没有默认值：漏传直接报错，而不是静默写进同一个共享命名空间。
 
-    ``public_workspaces`` 是当轮可见的公共空间（名字 -> id），决定 ``/public/`` 挂载里能看到
-    哪几个子目录。**每轮重新查**，不写进 checkpoint metadata —— 被移出公共空间必须立刻失效
-    （见 ``docs/adr/0004``）。super 的可见范围是"全部"，由 dependency 填充时体现。
+    ``memory_workspaces`` / ``public_workspaces`` 是当轮可见的格子（名字 -> id），决定
+    ``/memories/`` 与 ``/public/`` 挂载里能看到哪几个子目录。**每轮重新查**，不写进 checkpoint
+    metadata —— 被移出空间必须立刻失效（见 ``docs/adr/0004``）。super 的公共空间可见范围是
+    "全部"，由 dependency 填充时体现。
     """
 
     user_id: str
-    workspace_id: str = "default"
+    workspace_id: str = DEFAULT_WORKSPACE
     public_workspaces: dict[str, str] = Field(default_factory=dict)
+    memory_workspaces: dict[str, str] = Field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -217,15 +264,10 @@ class GeneralAgent:
                 backend=CompositeBackend(
                     default=StateBackend(),
                     routes={
-                        # 一个 (用户, 空间) 一个命名空间，互相看不到对方的 /memories/ 文件
-                        MEMORY_ROUTE: StoreBackend(
-                            namespace=lambda rt: (
-                                rt.context.user_id,
-                                rt.context.workspace_id,
-                                "filesystem",
-                            ),
-                            store=store,
-                        ),
+                        # /memories/{业务空间名}/...：一棵目录树，每格一个命名空间（互不相干）。
+                        # 可见范围来自当轮的 AgentContext.memory_workspaces（每轮查库）；
+                        # 只有 default 那一格可写，其余是用户投喂的只读资料（docs/adr/0010）。
+                        MEMORY_ROUTE: memory_mount(store),
                         # /public/{公共空间名}/...：只读，可见范围来自当轮的 AgentContext。
                         # 路由是启动时定死的静态前缀，所以"这个人能看哪几个公共空间"只能由
                         # PublicMountBackend 每次操作去读 rt.context，不能往 routes 里塞。
@@ -332,6 +374,7 @@ class GeneralAgent:
         user_id: str,
         workspace_id: str,
         public_workspaces: dict[str, str] | None = None,
+        memory_workspaces: dict[str, str] | None = None,
         recursion_limit: int = 100,
         resume: dict[str, Any] | None = None,
     ) -> AgentRun:
@@ -340,16 +383,14 @@ class GeneralAgent:
         ``resume`` 是上一次 ``run.interrupt`` 的答复（``{"decisions": [...]}``），
         传了它就不需要 ``message``，图从中断点接着跑。
 
-        ``public_workspaces``（名字 -> id）决定 ``/public/`` 挂载里能看到哪几个公共空间，
-        由调用方每轮重新给（包括 resume）—— 不落 metadata，见 ``docs/adr/0004``。
+        ``public_workspaces`` / ``memory_workspaces``（都是名字 -> id）决定两个挂载里能
+        看到哪几格，由调用方每轮重新给（包括 resume）—— 不落 metadata，见 ``docs/adr/0004``。
         """
         state = await self._require_graph().ainvoke(
             _payload(message, resume),
             config=_run_config(thread_id, user_id, recursion_limit, workspace_id),
-            context=AgentContext(
-                user_id=user_id,
-                workspace_id=workspace_id,
-                public_workspaces=public_workspaces or {},
+            context=_agent_context(
+                user_id, workspace_id, public_workspaces, memory_workspaces
             ),
         )
         return AgentRun(answer=_last_text(state.get("messages", [])), interrupt=_pending(state))
@@ -362,6 +403,7 @@ class GeneralAgent:
         user_id: str,
         workspace_id: str,
         public_workspaces: dict[str, str] | None = None,
+        memory_workspaces: dict[str, str] | None = None,
         recursion_limit: int = 100,
         resume: dict[str, Any] | None = None,
     ) -> AsyncIterator[AgentEvent]:
@@ -371,10 +413,8 @@ class GeneralAgent:
         async for mode, payload in self._require_graph().astream(
             _payload(message, resume),
             config=_run_config(thread_id, user_id, recursion_limit, workspace_id),
-            context=AgentContext(
-                user_id=user_id,
-                workspace_id=workspace_id,
-                public_workspaces=public_workspaces or {},
+            context=_agent_context(
+                user_id, workspace_id, public_workspaces, memory_workspaces
             ),
             stream_mode=["messages", "values"],
         ):
@@ -592,28 +632,30 @@ class AgentMemory:
     async def alist_memories(
         self, user_id: str, workspace_id: str, *, limit: int = 50
     ) -> list[str]:
-        """长期记忆：列出该 (用户, 空间) 下 /memories/ 里保存的文件路径。
+        """长期记忆：列出该 (用户, 空间) 下的文件路径（**格子内路径**，如 ``notes/a.md``）。
 
-        store 里的 key 不含 /memories/ 前缀（CompositeBackend 路由时剥掉了），这里补回。
+        agent 眼里的完整路径是 ``/memories/{空间名}/notes/a.md`` —— 前缀是挂载层的事，
+        这里只按 (用户, 空间) 寻址（见 ``services/memory.py``）。
         """
         items = await self._store.asearch(_memory_ns(user_id, workspace_id), limit=limit)
-        return sorted(f"{MEMORY_ROUTE}{item.key.lstrip('/')}" for item in items)
+        return sorted(item.key.lstrip("/") for item in items)
 
     async def aread_memory(self, user_id: str, workspace_id: str, path: str) -> str | None:
-        """读一份长期记忆，不存在返回 ``None``（``path`` 可写 ``prefs.md`` 或 ``/memories/prefs.md``）。"""
-        item = await self._store.aget(_memory_ns(user_id, workspace_id), _memory_key(path))
+        """读一份长期记忆，不存在返回 ``None``（``path`` 可写 ``prefs.md`` / ``notes/a.md``）。"""
+        key = _memory_key(path)
+        item = await self._store.aget(_memory_ns(user_id, workspace_id), key)
         content = item.value.get("content") if item else None
         return content if isinstance(content, str) else None
 
     async def awrite_memory(
         self, user_id: str, workspace_id: str, path: str, content: str
     ) -> str:
-        """写/覆盖一份长期记忆，返回它的虚拟路径（格式与工具写的一致，agent 能直接读到）。"""
+        """写/覆盖一份长期记忆，返回**格子内路径**（如 ``notes/a.md``）。"""
         key = _memory_key(path)
         await self._store.aput(
             _memory_ns(user_id, workspace_id), key, create_file_data(content)
         )
-        return f"{MEMORY_ROUTE}{key.lstrip('/')}"
+        return key.lstrip("/")
 
     async def adelete_memory(self, user_id: str, workspace_id: str, path: str) -> bool:
         """删一份长期记忆，不存在返回 ``False``。"""
@@ -644,12 +686,27 @@ def _memory_ns(user_id: str, workspace_id: str) -> tuple[str, str, str]:
 
 
 def _memory_key(path: str) -> str:
-    """用户侧传入的记忆路径 -> store key（与工具写 ``/memories/x`` 落库的 key 同形：``/x``）。"""
+    """用户侧传入的记忆路径 -> store key（与工具写 ``/memories/{格子名}/x`` 落库的 key 同形：``/x``）。"""
     normalized = validate_path(f"{MEMORY_ROUTE}{path.strip().removeprefix(MEMORY_ROUTE).lstrip('/')}")
     key = normalized[len(MEMORY_ROUTE) - 1 :]
     if not key.strip("/"):
         raise ValueError(f"记忆路径不能为空：{path!r}")
     return key
+
+
+def _agent_context(
+    user_id: str,
+    workspace_id: str,
+    public_workspaces: dict[str, str] | None,
+    memory_workspaces: dict[str, str] | None,
+) -> AgentContext:
+    """每轮的运行期上下文：两个挂载的可见范围都由调用方每轮给（``docs/adr/0004``）。"""
+    return AgentContext(
+        user_id=user_id,
+        workspace_id=workspace_id,
+        public_workspaces=public_workspaces or {},
+        memory_workspaces=memory_workspaces or {},
+    )
 
 
 def _pending(state: dict[str, Any]) -> dict[str, Any] | None:

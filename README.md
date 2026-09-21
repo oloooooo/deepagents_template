@@ -56,15 +56,16 @@ uv sync --frozen      # 按 uv.lock 精确安装依赖（新增依赖用 uv add�
 ├── migrations/              # alembic 迁移（连接串来自 config.yaml 的 postgresql.user 段）
 │   ├── env.py
 │   └── versions/*.py        #   users、workspaces、user_workspaces、is_super、public_workspaces 等 5 个迁移
-├── tests/                   # 端到端自检脚本（12 个，均无需 pytest，跑完自清理）
-├── CONTEXT.md               # 领域术语表：Workspace / Public workspace / Visibility / Turn owner…
-├── docs/adr/                # 架构决定记录（0001~0008：公共空间为什么不复用 Workspace、停止为什么靠 LISTEN/NOTIFY…）
+├── tests/                   # 端到端自检脚本（13 个，均无需 pytest，跑完自清理）
+├── CONTEXT.md               # 领域术语表：Workspace / Public workspace / Visibility / Cell / Fan-out / Turn owner…
+├── docs/adr/                # 架构决定记录（0001~0010：公共空间为什么不复用 Workspace、记忆为什么只写 default、停止为什么靠 LISTEN/NOTIFY…）
 ├── alembic.ini              # 只配 script_location / 日志，URL 由 env.py 注入
 └── agents/                  # agent 本体
     ├── agent.py             #   GeneralAgent / AgentMemory（跑图 + 存取记忆）
+    ├── fanout.py            #   多命名空间挂载：/{挂载根}/{格子名}/...（/memories/ 与 /public/ 共用）
     ├── turns.py             #   停止：TurnRegistry（本进程：找 task + 攒文本）+ RunningTurns（跨进程：表 + chat_drain 通道）
     ├── public_workspace.py  #   /public 挂载（只读）
-    └── readme.md            #   模块约定（记忆隔离边界、context 必传、停止的取舍）
+    └── readme.md            #   模块约定（记忆隔离边界、两个挂载的差别、context 必传、停止的取舍）
 ```
 
 分层约定：**routers 只收参/返回 → services 写业务逻辑 → repositories 只做数据库读写 → models 定义表**；
@@ -359,26 +360,37 @@ DELETE /chat/delete/{thread_id} 删整条会话（只删短期记忆，不动 /m
 worker 挂在轮次中途时，那行靠心跳回收（60 秒），下一轮开轮次前会先把留在半路的检查点
 收尾（“孤儿恢复”，见 `docs/adr/0008`）。
 
-### 7.4 长期记忆
+### 7.4 长期记忆（`/memories/*`，agent 那边的 `/memories/` 挂载）
 
 ```
-GET  /memories/mine?workspace_id=<id>   列出我的记忆文件
+GET  /memories/all                      我全部空间的记忆清单（含虚拟 default 与空空间）
+GET  /memories/mine?workspace_id=<id>   列出我在该空间的记忆文件
 POST /memories/read                     读一份记忆
 POST /memories/write                    写 / 覆盖一份记忆
+POST /memories/upload                   上传文本文件（multipart，一次可多份）
 POST /memories/delete                   删一份记忆（204）
 ```
 
 | 方法 | 路径 | 说明 | 权限 |
 | --- | --- | --- | --- |
-| GET | `/memories/mine` | query `workspace_id`（可省，默认 `default`）；返回 `{workspace_id, memories: ["/memories/…"]}` | 成员（viewer 起） |
-| POST | `/memories/read` | body `{"workspace_id"?, "path"}`（`path` 带斜杠所以放 body，`workspace_id` 不传就是 `default`），不存在 404 | 成员 |
-| POST | `/memories/write` | body `{"workspace_id"?, "path", "content"}`，整份覆盖，返回 `{"path": "/memories/…"}` | **editor / admin** |
+| GET | `/memories/all` | 我参与的全部空间一格一条：`{workspaces: [{name, workspace_id, memories}]}`（空空间也在，`memories` 是空列表） | 登录用户 |
+| GET | `/memories/mine` | query `workspace_id`（可省，默认 `default`）；返回 `{workspace_id, memories: ["/memories/{空间名}/…"]}` | 成员（viewer 起） |
+| POST | `/memories/read` | body `{"workspace_id"?, "path"}`（`path` 带斜杠所以放 body），不存在 404 | 成员 |
+| POST | `/memories/write` | body `{"workspace_id"?, "path", "content"}`，整份覆盖，返回 `{"path": "/memories/{空间名}/…"}` | **editor / admin** |
+| POST | `/memories/upload` | `multipart/form-data`：`workspace_id`（可省）+ 一份或多份文本文件；逐份返回 `{file, path, error}`，某一份失败不影响其它份 | **editor / admin** |
 | POST | `/memories/delete` | body `{"workspace_id"?, "path"}`，不存在 404 | **editor / admin** |
 
-记忆库按 **`(user_id, workspace_id)`** 隔离（store 命名空间）：同一个空间里，别人也看不到你的记忆文件。
-不传 `workspace_id` 就落虚拟的 `default` 空间（每个人自己的），所以「日常偏好」不必先建空间。
-agent 自己写 `/memories/**` 会先 `interrupt` 等人批准（`POST /chat/approve`），用户侧的 `/memories/write` 直写、不用批准；
-这两条链路的细节（含为什么裸内存路径也要单独列一条权限规则）见 `agents/readme.md`。
+记忆按 **`(user_id, 空间)`** 隔离（store 命名空间）：同一个空间里，别人也看不到你的记忆文件。
+**一个用户有多格**：他参与的每个业务空间各一格 + 虚拟 `default` 一格，**格子清单与 agent 看到的完全同源**
+（`WorkspaceService.visible`：成员关系 + default），所以你在接口里列得出来的，agent 也看得见，反之一样。
+
+**路径两个方向的对齐**：REST 按 `workspace_id` 寻址，但**响应里回的是 agent 眼里的路径**
+（`/memories/{空间名}/notes/a.md`）—— 用户把路径原样丢给 agent 就能读到。请求里的 `path` 三种写法都收：
+`notes/a.md`、`/memories/notes/a.md`、`/memories/{该空间名}/notes/a.md`。
+
+**agent 侧只有 `default` 那一格可写**（写完要人工批准，`POST /chat/approve`）；其它格子是**只读资料**，
+只能用上面的 `write` / `upload` 投喂（取舍见 `docs/adr/0010`）。用户侧的写入一律直写、不用批准。
+这两条链路的细节（含权限规则的顺序与“裸路径也要单列一条”）见 `agents/readme.md`。
 
 ### 7.5 公共空间（`/public-workspaces/*` + agent 的 `/public/` 挂载）
 
@@ -420,22 +432,25 @@ POST   /public-workspaces/files/delete/{id}    删一份（body: path）
 **可见范围**（`CONTEXT.md` 的 Visibility）：**super 全部可见**（不是成员也能读、能写、能删）；
 成员只看自己被授权的那些，一律只读。所以 `/list` 与 `/mine` 回答的是两个不同的问题。
 
-**agent 侧的 `/public/` 挂载**：内容存在 langgraph store 里，命名空间是
-`("public", <id>, "filesystem")`，**不含 `user_id`** —— 这就是「公共」的定义，也是它和
-`/memories/`（`(user_id, workspace_id, "filesystem")`）的根本区别。agent 看到的路径是：
+**agent 侧的 `/public/` 与 `/memories/` 挂载**：内容都存在 langgraph store 里，两个挂载结构一样
+（一格一个命名空间），方向相反：
 
 ```
-/public/{公共空间名}/notes/a.md
+/public/{公共空间名}/notes/a.md     # 命名空间 ("public", <id>, "filesystem")，不含 user_id
+/memories/{业务空间名}/notes/a.md   # 命名空间 (user_id, <空间 id>, "filesystem")
 ```
 
-- **对 agent 只读**：`/public/**` 的写操作被一条静态规则拒掉（`docs/adr/0003`）。静态规则区分不了用户，
+- **`/public/` 对 agent 只读**：`/public/**` 的写操作被一条静态规则拒掉（`docs/adr/0003`）。静态规则区分不了用户，
   所以「只有 super 能写」不在 agent 这边表达 —— super 改内容走上面的 `files/write`、`files/delete`；
-- 可见范围**每轮重查**（`PublicWorkspaceDep`），不写 checkpoint metadata —— 被移出公共空间立刻失效
-  （`docs/adr/0004`）；
-- `CompositeBackend` 的路由是启动时定死的静态前缀，所以「这个人能看哪几个」只能由
-  `agents/public_workspace.py` 的 `PublicMountBackend` 每次操作去读 `rt.context`，
-  **不能**往 `CompositeBackend.routes` 里塞；`ls` / `read_file` / `glob` / `grep` 都按当轮可见范围过滤；
-- 目录说明靠约定：谁建公共空间谁在里面放 `README.md`，模型按需自己读（不注入 system prompt）。
+- **`/memories/` 只有 `default` 那格可写**（写要走 `interrupt` 人工批准），其它格子是只读资料（`docs/adr/0010`）。
+  能用静态规则表达“只有这一格”，仅仅因为 `default` 是保留空间名（真实空间不许叫它）；
+- 两个挂载的可见范围都**每轮重查**（`PublicWorkspaceDep` / `MemoryWorkspaceDep`），不写 checkpoint metadata
+  —— 被移出空间立刻失效（`docs/adr/0004`）；
+- `CompositeBackend` 的路由是启动时定死的静态前缀，所以「这个人能看哪几格」只能由
+  `agents/fanout.py` 的 `FanoutMountBackend` 每次操作去读 `rt.context`，**不能**往
+  `CompositeBackend.routes` 里塞；`ls` / `read_file` / `glob` / `grep` 都按当轮可见范围过滤
+  （挂载根上的 `glob`/`grep` 会同时搜多个格子，命中路径带格子名前缀）；
+- 公共空间的目录说明靠约定：谁建公共空间谁在里面放 `README.md`，模型按需自己读（不注入 system prompt）。
 
 ### 7.6 权限模型（重要）
 
@@ -445,8 +460,8 @@ POST   /public-workspaces/files/delete/{id}    删一份（body: path）
   早于任何数据库读写；空间内的 `admin` 也不能改空间、成员，也看不到成员列表（它可能误以为别人还有权限）。
 - **读操作要求是成员**（空间详情、我参与的空间）；不是成员一律 404（不泄露空间是否存在）。
 - **`user_workspaces.permission`（admin/editor/viewer，默认 viewer）参与空间内的鉴权**：
-  `viewer` 能聊天（`/chat/*`）与读自己的记忆（`/memories/mine`、`/memories/read`）；
-  写/删记忆（`/memories/write`、`/memories/delete`）要 `editor` 或 `admin`，`viewer` 403。
+  `viewer` 能聊天（`/chat/*`）与读自己的记忆（`/memories/mine`、`/memories/read`、`/memories/all`）；
+  写/删/上传记忆（`/memories/write`、`/memories/upload`、`/memories/delete`）要 `editor` 或 `admin`，`viewer` 403。
   改空间/成员仍然只认 `users.is_super`，跟空间内权限无关。
 - **`default` 是虚拟空间**：库里没有记录，每个登录用户在里面都是 `admin`（`services/access.py` 里直接返回，
   不查库）；`/workspaces/mine` 永远带上它、`/workspaces/access/default` 恒为 `true`，但它没有详情/成员、
@@ -527,6 +542,9 @@ curl -s $BASE/public-workspaces/mine -H "Authorization: Bearer $SOMEONE_TOKEN"
 curl -s -X POST $BASE/public-workspaces/files/read/$PW -H "Authorization: Bearer $SOMEONE_TOKEN" \
      -H 'Content-Type: application/json' -d '{"path":"notes/a.md"}'
 curl -s $BASE/memories/mine -H "Authorization: Bearer $TOKEN"
+curl -s $BASE/memories/all -H "Authorization: Bearer $TOKEN"              # 我全部空间一格一条
+curl -s -X POST $BASE/memories/upload -H "Authorization: Bearer $TOKEN" \
+     -F workspace_id=$WS -F files=@./notes/a.md                            # 投喂项目资料（agent 只读）
 
 # 踢出空间（真删关联行）
 curl -s -X DELETE $BASE/workspaces/revoke/$WS/someone -H "Authorization: Bearer $TOKEN"
@@ -561,18 +579,19 @@ yaml 里写错键名会**直接报错**，不会被静默忽略）：
 
 ## 9. 测试
 
-九个端到端自检脚本，都不需要 pytest，失败即非 0 退出，跑完自动清理测试数据：
+十个端到端自检脚本，都不需要 pytest，失败即非 0 退出，跑完自动清理测试数据：
 
 ```bash
 uv run python tests/test_auth.py                      # 18 项，需 PostgreSQL
 uv run python tests/test_workspace_api.py             # 30 项，需 PostgreSQL
 uv run python tests/test_public_workspace_api.py      # 25 项，需业务库 + agents 库（不联网）
 uv run python tests/test_public_workspace_mount.py    # 纯内存，无数据库、无模型 key
+uv run python tests/test_memory_mount.py              # 纯内存，无数据库、无模型 key
 uv run python tests/test_user_workspace_repository.py # 需 PostgreSQL
 uv run python tests/test_user_workspace.py            # 内存 SQLite，无需数据库
 uv run python tests/test_agent_memory_scope.py        # 纯内存，无数据库、无模型 key
 uv run python tests/test_agent_chat_memory.py         # 需 PostgreSQL 的 agents 库，假模型
-uv run python tests/test_agent_api.py                 # 42 项，需两个库，假模型（不联网）
+uv run python tests/test_agent_api.py                 # 47 项，需两个库，假模型（不联网）
 ```
 
 | 脚本 | 覆盖 |
@@ -582,10 +601,11 @@ uv run python tests/test_agent_api.py                 # 42 项，需两个库，
 | `test_user_workspace_repository.py` | 仓储层：grant 改权限行数仍为 1 / 查权限 / 列我的空间 / 空结果 / 撤销 True·False / 删空间级联清关联 |
 | `test_user_workspace.py` | 关联表：默认 viewer / 入库存小写 / CHECK 拒非法值 / 双向只读关系 / 重复授权被唯一约束拒 |
 | `test_agent_memory_scope.py` | 纯内存验证记忆机制：`/memories/` 按用户命名空间隔离、`/memories/**` 只读（deny）、`interrupt → 批准 → 落库`、忘传 context 的失败模式 |
-| `test_public_workspace_mount.py` | 纯内存验证 `/public/` 挂载：成员只看得到自己被授权的、同一公共空间的两个人读到同一份、super 全部可见、`glob`/`grep` 跨空间合并且不越权、写操作被 deny、假模型端到端走 `ls`/`read_file`/`write_file` |
+| `test_memory_mount.py` | 纯内存验证 `/memories/` 挂载：格子清单只列可见的、跨用户隔离、**只有 default 格能写**（其余 write/edit/delete 全拒且不落库）、静态规则顺序（default=interrupt、其余=deny）、根路径 `glob`/`grep` 扇出、批量下载按格子分发（同步/异步一致、看不见的一律 file_not_found）、批量上传一律拒、假模型端到端走 `ls`/`read_file`/`write_file` + `interrupt → 批准 → 落库` |
+| `test_public_workspace_mount.py` | 纯内存验证 `/public/` 挂载：成员只看得到自己被授权的、同一公共空间的两个人读到同一份、super 全部可见、`glob`/`grep` 跨格子扇出且不越权、写操作被 deny、假模型端到端走 `ls`/`read_file`/`write_file` |
 | `test_public_workspace_api.py` | HTTP 层：非 super 建空间 403、`/list` 与 `/mine` 对 super 的口径差异、授权前不可见（404）与授权后可读、成员写删 403、路径校验 422、撤权后立即 404、删空间把 store 内容一起清掉、关联记录级联删除 |
-| `test_agent_chat_memory.py` | 真图 + 真检查点：agent 写记忆被拦下、批准后落库、换用户/换空间看不见、用户侧直写、短期记忆按用户隔离、会话元数据（user_id / workspace_id）已进检查点 |
-| `test_agent_api.py` | HTTP 层：`/memories/*` 写读列删、viewer 只读、非成员 404、跨空间隔离；`/chat/*` 九端点契约、SSE 事件序列、接力聊天、借别人 thread_id 404、`interrupt → approve` 后记忆落库、短期记忆的读/删消息/删文件/删会话 |
+| `test_agent_chat_memory.py` | 真图 + 真检查点：agent 写记忆被拦下、批准后落库（**落 default**，即使会话在别的空间）、换用户/换空间看不见、用户侧直写、短期记忆按用户隔离、会话元数据（user_id / workspace_id）已进检查点 |
+| `test_agent_api.py` | HTTP 层：`/memories/*` 写读列删 + `/memories/all` 全空间清单 + `/memories/upload` 逐份结果（二进制那份报错、其余照常落库）、viewer 只读（含上传 403）、非成员 404、跨空间隔离、路径带空间名能原样喂回；`/chat/*` 九端点契约、SSE 事件序列、接力聊天、借别人 thread_id 404、`interrupt → approve` 后记忆落 default、短期记忆的读/删消息/删文件/删会话 |
 | `test_chat_stop.py` | 停止：四种入口的收尾（工具中途 / 生成中途 / 等人批准 / 已跑完）、已流出文本写回历史、续聊不合并、幂等、409 互斥、404 鉴权、流式跑到一半按停止 |
 | `test_chat_stop_cross.py` | **跨进程**停止（两个裸 agent 当两个 worker）：停止请求落到没有那一轮的 worker、跨进程 409、心跳回收陈行、孤儿检查点恢复不合并、**通知丢了靠重连补扫兜底**（从服务器端踢掉 LISTEN 连接） |
 | `test_chat_stop_cross_http.py` | **HTTP 层跨进程**停止（两个 `create_app()` 当两个 worker）：`/chat/stop` 打到没有那一轮的进程仍能停掉并拿回部分文本、跨进程 409、没人在跑时不靠超时、404 不泄露存在性 |

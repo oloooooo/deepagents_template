@@ -264,6 +264,7 @@ async def part_a() -> None:
             message="接着聊",
             thread_id=thread,
             public_workspaces={},
+            memory_workspaces={},
         )
         messages = await history(worker_b, thread)
         step(f"续聊后 {messages}")

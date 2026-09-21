@@ -17,6 +17,10 @@ __all__ = [
     "MemoryOut",
     "MemoryPath",
     "MemoryStored",
+    "MemoryTreeItem",
+    "MemoryTreeOut",
+    "MemoryUploadItem",
+    "MemoryUploadOut",
     "MemoryWrite",
 ]
 
@@ -35,7 +39,10 @@ class MemoryPath(BaseModel):
     path: str = Field(
         min_length=1,
         max_length=256,
-        description="记忆路径，如 prefs.md、/memories/notes/a.md，都落到 /memories/ 下",
+        description=(
+            "格子内路径（如 prefs.md、notes/a.md）；也收 /memories/notes/a.md、"
+            "/memories/{空间名}/notes/a.md 两种 agent 写法"
+        ),
     )
 
     @field_validator("path")
@@ -51,7 +58,9 @@ class MemoryWrite(MemoryPath):
 
 
 class MemoryStored(BaseModel):
-    path: str = Field(description="落库后的虚拟路径，形如 /memories/notes/a.md")
+    path: str = Field(
+        description="落库后的虚拟路径，形如 /memories/{空间名}/notes/a.md（agent 能直接读到）"
+    )
 
 
 class MemoryOut(MemoryStored):
@@ -60,4 +69,35 @@ class MemoryOut(MemoryStored):
 
 class MemoryListOut(BaseModel):
     workspace_id: str
-    memories: list[str] = Field(description="该空间下 /memories/ 里的文件路径")
+    memories: list[str] = Field(
+        description="该空间下的文件虚拟路径（形如 /memories/{空间名}/notes/a.md）"
+    )
+
+
+class MemoryTreeItem(BaseModel):
+    """记忆树里的一格：一个业务空间。"""
+
+    name: str = Field(description="空间名（agent 挂载路径 /memories/{名字}/ 里那一段）")
+    workspace_id: str
+    memories: list[str] = Field(description="该空间下的文件虚拟路径，空空间是空列表")
+
+
+class MemoryTreeOut(BaseModel):
+    workspaces: list[MemoryTreeItem] = Field(
+        description="我参与的全部空间（含虚拟 default 与没有任何文件的空间）"
+    )
+
+
+class MemoryUploadItem(BaseModel):
+    """一次上传里某一份文件的结果。"""
+
+    file: str = Field(description="客户端给的文件名")
+    path: str | None = Field(None, description="落库后的虚拟路径（失败时为空）")
+    error: str | None = Field(None, description="这一份失败的原因（成功时为空）")
+
+
+class MemoryUploadOut(BaseModel):
+    """逐份结果：某一份失败不影响其它份，所以不整批回滚。"""
+
+    workspace_id: str
+    results: list[MemoryUploadItem]

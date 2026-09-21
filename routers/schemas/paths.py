@@ -2,7 +2,8 @@
 
 记忆路径（``/memories/``）和公共空间路径（``/public/``）落在**同一个** langgraph store 里，
 所以规则必须一致：挡掉 ``..`` / ``~`` / 空路径，别把脏路径带进 store。名字同理，
-公共空间名会变成 agent 挂载路径 ``/public/{name}/`` 的一段，字符集必须和业务空间名一致。
+公共空间名会变成 agent 挂载路径 ``/public/{name}/`` 的一段，业务空间名会变成
+``/memories/{name}/`` 的一段，字符集必须一致（否则名字里的斜杠会把路径拆歪）。
 """
 
 from pathlib import PurePosixPath

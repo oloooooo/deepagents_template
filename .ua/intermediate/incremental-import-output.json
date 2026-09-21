@@ -1,0 +1,300 @@
+{
+  "scriptCompleted": true,
+  "stats": {
+    "filesScanned": 83,
+    "filesWithImports": 53,
+    "totalEdges": 153
+  },
+  "failures": [],
+  "importMap": {
+    ".env_example": [],
+    "AGENTS.md": [],
+    "CONTEXT.md": [],
+    "README.md": [],
+    "agents/__init__.py": [],
+    "agents/agent.py": [
+      "agents/config.py",
+      "agents/public_workspace.py",
+      "agents/turns.py",
+      "logger/__init__.py"
+    ],
+    "agents/config.py": [
+      "agents/config.py"
+    ],
+    "agents/public_workspace.py": [],
+    "agents/readme.md": [],
+    "agents/turns.py": [
+      "logger/__init__.py"
+    ],
+    "alembic.ini": [],
+    "config/__init__.py": [
+      "config/config.py"
+    ],
+    "config/config.py": [],
+    "config/config.yaml": [],
+    "dependencies/__init__.py": [
+      "dependencies/database.py"
+    ],
+    "dependencies/agent.py": [
+      "agents/agent.py"
+    ],
+    "dependencies/auth.py": [
+      "dependencies/database.py",
+      "models/__init__.py",
+      "repositories/__init__.py",
+      "services/__init__.py"
+    ],
+    "dependencies/database.py": [
+      "config/__init__.py"
+    ],
+    "dependencies/public_workspace.py": [
+      "dependencies/__init__.py",
+      "dependencies/auth.py",
+      "services/__init__.py"
+    ],
+    "docs/UA_ONBOARDING.md": [],
+    "docs/adr/0001-public-workspace-is-a-separate-entity.md": [],
+    "docs/adr/0002-public-workspace-name-is-the-agent-path.md": [],
+    "docs/adr/0003-public-mount-is-read-only-for-the-agent.md": [],
+    "docs/adr/0004-public-workspaces-are-requeried-every-turn.md": [],
+    "docs/adr/0005-delete-table-before-store.md": [],
+    "docs/adr/0006-stop-registry-is-process-local.md": [],
+    "docs/adr/0007-stop-finalizes-the-turn-in-place.md": [],
+    "docs/adr/0008-stop-uses-postgres-notify.md": [],
+    "future_work/subagent.md": [],
+    "logger/__init__.py": [
+      "config/__init__.py"
+    ],
+    "main.py": [
+      "agents/agent.py",
+      "agents/config.py",
+      "config/__init__.py",
+      "dependencies/__init__.py",
+      "logger/__init__.py",
+      "routers/__init__.py",
+      "routers/auth.py",
+      "routers/chat.py",
+      "routers/memory.py",
+      "routers/public_workspace.py",
+      "routers/workspace.py"
+    ],
+    "migrations/env.py": [
+      "config/__init__.py",
+      "models/__init__.py"
+    ],
+    "migrations/script.py.mako": [],
+    "migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py": [],
+    "migrations/versions/636fdf346107_add_users_is_super.py": [],
+    "migrations/versions/89f54e43803a_add_public_workspaces_user_public_.py": [],
+    "migrations/versions/ce9e484f27fb_create_users_table.py": [],
+    "migrations/versions/ed40a1145bb5_user_workspaces_permission_default_.py": [],
+    "models/__init__.py": [
+      "models/public_workspace.py",
+      "models/user.py",
+      "models/user_public_workspace.py",
+      "models/user_workspace.py",
+      "models/workspace.py"
+    ],
+    "models/public_workspace.py": [
+      "models/__init__.py"
+    ],
+    "models/user.py": [
+      "models/__init__.py"
+    ],
+    "models/user_public_workspace.py": [
+      "models/__init__.py"
+    ],
+    "models/user_workspace.py": [
+      "models/__init__.py"
+    ],
+    "models/workspace.py": [
+      "models/__init__.py"
+    ],
+    "pyproject.toml": [],
+    "repositories/__init__.py": [
+      "repositories/public_workspace.py",
+      "repositories/user.py",
+      "repositories/user_public_workspace.py",
+      "repositories/user_workspace.py",
+      "repositories/workspace.py"
+    ],
+    "repositories/public_workspace.py": [
+      "models/__init__.py"
+    ],
+    "repositories/user.py": [
+      "models/__init__.py"
+    ],
+    "repositories/user_public_workspace.py": [
+      "models/__init__.py"
+    ],
+    "repositories/user_workspace.py": [
+      "models/__init__.py"
+    ],
+    "repositories/workspace.py": [
+      "models/__init__.py"
+    ],
+    "routers/__init__.py": [
+      "routers/auth.py",
+      "routers/chat.py",
+      "routers/memory.py",
+      "routers/public_workspace.py",
+      "routers/workspace.py"
+    ],
+    "routers/auth.py": [
+      "config/__init__.py",
+      "dependencies/__init__.py",
+      "dependencies/auth.py",
+      "models/__init__.py",
+      "routers/schemas/__init__.py",
+      "services/__init__.py"
+    ],
+    "routers/chat.py": [
+      "agents/agent.py",
+      "dependencies/__init__.py",
+      "dependencies/agent.py",
+      "dependencies/auth.py",
+      "dependencies/public_workspace.py",
+      "routers/schemas/__init__.py",
+      "services/__init__.py"
+    ],
+    "routers/memory.py": [
+      "dependencies/__init__.py",
+      "dependencies/agent.py",
+      "dependencies/auth.py",
+      "models/__init__.py",
+      "routers/schemas/__init__.py",
+      "services/__init__.py"
+    ],
+    "routers/public_workspace.py": [
+      "dependencies/__init__.py",
+      "dependencies/agent.py",
+      "dependencies/auth.py",
+      "routers/schemas/__init__.py",
+      "services/__init__.py"
+    ],
+    "routers/schemas/__init__.py": [
+      "routers/schemas/auth.py",
+      "routers/schemas/chat.py",
+      "routers/schemas/memory.py",
+      "routers/schemas/public_workspace.py",
+      "routers/schemas/workspace.py"
+    ],
+    "routers/schemas/auth.py": [],
+    "routers/schemas/chat.py": [
+      "models/__init__.py"
+    ],
+    "routers/schemas/memory.py": [
+      "models/__init__.py",
+      "routers/schemas/paths.py"
+    ],
+    "routers/schemas/paths.py": [],
+    "routers/schemas/public_workspace.py": [
+      "models/__init__.py",
+      "routers/schemas/paths.py"
+    ],
+    "routers/schemas/workspace.py": [
+      "models/__init__.py",
+      "routers/schemas/paths.py"
+    ],
+    "routers/workspace.py": [
+      "dependencies/__init__.py",
+      "dependencies/auth.py",
+      "routers/schemas/__init__.py",
+      "services/__init__.py"
+    ],
+    "services/__init__.py": [
+      "services/access.py",
+      "services/auth.py",
+      "services/chat.py",
+      "services/memory.py",
+      "services/public_workspace.py",
+      "services/workspace.py"
+    ],
+    "services/access.py": [
+      "models/__init__.py",
+      "repositories/__init__.py"
+    ],
+    "services/auth.py": [
+      "config/__init__.py",
+      "models/__init__.py",
+      "repositories/__init__.py"
+    ],
+    "services/chat.py": [
+      "agents/agent.py",
+      "agents/turns.py",
+      "logger/__init__.py",
+      "models/__init__.py",
+      "services/access.py"
+    ],
+    "services/memory.py": [
+      "agents/agent.py",
+      "models/__init__.py",
+      "services/access.py"
+    ],
+    "services/public_workspace.py": [
+      "agents/public_workspace.py",
+      "logger/__init__.py",
+      "models/__init__.py",
+      "repositories/__init__.py",
+      "services/chat.py"
+    ],
+    "services/workspace.py": [
+      "models/__init__.py",
+      "repositories/__init__.py"
+    ],
+    "tests/test_agent_api.py": [
+      "agents/agent.py",
+      "agents/config.py",
+      "config/__init__.py",
+      "main.py"
+    ],
+    "tests/test_agent_chat_memory.py": [
+      "agents/agent.py"
+    ],
+    "tests/test_agent_memory_scope.py": [],
+    "tests/test_auth.py": [
+      "config/__init__.py",
+      "main.py"
+    ],
+    "tests/test_chat_stop.py": [
+      "agents/agent.py",
+      "agents/config.py",
+      "config/__init__.py",
+      "main.py"
+    ],
+    "tests/test_chat_stop_cross.py": [
+      "agents/agent.py",
+      "agents/config.py",
+      "agents/turns.py",
+      "models/__init__.py",
+      "services/chat.py"
+    ],
+    "tests/test_chat_stop_cross_http.py": [
+      "agents/agent.py",
+      "agents/config.py",
+      "config/__init__.py",
+      "main.py"
+    ],
+    "tests/test_public_workspace_api.py": [
+      "agents/config.py",
+      "config/__init__.py",
+      "main.py"
+    ],
+    "tests/test_public_workspace_mount.py": [
+      "agents/__init__.py",
+      "agents/agent.py"
+    ],
+    "tests/test_user_workspace.py": [
+      "models/__init__.py"
+    ],
+    "tests/test_user_workspace_repository.py": [
+      "dependencies/__init__.py",
+      "models/__init__.py",
+      "repositories/__init__.py"
+    ],
+    "tests/test_workspace_api.py": [
+      "config/__init__.py",
+      "main.py"
+    ]
+  }
+}

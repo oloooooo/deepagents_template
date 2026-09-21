@@ -27,10 +27,11 @@ from langchain_core.messages import AIMessage  # noqa: E402
 from langgraph.checkpoint.memory import InMemorySaver  # noqa: E402
 from langgraph.store.memory import InMemoryStore  # noqa: E402
 
+from agents import fanout  # noqa: E402
 from agents import public_workspace as pw  # noqa: E402
 from agents.agent import AgentContext  # noqa: E402
 
-REAL_GET_RUNTIME = pw.get_runtime
+REAL_GET_RUNTIME = fanout.get_runtime
 
 A_ID, B_ID = "pa", "pb"
 ALICE = {"proj-a": A_ID}  # 只被授权 proj-a
@@ -53,7 +54,7 @@ def use(**context_kwargs) -> pw.PublicMountBackend:
     每次操作前都要重设 —— 一个 backend 实例 + 不断切换的上下文，才是真实形态。
     ``_allowed()`` 走 ``get_runtime().context``（图执行期才有），直接调时用假 runtime 顶替。
     """
-    pw.get_runtime = lambda: SimpleNamespace(context=AgentContext(**context_kwargs))
+    fanout.get_runtime = lambda: SimpleNamespace(context=AgentContext(**context_kwargs))
     return backend
 
 
@@ -124,7 +125,7 @@ def main() -> None:
     print("  write=deny read=allow 裸 '/public' write=deny")
 
     print("== 6. 端到端：假模型真的调 ls / read_file / write_file ==")
-    pw.get_runtime = REAL_GET_RUNTIME  # 图执行期用真的 runtime
+    fanout.get_runtime = REAL_GET_RUNTIME  # 图执行期用真的 runtime
     agent = create_deep_agent(
         model=FakeToolModel(
             responses=[

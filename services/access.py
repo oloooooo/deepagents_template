@@ -52,3 +52,18 @@ class WorkspaceAccess:
                 status_code=status.HTTP_403_FORBIDDEN, detail=CANNOT_WRITE
             )
         return permission
+
+    async def name_of(self, workspace_id: str) -> str:
+        """空间 id -> 名字。
+
+        名字是 agent 挂载路径里那一段（``/memories/{名字}/``）：REST 按 id 寻址，但**响应里
+        给的是 agent 能直接用的路径**，所以这里要反向查一次名字（``docs/adr/0009``）。
+        """
+        if workspace_id == DEFAULT_WORKSPACE:
+            return DEFAULT_WORKSPACE
+        workspace = await self.workspaces.get_by_id(workspace_id)
+        if workspace is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=NOT_MEMBER
+            )
+        return workspace.name

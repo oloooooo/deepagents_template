@@ -245,7 +245,7 @@ async def part_a() -> None:
                     tool_calls=[
                         {
                             "name": "write_file",
-                            "args": {"file_path": "/memories/x.md", "content": "hi"},
+                            "args": {"file_path": "/memories/default/x.md", "content": "hi"},
                             "id": "w1",
                         }
                     ],
@@ -257,10 +257,14 @@ async def part_a() -> None:
     async with agent:
         assert agent.memory is not None
         run = await agent.ainvoke(
-            "记一下", thread_id=thread, user_id=USER, workspace_id=WORKSPACE
+            "记一下",
+            thread_id=thread,
+            user_id=USER,
+            workspace_id=WORKSPACE,
+            memory_workspaces={"default": "default"},
         )
         step(f"第一轮被拦下等人批准：{run.interrupt is not None}")
-        assert run.interrupt is not None, "写 /memories/ 应该触发人工批准"
+        assert run.interrupt is not None, "写 /memories/default/ 应该触发人工批准"
         _, interrupted = await raw_state(agent, thread)
         assert interrupted, "应该有待批准的请求"
 

@@ -26,6 +26,10 @@ from .memory import (
     MemoryOut,
     MemoryPath,
     MemoryStored,
+    MemoryTreeItem,
+    MemoryTreeOut,
+    MemoryUploadItem,
+    MemoryUploadOut,
     MemoryWrite,
 )
 from .public_workspace import (
@@ -69,6 +73,10 @@ __all__ = [
     "MemoryOut",
     "MemoryPath",
     "MemoryStored",
+    "MemoryTreeItem",
+    "MemoryTreeOut",
+    "MemoryUploadItem",
+    "MemoryUploadOut",
     "MemoryWrite",
     "MyWorkspaceOut",
     "PublicFileListOut",

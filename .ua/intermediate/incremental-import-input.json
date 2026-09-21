@@ -1,0 +1,588 @@
+{
+  "projectRoot": "E:\\code_\\deepagents_template",
+  "files": [
+    {
+      "path": ".env_example",
+      "language": "config",
+      "sizeLines": 27,
+      "fileCategory": "config"
+    },
+    {
+      "path": "AGENTS.md",
+      "language": "markdown",
+      "sizeLines": 17,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "CONTEXT.md",
+      "language": "markdown",
+      "sizeLines": 82,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "README.md",
+      "language": "markdown",
+      "sizeLines": 635,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "agents/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "agents/agent.py",
+      "language": "python",
+      "sizeLines": 707,
+      "fileCategory": "code"
+    },
+    {
+      "path": "agents/config.py",
+      "language": "python",
+      "sizeLines": 44,
+      "fileCategory": "code"
+    },
+    {
+      "path": "agents/public_workspace.py",
+      "language": "python",
+      "sizeLines": 279,
+      "fileCategory": "code"
+    },
+    {
+      "path": "agents/readme.md",
+      "language": "markdown",
+      "sizeLines": 139,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "agents/turns.py",
+      "language": "python",
+      "sizeLines": 409,
+      "fileCategory": "code"
+    },
+    {
+      "path": "alembic.ini",
+      "language": "config",
+      "sizeLines": 149,
+      "fileCategory": "config"
+    },
+    {
+      "path": "config/__init__.py",
+      "language": "python",
+      "sizeLines": 27,
+      "fileCategory": "code"
+    },
+    {
+      "path": "config/config.py",
+      "language": "python",
+      "sizeLines": 133,
+      "fileCategory": "code"
+    },
+    {
+      "path": "config/config.yaml",
+      "language": "yaml",
+      "sizeLines": 46,
+      "fileCategory": "config"
+    },
+    {
+      "path": "dependencies/__init__.py",
+      "language": "python",
+      "sizeLines": 13,
+      "fileCategory": "code"
+    },
+    {
+      "path": "dependencies/agent.py",
+      "language": "python",
+      "sizeLines": 40,
+      "fileCategory": "code"
+    },
+    {
+      "path": "dependencies/auth.py",
+      "language": "python",
+      "sizeLines": 63,
+      "fileCategory": "code"
+    },
+    {
+      "path": "dependencies/database.py",
+      "language": "python",
+      "sizeLines": 48,
+      "fileCategory": "code"
+    },
+    {
+      "path": "dependencies/public_workspace.py",
+      "language": "python",
+      "sizeLines": 26,
+      "fileCategory": "code"
+    },
+    {
+      "path": "docs/UA_ONBOARDING.md",
+      "language": "markdown",
+      "sizeLines": 200,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/adr/0001-public-workspace-is-a-separate-entity.md",
+      "language": "markdown",
+      "sizeLines": 10,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/adr/0002-public-workspace-name-is-the-agent-path.md",
+      "language": "markdown",
+      "sizeLines": 10,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/adr/0003-public-mount-is-read-only-for-the-agent.md",
+      "language": "markdown",
+      "sizeLines": 12,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/adr/0004-public-workspaces-are-requeried-every-turn.md",
+      "language": "markdown",
+      "sizeLines": 12,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/adr/0005-delete-table-before-store.md",
+      "language": "markdown",
+      "sizeLines": 11,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/adr/0006-stop-registry-is-process-local.md",
+      "language": "markdown",
+      "sizeLines": 28,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/adr/0007-stop-finalizes-the-turn-in-place.md",
+      "language": "markdown",
+      "sizeLines": 24,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/adr/0008-stop-uses-postgres-notify.md",
+      "language": "markdown",
+      "sizeLines": 61,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "future_work/subagent.md",
+      "language": "markdown",
+      "sizeLines": 101,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "logger/__init__.py",
+      "language": "python",
+      "sizeLines": 98,
+      "fileCategory": "code"
+    },
+    {
+      "path": "main.py",
+      "language": "python",
+      "sizeLines": 83,
+      "fileCategory": "code"
+    },
+    {
+      "path": "migrations/env.py",
+      "language": "python",
+      "sizeLines": 65,
+      "fileCategory": "code"
+    },
+    {
+      "path": "migrations/script.py.mako",
+      "language": "mako",
+      "sizeLines": 28,
+      "fileCategory": "code"
+    },
+    {
+      "path": "migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py",
+      "language": "python",
+      "sizeLines": 58,
+      "fileCategory": "code"
+    },
+    {
+      "path": "migrations/versions/636fdf346107_add_users_is_super.py",
+      "language": "python",
+      "sizeLines": 32,
+      "fileCategory": "code"
+    },
+    {
+      "path": "migrations/versions/89f54e43803a_add_public_workspaces_user_public_.py",
+      "language": "python",
+      "sizeLines": 57,
+      "fileCategory": "code"
+    },
+    {
+      "path": "migrations/versions/ce9e484f27fb_create_users_table.py",
+      "language": "python",
+      "sizeLines": 46,
+      "fileCategory": "code"
+    },
+    {
+      "path": "migrations/versions/ed40a1145bb5_user_workspaces_permission_default_.py",
+      "language": "python",
+      "sizeLines": 52,
+      "fileCategory": "code"
+    },
+    {
+      "path": "models/__init__.py",
+      "language": "python",
+      "sizeLines": 58,
+      "fileCategory": "code"
+    },
+    {
+      "path": "models/public_workspace.py",
+      "language": "python",
+      "sizeLines": 50,
+      "fileCategory": "code"
+    },
+    {
+      "path": "models/user.py",
+      "language": "python",
+      "sizeLines": 52,
+      "fileCategory": "code"
+    },
+    {
+      "path": "models/user_public_workspace.py",
+      "language": "python",
+      "sizeLines": 43,
+      "fileCategory": "code"
+    },
+    {
+      "path": "models/user_workspace.py",
+      "language": "python",
+      "sizeLines": 62,
+      "fileCategory": "code"
+    },
+    {
+      "path": "models/workspace.py",
+      "language": "python",
+      "sizeLines": 40,
+      "fileCategory": "code"
+    },
+    {
+      "path": "pyproject.toml",
+      "language": "toml",
+      "sizeLines": 20,
+      "fileCategory": "config"
+    },
+    {
+      "path": "repositories/__init__.py",
+      "language": "python",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": "repositories/public_workspace.py",
+      "language": "python",
+      "sizeLines": 56,
+      "fileCategory": "code"
+    },
+    {
+      "path": "repositories/user.py",
+      "language": "python",
+      "sizeLines": 43,
+      "fileCategory": "code"
+    },
+    {
+      "path": "repositories/user_public_workspace.py",
+      "language": "python",
+      "sizeLines": 76,
+      "fileCategory": "code"
+    },
+    {
+      "path": "repositories/user_workspace.py",
+      "language": "python",
+      "sizeLines": 87,
+      "fileCategory": "code"
+    },
+    {
+      "path": "repositories/workspace.py",
+      "language": "python",
+      "sizeLines": 57,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/__init__.py",
+      "language": "python",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/auth.py",
+      "language": "python",
+      "sizeLines": 75,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/chat.py",
+      "language": "python",
+      "sizeLines": 274,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/memory.py",
+      "language": "python",
+      "sizeLines": 92,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/public_workspace.py",
+      "language": "python",
+      "sizeLines": 260,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/schemas/__init__.py",
+      "language": "python",
+      "sizeLines": 91,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/schemas/auth.py",
+      "language": "python",
+      "sizeLines": 52,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/schemas/chat.py",
+      "language": "python",
+      "sizeLines": 135,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/schemas/memory.py",
+      "language": "python",
+      "sizeLines": 63,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/schemas/paths.py",
+      "language": "python",
+      "sizeLines": 22,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/schemas/public_workspace.py",
+      "language": "python",
+      "sizeLines": 115,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/schemas/workspace.py",
+      "language": "python",
+      "sizeLines": 122,
+      "fileCategory": "code"
+    },
+    {
+      "path": "routers/workspace.py",
+      "language": "python",
+      "sizeLines": 171,
+      "fileCategory": "code"
+    },
+    {
+      "path": "services/__init__.py",
+      "language": "python",
+      "sizeLines": 29,
+      "fileCategory": "code"
+    },
+    {
+      "path": "services/access.py",
+      "language": "python",
+      "sizeLines": 54,
+      "fileCategory": "code"
+    },
+    {
+      "path": "services/auth.py",
+      "language": "python",
+      "sizeLines": 157,
+      "fileCategory": "code"
+    },
+    {
+      "path": "services/chat.py",
+      "language": "python",
+      "sizeLines": 284,
+      "fileCategory": "code"
+    },
+    {
+      "path": "services/memory.py",
+      "language": "python",
+      "sizeLines": 68,
+      "fileCategory": "code"
+    },
+    {
+      "path": "services/public_workspace.py",
+      "language": "python",
+      "sizeLines": 200,
+      "fileCategory": "code"
+    },
+    {
+      "path": "services/workspace.py",
+      "language": "python",
+      "sizeLines": 187,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_agent_api.py",
+      "language": "python",
+      "sizeLines": 627,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_agent_chat_memory.py",
+      "language": "python",
+      "sizeLines": 123,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_agent_memory_scope.py",
+      "language": "python",
+      "sizeLines": 197,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_auth.py",
+      "language": "python",
+      "sizeLines": 145,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_chat_stop.py",
+      "language": "python",
+      "sizeLines": 432,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_chat_stop_cross.py",
+      "language": "python",
+      "sizeLines": 347,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_chat_stop_cross_http.py",
+      "language": "python",
+      "sizeLines": 259,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_public_workspace_api.py",
+      "language": "python",
+      "sizeLines": 280,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_public_workspace_mount.py",
+      "language": "python",
+      "sizeLines": 166,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_user_workspace.py",
+      "language": "python",
+      "sizeLines": 77,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_user_workspace_repository.py",
+      "language": "python",
+      "sizeLines": 83,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/test_workspace_api.py",
+      "language": "python",
+      "sizeLines": 296,
+      "fileCategory": "code"
+    }
+  ],
+  "analysisPaths": [
+    ".env_example",
+    "AGENTS.md",
+    "CONTEXT.md",
+    "README.md",
+    "agents/__init__.py",
+    "agents/agent.py",
+    "agents/config.py",
+    "agents/public_workspace.py",
+    "agents/readme.md",
+    "agents/turns.py",
+    "alembic.ini",
+    "config/__init__.py",
+    "config/config.py",
+    "config/config.yaml",
+    "dependencies/__init__.py",
+    "dependencies/agent.py",
+    "dependencies/auth.py",
+    "dependencies/database.py",
+    "dependencies/public_workspace.py",
+    "docs/UA_ONBOARDING.md",
+    "docs/adr/0001-public-workspace-is-a-separate-entity.md",
+    "docs/adr/0002-public-workspace-name-is-the-agent-path.md",
+    "docs/adr/0003-public-mount-is-read-only-for-the-agent.md",
+    "docs/adr/0004-public-workspaces-are-requeried-every-turn.md",
+    "docs/adr/0005-delete-table-before-store.md",
+    "docs/adr/0006-stop-registry-is-process-local.md",
+    "docs/adr/0007-stop-finalizes-the-turn-in-place.md",
+    "docs/adr/0008-stop-uses-postgres-notify.md",
+    "future_work/subagent.md",
+    "logger/__init__.py",
+    "main.py",
+    "migrations/env.py",
+    "migrations/script.py.mako",
+    "migrations/versions/22ce796667e1_add_workspaces_user_workspaces.py",
+    "migrations/versions/636fdf346107_add_users_is_super.py",
+    "migrations/versions/89f54e43803a_add_public_workspaces_user_public_.py",
+    "migrations/versions/ce9e484f27fb_create_users_table.py",
+    "migrations/versions/ed40a1145bb5_user_workspaces_permission_default_.py",
+    "models/__init__.py",
+    "models/public_workspace.py",
+    "models/user.py",
+    "models/user_public_workspace.py",
+    "models/user_workspace.py",
+    "models/workspace.py",
+    "pyproject.toml",
+    "repositories/__init__.py",
+    "repositories/public_workspace.py",
+    "repositories/user.py",
+    "repositories/user_public_workspace.py",
+    "repositories/user_workspace.py",
+    "repositories/workspace.py",
+    "routers/__init__.py",
+    "routers/auth.py",
+    "routers/chat.py",
+    "routers/memory.py",
+    "routers/public_workspace.py",
+    "routers/schemas/__init__.py",
+    "routers/schemas/auth.py",
+    "routers/schemas/chat.py",
+    "routers/schemas/memory.py",
+    "routers/schemas/paths.py",
+    "routers/schemas/public_workspace.py",
+    "routers/schemas/workspace.py",
+    "routers/workspace.py",
+    "services/__init__.py",
+    "services/access.py",
+    "services/auth.py",
+    "services/chat.py",
+    "services/memory.py",
+    "services/public_workspace.py",
+    "services/workspace.py",
+    "tests/test_agent_api.py",
+    "tests/test_agent_chat_memory.py",
+    "tests/test_agent_memory_scope.py",
+    "tests/test_auth.py",
+    "tests/test_chat_stop.py",
+    "tests/test_chat_stop_cross.py",
+    "tests/test_chat_stop_cross_http.py",
+    "tests/test_public_workspace_api.py",
+    "tests/test_public_workspace_mount.py",
+    "tests/test_user_workspace.py",
+    "tests/test_user_workspace_repository.py",
+    "tests/test_workspace_api.py"
+  ]
+}

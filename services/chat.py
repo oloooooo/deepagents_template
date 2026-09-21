@@ -9,8 +9,8 @@
 4. ``workspace_id`` 从 metadata 取（不信任请求体），每轮再校验一次成员权限 ——
    被移出空间后立刻失效；metadata 里没有它（虚拟 default 空间之前建的会话）就当 ``default``。
 
-``public_workspaces``（可见的公共空间，名字 -> id）是**每轮由路由传进来**的，不落 metadata：
-被移出公共空间必须立刻失效，包括 ``/chat/approve`` 续跑那一轮（见 ``docs/adr/0004``）。
+``public_workspaces`` / ``memory_workspaces``（可见格子，都是名字 -> id）是**每轮由路由传进来**的，
+不落 metadata：被移出空间必须立刻失效，包括 ``/chat/approve`` 续跑那一轮（见 ``docs/adr/0004``）。
 
 停止（用户按暂停键）与中断（agent 等人批准）是两件事，别搞反（见 ``CONTEXT.md``）：
 
@@ -110,6 +110,7 @@ class ChatService:
         workspace_id: str,
         message: str,
         public_workspaces: dict[str, str],
+        memory_workspaces: dict[str, str],
         thread_id: str | None = None,
     ) -> tuple[str, AgentRun]:
         conversation, turn = await self.open_turn(
@@ -122,6 +123,7 @@ class ChatService:
                 user_id=user.id,
                 workspace_id=workspace_id,
                 public_workspaces=public_workspaces,
+                memory_workspaces=memory_workspaces,
             )
         finally:
             self.agent.turns.release(turn)
@@ -135,6 +137,7 @@ class ChatService:
         workspace_id: str,
         message: str,
         public_workspaces: dict[str, str],
+        memory_workspaces: dict[str, str],
         thread_id: str | None = None,
     ) -> tuple[str, AsyncIterator[AgentEvent]]:
         conversation, turn = await self.open_turn(
@@ -146,6 +149,7 @@ class ChatService:
             user_id=user.id,
             workspace_id=workspace_id,
             public_workspaces=public_workspaces,
+            memory_workspaces=memory_workspaces,
         )
         return conversation, self._tracked(events, turn)
 
@@ -218,10 +222,11 @@ class ChatService:
         thread_id: str,
         decisions: list[dict],
         public_workspaces: dict[str, str],
+        memory_workspaces: dict[str, str],
     ) -> AgentRun:
         """人工批准后接着跑：空间取自会话 metadata，不接受请求体里的 workspace_id。
 
-        公共空间可见范围**重新传一遍**（不取 metadata）：续跑也要反映最新的授权状态。
+        两个可见范围**重新传一遍**（不取 metadata）：续跑也要反映最新的授权状态。
         """
         workspace_id = await self.own(user, thread_id)
         rows = self._rows()
@@ -234,6 +239,7 @@ class ChatService:
                 user_id=user.id,
                 workspace_id=workspace_id,
                 public_workspaces=public_workspaces,
+                memory_workspaces=memory_workspaces,
                 resume={"decisions": decisions},
             )
         finally:

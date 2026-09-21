@@ -3,36 +3,19 @@
 两件事放在同一个模块，因为它们共用同一个命名空间定义（:func:`public_namespace`）：
 
 - :class:`PublicMountBackend` —— agent 看到的 ``/public/{公共空间名}/...``，**只读**，
-  可见范围来自当轮的 ``AgentContext.public_workspaces``；
+  可见范围来自当轮的 ``AgentContext.public_workspaces``。挂载的通用机制（扇出、只读策略）
+  在 ``agents/fanout.py``，这里只剩配置：清单字段 + 命名空间 + "全只读"；
 - :class:`PublicWorkspaceStore` —— REST 侧（super 写）和删除清理用的 store 读写。
 
 命名空间 **不含 user_id**（``("public", <id>, "filesystem")``）—— 这就是"公共"的定义，
 也是它和 ``/memories/``（``(user_id, workspace_id, "filesystem")``）的根本区别。
-
-为什么挂载要自己写一个 backend（而不是直接用 ``StoreBackend``）：``CompositeBackend`` 的路由是
-**启动时定死的静态前缀**，没法按请求塞进"这个人能看哪几个公共空间"；而 ``StoreBackend`` 一个实例
-只有一个命名空间，所有用户读同一个命名空间就看得见**全部**公共空间。所以需要一个按当轮
-``rt.context`` 过滤、再委托给各空间自己的 ``StoreBackend`` 的中间层。
 """
 
-from typing import Any
-
 from deepagents import FilesystemPermission
-from deepagents.backends import StoreBackend
-from deepagents.backends.protocol import (
-    DeleteResult,
-    EditResult,
-    FileInfo,
-    GlobResult,
-    GrepMatch,
-    GrepResult,
-    LsResult,
-    ReadResult,
-    WriteResult,
-)
 from deepagents.backends.utils import create_file_data, validate_path
-from langgraph.runtime import get_runtime
 from langgraph.store.postgres.aio import AsyncPostgresStore
+
+from agents.fanout import FanoutMountBackend
 
 __all__ = [
     "PUBLIC_PERMISSIONS",
@@ -56,6 +39,8 @@ PUBLIC_PERMISSIONS = [
     )
 ]
 
+PUBLIC_DENIED = "公共空间对 agent 只读：只有 super 用户能通过 API 修改公共内容"
+
 
 def public_namespace(public_workspace_id: str) -> tuple[str, str, str]:
     """公共空间内容的 store 命名空间。
@@ -65,8 +50,8 @@ def public_namespace(public_workspace_id: str) -> tuple[str, str, str]:
     return ("public", public_workspace_id, "filesystem")
 
 
-class PublicMountBackend(StoreBackend):
-    """``/public/{公共空间名}/...`` 的只读挂载。
+class PublicMountBackend(FanoutMountBackend):
+    """``/public/{公共空间名}/...``：可见范围内每个公共空间一个子目录，全只读。
 
     ``CompositeBackend`` 已经把路由前缀 ``/public/`` 剥掉了，所以这里收到的路径形如
     ``/{公共空间名}/{空间内路径}``（挂载根是 ``/``）。
@@ -74,141 +59,15 @@ class PublicMountBackend(StoreBackend):
     **可见范围只来自当轮的 ``AgentContext.public_workspaces``（名字 -> id）**，不查库：
     backend 是同步的，拿不到数据库 session。super 的可见范围是"全部"，由 dependency 在
     每轮填充时体现（``services/public_workspace.py``），所以这里不需要判 ``is_super``。
-
-    写方法一律返回错误。middleware 的静态 deny 规则（``PUBLIC_PERMISSIONS``）本该先一步挡掉，
-    这里是第二道防线 —— 规则写漏时宁可直接报错，也不能静默写进共享空间。
     """
 
     def __init__(self, store: AsyncPostgresStore) -> None:
-        # namespace 是占位值：每个方法都按路径换到对应空间的 backend，从不直接用 self 的
         super().__init__(
-            namespace=lambda _rt: ("public", "unset", "filesystem"), store=store
+            store,
+            context_attr="public_workspaces",
+            namespace=lambda _context, workspace_id: public_namespace(workspace_id),
+            denied=PUBLIC_DENIED,
         )
-        self._cache: dict[str, StoreBackend] = {}
-
-    # ---------- 路径与可见范围 ----------
-
-    @staticmethod
-    def _split(path: str) -> tuple[str, str] | None:
-        """``/{名}/{空间内路径}`` -> ``(名, /空间内路径)``；挂载根（无名字段）返回 ``None``。"""
-        name, _, rest = path.strip("/").partition("/")
-        return (name, f"/{rest}") if name else None
-
-    @staticmethod
-    def _allowed() -> dict[str, str]:
-        """当轮可见的公共空间（名字 -> id）。拿不到运行期上下文时返回空（什么都不给看）。"""
-        try:
-            context: Any = get_runtime().context
-        except (RuntimeError, KeyError):
-            return {}
-        return dict(getattr(context, "public_workspaces", None) or {})
-
-    def _backend(self, name: str) -> StoreBackend | None:
-        """名字 -> 该空间自己的 ``StoreBackend``（按 id 分命名空间，实例缓存复用）。"""
-        workspace_id = self._allowed().get(name)
-        if workspace_id is None:
-            return None
-        if workspace_id not in self._cache:
-            self._cache[workspace_id] = StoreBackend(
-                namespace=lambda _rt, _id=workspace_id: public_namespace(_id),
-                store=self._store,
-            )
-        return self._cache[workspace_id]
-
-    def _fanout(self, path: str | None) -> list[tuple[str, StoreBackend, str]]:
-        """把一次搜索展开成 ``[(名字, backend, 空间内路径), ...]``。
-
-        路径落在某个公共空间里就只展开那一个；落在挂载根（或没给路径）就展开全部可见的。
-        """
-        split = self._split(path) if path else None
-        if split is not None:
-            backend = self._backend(split[0])
-            return [(split[0], backend, split[1])] if backend is not None else []
-        return [
-            (name, backend, "/")
-            for name in sorted(self._allowed())
-            if (backend := self._backend(name)) is not None
-        ]
-
-    # ---------- 读 ----------
-
-    def ls(self, path: str) -> LsResult:
-        if self._split(path) is None:
-            # 挂载根：把可见的公共空间列成目录
-            return LsResult(
-                entries=[
-                    FileInfo(path=f"/{name}/", is_dir=True, size=0, modified_at="")
-                    for name in sorted(self._allowed())
-                ]
-            )
-        name, inner = self._split(path)  # type: ignore[misc]
-        backend = self._backend(name)
-        if backend is None:
-            return LsResult(error=f"目录 '{path}' 不存在")
-        return backend.ls(inner)
-
-    def read(self, file_path: str, offset: int = 0, limit: int = 2000) -> ReadResult:
-        split = self._split(file_path)
-        if split is None:
-            return ReadResult(error=f"'{file_path}' 是目录，不是文件")
-        backend = self._backend(split[0])
-        if backend is None:
-            return ReadResult(error=f"文件 '{file_path}' 不存在")
-        return backend.read(split[1], offset, limit)
-
-    def glob(self, pattern: str, path: str | None = None) -> GlobResult:
-        matches: list[FileInfo] = []
-        truncated = False
-        for name, backend, inner in self._fanout(path):
-            result = backend.glob(pattern, inner)
-            if result.error:
-                return result
-            truncated = truncated or result.truncated
-            matches.extend(
-                {**match, "path": f"/{name}{match['path']}"}
-                for match in (result.matches or [])
-            )
-        return GlobResult(matches=matches, truncated=truncated)
-
-    def grep(
-        self,
-        pattern: str,
-        path: str | None = None,
-        glob: str | None = None,
-        *,
-        max_count: int | None = None,
-    ) -> GrepResult:
-        matches: list[GrepMatch] = []
-        truncated = False
-        for name, backend, inner in self._fanout(path):
-            result = backend.grep(pattern, inner, glob, max_count=max_count)
-            if result.error:
-                return result
-            truncated = truncated or result.truncated
-            matches.extend(
-                {**match, "path": f"/{name}{match['path']}"}
-                for match in (result.matches or [])
-            )
-        return GrepResult(matches=matches, truncated=truncated)
-
-    # ---------- 写：全部拒绝（见类 docstring） ----------
-
-    DENIED = "公共空间对 agent 只读：只有 super 用户能通过 API 修改公共内容"
-
-    def write(self, file_path: str, content: str) -> WriteResult:
-        return WriteResult(error=self.DENIED)
-
-    def edit(
-        self,
-        file_path: str,
-        old_string: str,
-        new_string: str,
-        replace_all: bool = False,
-    ) -> EditResult:
-        return EditResult(error=self.DENIED)
-
-    def delete(self, file_path: str) -> DeleteResult:
-        return DeleteResult(error=self.DENIED)
 
 
 class PublicWorkspaceStore:

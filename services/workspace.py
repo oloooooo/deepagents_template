@@ -74,6 +74,18 @@ class WorkspaceService:
         """我参与的真实空间（虚拟 default 不在库里，由路由层补上）。"""
         return await self.links.list_by_user(user.id)
 
+    async def visible(self, user: User) -> dict[str, str]:
+        """我在的全部空间，**名字 -> id**，含虚拟的 default —— 记忆树的格子清单。
+
+        ``/memories/`` 挂载（``dependencies/memory_workspace.py``）与 ``GET /memories/all``
+        用的是同一份；每轮现查，被移出空间下一轮就消失（``docs/adr/0004``）。
+        """
+        spaces = {DEFAULT_WORKSPACE: DEFAULT_WORKSPACE}
+        spaces.update(
+            {workspace.name: workspace.id for workspace, _ in await self.list_mine(user)}
+        )
+        return spaces
+
     async def check_access(
         self, user: User, workspace_id: str
     ) -> WorkspacePermission | None:

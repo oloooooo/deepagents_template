@@ -44,7 +44,7 @@ checks = 0
 class ScriptedChatModel(FakeMessagesListChatModel):
     """测试用假模型：按上下文造回答，绝不发网络请求。
 
-    「记住」→ 调 ``write_file`` 写 ``/memories/prefs.md``（命中 interrupt 规则）；
+    「记住」→ 调 ``write_file`` 写 ``/memories/default/prefs.md``（命中 interrupt 规则）；
     工具结果回来→回一句「已记住」；其它输入回声，便于断言。
     """
 
@@ -62,7 +62,7 @@ class ScriptedChatModel(FakeMessagesListChatModel):
                     {
                         "name": "write_file",
                         "args": {
-                            "file_path": "/memories/prefs.md",
+                            "file_path": "/memories/default/prefs.md",
                             "content": "喜欢简短回答",
                         },
                         "id": "call_1",
@@ -173,30 +173,42 @@ def main() -> None:
         step("未登录 GET /memories/mine -> 401")
         assert client.get("/memories/mine", params={"workspace_id": ws_id}).status_code == 401
 
-        step("editor POST /memories/write -> 200 且返回落库路径")
+        step("editor POST /memories/write -> 200 且返回降库路径（带空间名，agent 能直接用）")
         resp = client.post(
             "/memories/write",
             json={"workspace_id": ws_id, "path": "prefs.md", "content": "喜欢简短回答"},
             headers=editor_h,
         )
         assert resp.status_code == 200, resp.text
-        assert resp.json() == {"path": "/memories/prefs.md"}, resp.json()
+        assert resp.json() == {"path": f"/memories/{WS_NAME}/prefs.md"}, resp.json()
 
-        step("editor POST /memories/read -> 200 且内容一致")
+        step("editor POST /memories/read -> 200 且内容一致（路径带空间名也收）")
         resp = client.post(
             "/memories/read",
-            json={"workspace_id": ws_id, "path": "/memories/prefs.md"},
+            json={"workspace_id": ws_id, "path": f"/memories/{WS_NAME}/prefs.md"},
             headers=editor_h,
         )
         assert resp.status_code == 200 and resp.json() == {
-            "path": "/memories/prefs.md",
+            "path": f"/memories/{WS_NAME}/prefs.md",
             "content": "喜欢简短回答",
         }, resp.text
 
         step("editor GET /memories/mine -> 200 且列出该文件")
         resp = client.get("/memories/mine", params={"workspace_id": ws_id}, headers=editor_h)
         assert resp.status_code == 200, resp.text
-        assert resp.json() == {"workspace_id": ws_id, "memories": ["/memories/prefs.md"]}, resp.json()
+        assert resp.json() == {
+            "workspace_id": ws_id,
+            "memories": [f"/memories/{WS_NAME}/prefs.md"],
+        }, resp.json()
+
+        step("GET /memories/all -> 我全部空间一格一条（含空的 ws2 与虚拟 default）")
+        resp = client.get("/memories/all", headers=editor_h)
+        assert resp.status_code == 200, resp.text
+        by_name = {item["name"]: item for item in resp.json()["workspaces"]}
+        assert set(by_name) == {WS_NAME, WS2_NAME, "default"}, by_name
+        assert by_name[WS_NAME]["workspace_id"] == ws_id, by_name
+        assert by_name[WS_NAME]["memories"] == [f"/memories/{WS_NAME}/prefs.md"], by_name
+        assert by_name[WS2_NAME]["memories"] == [] and by_name["default"]["memories"] == []
 
         step("覆写同一路径 -> 200 且内容更新")
         resp = client.post(
@@ -340,6 +352,62 @@ def main() -> None:
             == [(0,)]
         )
 
+        print("== /memories/upload ==")
+        step("editor 上传两份（一份文本、一份二进制）-> 200，逐份结果，坏的不影响好的")
+        resp = client.post(
+            "/memories/upload",
+            data={"workspace_id": ws2_id},
+            files=[
+                ("files", ("notes.md", "上传的笔记".encode(), "text/markdown")),
+                ("files", ("raw.bin", b"\xff\xfe\x00\x01", "application/octet-stream")),
+            ],
+            headers=editor_h,
+        )
+        assert resp.status_code == 200, resp.text
+        results = resp.json()["results"]
+        assert results[0] == {
+            "file": "notes.md",
+            "path": f"/memories/{WS2_NAME}/notes.md",
+            "error": None,
+        }, results
+        assert results[1]["path"] is None and "文本" in results[1]["error"], results
+
+        step("上传的内容能读回来，也进 /memories/all")
+        assert (
+            client.post(
+                "/memories/read",
+                json={"workspace_id": ws2_id, "path": "notes.md"},
+                headers=editor_h,
+            ).json()["content"]
+            == "上传的笔记"
+        )
+        tree = {
+            item["name"]: item["memories"]
+            for item in client.get("/memories/all", headers=editor_h).json()["workspaces"]
+        }
+        assert tree[WS2_NAME] == [f"/memories/{WS2_NAME}/notes.md"], tree
+
+        step("viewer 上传 -> 403；非成员 -> 404")
+        one = [("files", ("x.md", b"x", "text/markdown"))]
+        assert (
+            client.post(
+                "/memories/upload",
+                data={"workspace_id": ws2_id},
+                files=one,
+                headers=viewer_h,
+            ).status_code
+            == 403
+        )
+        assert (
+            client.post(
+                "/memories/upload",
+                data={"workspace_id": ws2_id},
+                files=one,
+                headers=outsider_h,
+            ).status_code
+            == 404
+        )
+
         print("== /chat/* 契约 ==")
         step("未登录 -> 401；非成员 -> 404")
         assert (
@@ -425,12 +493,13 @@ def main() -> None:
         assert body["answer"] == "" and body["interrupt"], body
         action = body["interrupt"]["action_requests"][0]
         assert action["name"] == "write_file", action
-        assert action["args"]["file_path"] == "/memories/prefs.md", action
+        assert action["args"]["file_path"] == "/memories/default/prefs.md", action
         assert (
             client.get("/memories/mine", params={"workspace_id": ws_id}, headers=editor_h)
             .json()["memories"]
             == []
         )
+        assert client.get("/memories/mine", headers=editor_h).json()["memories"] == []
 
         step("POST /chat/approve -> 200，记忆落库")
         resp = client.post(
@@ -440,10 +509,14 @@ def main() -> None:
         )
         assert resp.status_code == 200, resp.text
         assert resp.json()["answer"] == "已记住" and resp.json()["interrupt"] is None, resp.json()
+        step("agent 写记忆永远落 default（在哪个空间聊都一样，见 docs/adr/0010）")
+        assert client.get("/memories/mine", headers=editor_h).json()["memories"] == [
+            "/memories/default/prefs.md"
+        ]
         assert (
             client.get("/memories/mine", params={"workspace_id": ws_id}, headers=editor_h)
             .json()["memories"]
-            == ["/memories/prefs.md"]
+            == []
         )
 
         step("approve 不接受请求体里的 workspace_id -> 422")
@@ -563,11 +636,9 @@ def main() -> None:
             for t in client.get("/chat/mine", headers=editor_h).json()["threads"]
         ]
         step("删会话不影响长期记忆")
-        assert (
-            client.get("/memories/mine", params={"workspace_id": ws_id}, headers=editor_h)
-            .json()["memories"]
-            == ["/memories/prefs.md"]
-        )
+        assert client.get("/memories/mine", headers=editor_h).json()["memories"] == [
+            "/memories/default/prefs.md"
+        ]
 
         print("== 虚拟 default 空间（不传 workspace_id 的日常聊天）==")
         step("POST /chat/send 不带 workspace_id -> 200，会话落在 default")
@@ -593,12 +664,12 @@ def main() -> None:
         )
         assert client.get("/memories/mine", headers=editor_h).json() == {
             "workspace_id": "default",
-            "memories": ["/memories/daily.md"],
+            "memories": ["/memories/default/daily.md", "/memories/default/prefs.md"],
         }
         assert (
             client.get("/memories/mine", params={"workspace_id": ws_id}, headers=editor_h)
             .json()["memories"]
-            == ["/memories/prefs.md"]
+            == []
         )
         assert client.get("/memories/mine", headers=viewer_h).json()["memories"] == []
 

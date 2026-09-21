@@ -1,0 +1,2137 @@
+{
+  "version": "1.0.0",
+  "baseCommit": "b029e127093d0e2fc38c2d72c8c9731334b13cf6",
+  "headCommit": "c4cd71f4613d20d4eb775db15ea249bc82fc3041",
+  "generatedAt": "2026-09-20T14:43:54.798Z",
+  "files": {
+    ".env_example": {
+      "filePath": ".env_example",
+      "contentHash": "b467a10e68a0ff0ac7d38784a378c184769926b779a84fe6a37a74594fe74170",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 28,
+      "hasStructuralAnalysis": false
+    },
+    "AGENTS.md": {
+      "filePath": "AGENTS.md",
+      "contentHash": "aa0962cb05f0a2ecf771b1b028a0e451123a046f6fbddf5907108351659d1e79",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 18,
+      "hasStructuralAnalysis": false
+    },
+    "CONTEXT.md": {
+      "filePath": "CONTEXT.md",
+      "contentHash": "29bdcb90d757335579c603edf9018b1011c1f405dcbe8be04bcc23bf7d38aa9a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 83,
+      "hasStructuralAnalysis": false
+    },
+    "README.md": {
+      "filePath": "README.md",
+      "contentHash": "b8457450f45da0809a86d958aea62bad5445b890edf72f86d633afb3d03f5991",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 636,
+      "hasStructuralAnalysis": false
+    },
+    "agents/agent.py": {
+      "filePath": "agents/agent.py",
+      "contentHash": "085e637183e81291a8693f62678802280110437c18560829adb4e897b1ff1708",
+      "functions": [
+        {
+          "name": "_conversation_id",
+          "params": [
+            "thread_id",
+            "user_id"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "_short_thread_id",
+          "params": [
+            "conversation_id",
+            "user_id"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "_memory_ns",
+          "params": [
+            "user_id",
+            "workspace_id"
+          ],
+          "returnType": "tuple[str, str, str]",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "_memory_key",
+          "params": [
+            "path"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "_pending",
+          "params": [
+            "state"
+          ],
+          "returnType": "dict[str, Any] | None",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "_payload",
+          "params": [
+            "message",
+            "resume"
+          ],
+          "returnType": "Any",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "_run_config",
+          "params": [
+            "thread_id",
+            "user_id",
+            "recursion_limit",
+            "workspace_id"
+          ],
+          "returnType": "dict[str, Any]",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "_input",
+          "params": [
+            "message"
+          ],
+          "returnType": "dict[str, list[BaseMessage]]",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "_chunk_text",
+          "params": [
+            "chunk"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "_last_text",
+          "params": [
+            "messages"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "classes": [
+        {
+          "name": "AgentContext",
+          "methods": [],
+          "properties": [
+            "user_id",
+            "workspace_id",
+            "public_workspaces"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "AgentEvent",
+          "methods": [],
+          "properties": [
+            "kind",
+            "text",
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "AgentRun",
+          "methods": [],
+          "properties": [
+            "answer",
+            "interrupt"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "GeneralAgent",
+          "methods": [
+            "__init__",
+            "__aenter__",
+            "__aexit__",
+            "astop_turn",
+            "_on_stop_request",
+            "_cancel",
+            "ainvoke",
+            "astream",
+            "_require_graph",
+            "_build_model"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 241
+        },
+        {
+          "name": "AgentMemory",
+          "methods": [
+            "__init__",
+            "aget_state",
+            "aget_meta",
+            "alist_threads",
+            "alist_messages",
+            "aedit_state",
+            "astop",
+            "adelete_thread",
+            "alist_memories",
+            "aread_memory",
+            "awrite_memory",
+            "adelete_memory"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 211
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "collections.abc",
+          "specifiers": [
+            "AsyncIterator",
+            "Sequence"
+          ]
+        },
+        {
+          "source": "contextlib",
+          "specifiers": [
+            "AsyncExitStack"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass",
+            "field"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any",
+            "Literal"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "deepagents",
+          "specifiers": [
+            "FilesystemPermission",
+            "create_deep_agent"
+          ]
+        },
+        {
+          "source": "deepagents.backends",
+          "specifiers": [
+            "CompositeBackend",
+            "StateBackend",
+            "StoreBackend"
+          ]
+        },
+        {
+          "source": "deepagents.backends.utils",
+          "specifiers": [
+            "create_file_data",
+            "validate_path"
+          ]
+        },
+        {
+          "source": "langchain_core.language_models",
+          "specifiers": [
+            "BaseChatModel"
+          ]
+        },
+        {
+          "source": "langchain_core.messages",
+          "specifiers": [
+            "AIMessage",
+            "BaseMessage",
+            "HumanMessage",
+            "RemoveMessage"
+          ]
+        },
+        {
+          "source": "langchain_core.tools",
+          "specifiers": [
+            "BaseTool"
+          ]
+        },
+        {
+          "source": "langchain_openai",
+          "specifiers": [
+            "ChatOpenAI"
+          ]
+        },
+        {
+          "source": "langgraph.checkpoint.postgres.aio",
+          "specifiers": [
+            "AsyncPostgresSaver"
+          ]
+        },
+        {
+          "source": "langgraph.store.postgres.aio",
+          "specifiers": [
+            "AsyncPostgresStore"
+          ]
+        },
+        {
+          "source": "langgraph.types",
+          "specifiers": [
+            "Command"
+          ]
+        },
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel",
+            "Field"
+          ]
+        },
+        {
+          "source": "agents.config",
+          "specifiers": [
+            "ModelConfig",
+            "AgentPostgreConfig",
+            "model_cfg"
+          ]
+        },
+        {
+          "source": "agents.public_workspace",
+          "specifiers": [
+            "PUBLIC_PERMISSIONS",
+            "PUBLIC_ROUTE",
+            "PublicMountBackend",
+            "PublicWorkspaceStore"
+          ]
+        },
+        {
+          "source": "agents.turns",
+          "specifiers": [
+            "STOP_TIMEOUT",
+            "RunningTurns",
+            "Turn",
+            "TurnRegistry"
+          ]
+        },
+        {
+          "source": "logger",
+          "specifiers": [
+            "logger"
+          ]
+        }
+      ],
+      "exports": [
+        "AgentContext",
+        "AgentEvent",
+        "AgentRun",
+        "GeneralAgent",
+        "AgentMemory",
+        "_conversation_id",
+        "_short_thread_id",
+        "_memory_ns",
+        "_memory_key",
+        "_pending",
+        "_payload",
+        "_run_config",
+        "_input",
+        "_chunk_text",
+        "_last_text"
+      ],
+      "totalLines": 708,
+      "hasStructuralAnalysis": true
+    },
+    "agents/readme.md": {
+      "filePath": "agents/readme.md",
+      "contentHash": "8e301394392db60f69e2e680b301658d5b59df574373755c48d5f366f8b73263",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 140,
+      "hasStructuralAnalysis": false
+    },
+    "agents/turns.py": {
+      "filePath": "agents/turns.py",
+      "contentHash": "1caaa6091f6e8921ead0b02a26ac3aebe82a459599b3b7ba726c3783b33e9c00",
+      "functions": [
+        {
+          "name": "worker_id",
+          "params": [],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [
+        {
+          "name": "Turn",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "user_id",
+            "workspace_id",
+            "task",
+            "text"
+          ],
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "TurnRegistry",
+          "methods": [
+            "__init__",
+            "get",
+            "reserve",
+            "release",
+            "names"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 46
+        },
+        {
+          "name": "StopRequest",
+          "methods": [],
+          "properties": [
+            "owner",
+            "answer"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "RunningTurns",
+          "methods": [
+            "__init__",
+            "start",
+            "aclose",
+            "_execute",
+            "open_turn",
+            "close_turn",
+            "request_stop",
+            "finish_stop",
+            "drop_stop",
+            "wait_stopped",
+            "_listen_forever",
+            "_spawn_dispatch",
+            "_dispatch",
+            "_replay_pending",
+            "_sweep"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 262
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "socket",
+          "specifiers": [
+            "socket"
+          ]
+        },
+        {
+          "source": "collections.abc",
+          "specifiers": [
+            "Awaitable",
+            "Callable"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass"
+          ]
+        },
+        {
+          "source": "datetime",
+          "specifiers": [
+            "timedelta"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any"
+          ]
+        },
+        {
+          "source": "psycopg",
+          "specifiers": [
+            "psycopg"
+          ]
+        },
+        {
+          "source": "logger",
+          "specifiers": [
+            "logger"
+          ]
+        }
+      ],
+      "exports": [
+        "worker_id",
+        "Turn",
+        "TurnRegistry",
+        "StopRequest",
+        "RunningTurns"
+      ],
+      "totalLines": 410,
+      "hasStructuralAnalysis": true
+    },
+    "config/__init__.py": {
+      "filePath": "config/__init__.py",
+      "contentHash": "85fee0037f605399d9d12a53f980838061c347e2bf4f03a3d9cbe602bfa0ddb9",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": ".config",
+          "specifiers": [
+            "BASE_DIR",
+            "CONFIG_FILE",
+            "ENV_FILE",
+            "AppConfig",
+            "AuthConfig",
+            "LoggerConfig",
+            "PostgreConfig",
+            "PostgresConfig",
+            "app_config",
+            "load_config"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 28,
+      "hasStructuralAnalysis": true
+    },
+    "config/config.py": {
+      "filePath": "config/config.py",
+      "contentHash": "73a3d0dafb1b15b3d385887ea5b959b8363d69fd876fd89d6c63861da7cdc9da",
+      "functions": [
+        {
+          "name": "load_config",
+          "params": [
+            "config_file"
+          ],
+          "returnType": "AppConfig",
+          "exported": true,
+          "lineCount": 10
+        }
+      ],
+      "classes": [
+        {
+          "name": "_Strict",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "PostgreConfig",
+          "methods": [
+            "uri",
+            "sqlalchemy_uri"
+          ],
+          "properties": [
+            "host",
+            "port",
+            "user",
+            "password",
+            "db_name"
+          ],
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "PostgresConfig",
+          "methods": [],
+          "properties": [
+            "user"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "LoggerConfig",
+          "methods": [
+            "log_dir"
+          ],
+          "properties": [
+            "level",
+            "dir",
+            "rotation",
+            "retention",
+            "backtrace",
+            "diagnose"
+          ],
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "AuthConfig",
+          "methods": [],
+          "properties": [
+            "secret_key",
+            "algorithm",
+            "access_token_expire_minutes",
+            "refresh_token_expire_days"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "AppConfig",
+          "methods": [],
+          "properties": [
+            "postgresql",
+            "logger",
+            "auth"
+          ],
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "imports": [
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "urllib.parse",
+          "specifiers": [
+            "quote"
+          ]
+        },
+        {
+          "source": "dotenv",
+          "specifiers": [
+            "load_dotenv"
+          ]
+        },
+        {
+          "source": "omegaconf",
+          "specifiers": [
+            "DictConfig",
+            "OmegaConf"
+          ]
+        },
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel",
+            "ConfigDict",
+            "Field"
+          ]
+        }
+      ],
+      "exports": [
+        "_Strict",
+        "PostgreConfig",
+        "PostgresConfig",
+        "LoggerConfig",
+        "AuthConfig",
+        "AppConfig",
+        "load_config"
+      ],
+      "totalLines": 134,
+      "hasStructuralAnalysis": true
+    },
+    "config/config.yaml": {
+      "filePath": "config/config.yaml",
+      "contentHash": "4c6bb8e5f1f52ad1437cae6cd5ba43e511ced8efeea1da2aa585bb095dbc13ab",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 47,
+      "hasStructuralAnalysis": false
+    },
+    "docs/UA_ONBOARDING.md": {
+      "filePath": "docs/UA_ONBOARDING.md",
+      "contentHash": "1df3c6eede911fd2e3a28f92e1c3896d5609708721c7d9bccedb90c79e8c4ec8",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 201,
+      "hasStructuralAnalysis": false
+    },
+    "docs/adr/0006-stop-registry-is-process-local.md": {
+      "filePath": "docs/adr/0006-stop-registry-is-process-local.md",
+      "contentHash": "421d616015aa640a79ef0de3d2ceb61be9de76a41f17f10ea1e322ba7cb84559",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 29,
+      "hasStructuralAnalysis": false
+    },
+    "docs/adr/0007-stop-finalizes-the-turn-in-place.md": {
+      "filePath": "docs/adr/0007-stop-finalizes-the-turn-in-place.md",
+      "contentHash": "537b4eaf80c01239a3039eff35deec21de62984a16604942d4432a9d014bbba1",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 25,
+      "hasStructuralAnalysis": false
+    },
+    "docs/adr/0008-stop-uses-postgres-notify.md": {
+      "filePath": "docs/adr/0008-stop-uses-postgres-notify.md",
+      "contentHash": "7a9fe228486473c25168efe808a5a0caa15a408a66acfc0dc8adcc1c358cb138",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 62,
+      "hasStructuralAnalysis": false
+    },
+    "future_work/subagent.md": {
+      "filePath": "future_work/subagent.md",
+      "contentHash": "1beda589fdcaf39d6c0e5e1af2f2e2de0a6bd231953e3895db1785e4abe880c3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 102,
+      "hasStructuralAnalysis": false
+    },
+    "main.py": {
+      "filePath": "main.py",
+      "contentHash": "4dbb80a3fe4409d521234de8a64ab139350f8899bba5823a489d13523d057b79",
+      "functions": [
+        {
+          "name": "create_app",
+          "params": [],
+          "returnType": "FastAPI",
+          "exported": true,
+          "lineCount": 40
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "contextlib",
+          "specifiers": [
+            "AsyncExitStack",
+            "asynccontextmanager"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "FastAPI"
+          ]
+        },
+        {
+          "source": "agents.agent",
+          "specifiers": [
+            "GeneralAgent"
+          ]
+        },
+        {
+          "source": "agents.config",
+          "specifiers": [
+            "model_cfg"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        },
+        {
+          "source": "dependencies",
+          "specifiers": [
+            "engine"
+          ]
+        },
+        {
+          "source": "logger",
+          "specifiers": [
+            "logger"
+          ]
+        },
+        {
+          "source": "routers",
+          "specifiers": [
+            "auth",
+            "chat",
+            "memory",
+            "public_workspace",
+            "workspace"
+          ]
+        }
+      ],
+      "exports": [
+        "create_app"
+      ],
+      "totalLines": 84,
+      "hasStructuralAnalysis": true
+    },
+    "pyproject.toml": {
+      "filePath": "pyproject.toml",
+      "contentHash": "3cea629da47d9df022fe01334d28ef1852159a7f101d52719e3ff1f8a4e3ee62",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 21,
+      "hasStructuralAnalysis": false
+    },
+    "routers/chat.py": {
+      "filePath": "routers/chat.py",
+      "contentHash": "ea881adb6b7cdcc071e1e8fdc7b9db7ca157b94f4e3031d02a29980a1cfedff1",
+      "functions": [
+        {
+          "name": "send_message",
+          "params": [
+            "payload",
+            "current_user",
+            "agent",
+            "session",
+            "public_workspaces"
+          ],
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "stream_message",
+          "params": [
+            "payload",
+            "current_user",
+            "agent",
+            "session",
+            "public_workspaces"
+          ],
+          "returnType": "StreamingResponse",
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "approve_message",
+          "params": [
+            "payload",
+            "current_user",
+            "agent",
+            "session",
+            "public_workspaces"
+          ],
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "stop_turn",
+          "params": [
+            "payload",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "list_my_threads",
+          "params": [
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "get_thread_state",
+          "params": [
+            "thread_id",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "get_thread_history",
+          "params": [
+            "thread_id",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "delete_thread_messages",
+          "params": [
+            "payload",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "delete_thread_files",
+          "params": [
+            "payload",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "delete_thread",
+          "params": [
+            "thread_id",
+            "current_user",
+            "agent",
+            "session"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "_sse",
+          "params": [
+            "events"
+          ],
+          "returnType": "AsyncIterator[str]",
+          "exported": true,
+          "lineCount": 15
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "collections.abc",
+          "specifiers": [
+            "AsyncIterator"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "APIRouter",
+            "Response",
+            "status"
+          ]
+        },
+        {
+          "source": "fastapi.responses",
+          "specifiers": [
+            "StreamingResponse"
+          ]
+        },
+        {
+          "source": "agents.agent",
+          "specifiers": [
+            "AgentEvent"
+          ]
+        },
+        {
+          "source": "dependencies",
+          "specifiers": [
+            "SessionDep"
+          ]
+        },
+        {
+          "source": "dependencies.agent",
+          "specifiers": [
+            "AgentDep"
+          ]
+        },
+        {
+          "source": "dependencies.auth",
+          "specifiers": [
+            "CurrentUser"
+          ]
+        },
+        {
+          "source": "dependencies.public_workspace",
+          "specifiers": [
+            "PublicWorkspaceDep"
+          ]
+        },
+        {
+          "source": "routers.schemas",
+          "specifiers": [
+            "ChatApprove",
+            "ChatDeleteFiles",
+            "ChatDeleteMessages",
+            "ChatHistoryOut",
+            "ChatMessageOut",
+            "ChatRunOut",
+            "ChatSend",
+            "ChatStateOut",
+            "ChatStop",
+            "ChatStopOut",
+            "ChatThreadOut",
+            "ChatThreadsOut"
+          ]
+        },
+        {
+          "source": "services",
+          "specifiers": [
+            "ChatService"
+          ]
+        }
+      ],
+      "exports": [
+        "send_message",
+        "stream_message",
+        "approve_message",
+        "stop_turn",
+        "list_my_threads",
+        "get_thread_state",
+        "get_thread_history",
+        "delete_thread_messages",
+        "delete_thread_files",
+        "delete_thread",
+        "_sse"
+      ],
+      "totalLines": 275,
+      "hasStructuralAnalysis": true
+    },
+    "routers/schemas/__init__.py": {
+      "filePath": "routers/schemas/__init__.py",
+      "contentHash": "2868a4d8ff25764b33d35a999faf36b76832786a8249ccc35b5967083cf77d7b",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": ".auth",
+          "specifiers": [
+            "LoginRequest",
+            "RefreshRequest",
+            "RegisterRequest",
+            "TokenPair",
+            "UserOut"
+          ]
+        },
+        {
+          "source": ".chat",
+          "specifiers": [
+            "ChatApprove",
+            "ChatDeleteFiles",
+            "ChatDeleteMessages",
+            "ChatHistoryOut",
+            "ChatMessageOut",
+            "ChatRunOut",
+            "ChatSend",
+            "ChatStateOut",
+            "ChatStop",
+            "ChatStopOut",
+            "ChatThreadOut",
+            "ChatThreadsOut"
+          ]
+        },
+        {
+          "source": ".memory",
+          "specifiers": [
+            "MemoryListOut",
+            "MemoryOut",
+            "MemoryPath",
+            "MemoryStored",
+            "MemoryWrite"
+          ]
+        },
+        {
+          "source": ".public_workspace",
+          "specifiers": [
+            "PublicFileListOut",
+            "PublicFileOut",
+            "PublicFilePath",
+            "PublicFileWrite",
+            "PublicMemberGrant",
+            "PublicMemberOut",
+            "PublicWorkspaceCreate",
+            "PublicWorkspaceOut",
+            "PublicWorkspaceUpdate"
+          ]
+        },
+        {
+          "source": ".workspace",
+          "specifiers": [
+            "MemberGrant",
+            "MemberOut",
+            "MyWorkspaceOut",
+            "WorkspaceAccessOut",
+            "WorkspaceCreate",
+            "WorkspaceOut",
+            "WorkspaceUpdate"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 92,
+      "hasStructuralAnalysis": true
+    },
+    "routers/schemas/chat.py": {
+      "filePath": "routers/schemas/chat.py",
+      "contentHash": "3a8904d5c4475a6bd92e3cbb09f348a1f750a593c012fd25ae7fa60ea1f10b77",
+      "functions": [],
+      "classes": [
+        {
+          "name": "ChatSend",
+          "methods": [],
+          "properties": [
+            "workspace_id",
+            "message",
+            "thread_id"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "ChatApprove",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "decisions"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "ChatRunOut",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "answer",
+            "interrupt"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "ChatStop",
+          "methods": [],
+          "properties": [
+            "thread_id"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "ChatStopOut",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "answer"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "ChatStateOut",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "workspace_id",
+            "messages",
+            "answer",
+            "files"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "ChatThreadOut",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "workspace_id",
+            "updated_at"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "ChatThreadsOut",
+          "methods": [],
+          "properties": [
+            "threads"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "ChatMessageOut",
+          "methods": [],
+          "properties": [
+            "id",
+            "role",
+            "content"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "ChatHistoryOut",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "messages"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "ChatDeleteMessages",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "message_ids"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "ChatDeleteFiles",
+          "methods": [],
+          "properties": [
+            "thread_id",
+            "paths"
+          ],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "imports": [
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any"
+          ]
+        },
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel",
+            "ConfigDict",
+            "Field"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "DEFAULT_WORKSPACE"
+          ]
+        }
+      ],
+      "exports": [
+        "ChatSend",
+        "ChatApprove",
+        "ChatRunOut",
+        "ChatStop",
+        "ChatStopOut",
+        "ChatStateOut",
+        "ChatThreadOut",
+        "ChatThreadsOut",
+        "ChatMessageOut",
+        "ChatHistoryOut",
+        "ChatDeleteMessages",
+        "ChatDeleteFiles"
+      ],
+      "totalLines": 136,
+      "hasStructuralAnalysis": true
+    },
+    "services/chat.py": {
+      "filePath": "services/chat.py",
+      "contentHash": "4a07d1d8c0c9e318f57c021794aaee4de61515e24f80dc8c26c407877e28565b",
+      "functions": [],
+      "classes": [
+        {
+          "name": "ChatService",
+          "methods": [
+            "__init__",
+            "_rows",
+            "open_turn",
+            "_recover_orphan",
+            "send",
+            "stream",
+            "_tracked",
+            "stop",
+            "approve",
+            "state",
+            "list_threads",
+            "history",
+            "delete_messages",
+            "delete_files",
+            "delete_thread",
+            "own"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 239
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "collections.abc",
+          "specifiers": [
+            "AsyncIterator"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "HTTPException",
+            "status"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": "agents.agent",
+          "specifiers": [
+            "AgentEvent",
+            "AgentMemory",
+            "AgentRun",
+            "GeneralAgent",
+            "Turn"
+          ]
+        },
+        {
+          "source": "agents.turns",
+          "specifiers": [
+            "STOP_TIMEOUT"
+          ]
+        },
+        {
+          "source": "logger",
+          "specifiers": [
+            "logger"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "DEFAULT_WORKSPACE",
+            "User"
+          ]
+        },
+        {
+          "source": "services.access",
+          "specifiers": [
+            "WorkspaceAccess"
+          ]
+        }
+      ],
+      "exports": [
+        "ChatService"
+      ],
+      "totalLines": 285,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_chat_stop.py": {
+      "filePath": "tests/test_chat_stop.py",
+      "contentHash": "eabb277fe6b7babb51a2438eecdc6df7ecf446519790c27275de053272bf1eca",
+      "functions": [
+        {
+          "name": "step",
+          "params": [
+            "name"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "slow_tool",
+          "params": [
+            "x"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "agent_db_execute",
+          "params": [
+            "sql",
+            "params"
+          ],
+          "returnType": "list[tuple]",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "db_execute",
+          "params": [
+            "sql",
+            "params"
+          ],
+          "returnType": "list[tuple]",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "cleanup",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "abort_midway",
+          "params": [
+            "agent",
+            "thread_id",
+            "message",
+            "after"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "history",
+          "params": [
+            "agent",
+            "thread_id"
+          ],
+          "returnType": "list[tuple[str, str]]",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "raw_state",
+          "params": [
+            "agent",
+            "thread_id"
+          ],
+          "returnType": "tuple[tuple[str, ...], bool]",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "part_a",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 135
+        },
+        {
+          "name": "part_b",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 115
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 8
+        }
+      ],
+      "classes": [
+        {
+          "name": "ToolModel",
+          "methods": [
+            "bind_tools"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "SlowStreamModel",
+          "methods": [
+            "bind_tools",
+            "_llm_type",
+            "_generate",
+            "_astream"
+          ],
+          "properties": [
+            "CHUNKS",
+            "DELAY"
+          ],
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "EchoModel",
+          "methods": [
+            "_generate"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "threading",
+          "specifiers": [
+            "threading"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "ClassVar"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "psycopg",
+          "specifiers": [
+            "psycopg"
+          ]
+        },
+        {
+          "source": "fastapi.testclient",
+          "specifiers": [
+            "TestClient"
+          ]
+        },
+        {
+          "source": "langchain_core.language_models",
+          "specifiers": [
+            "BaseChatModel"
+          ]
+        },
+        {
+          "source": "langchain_core.language_models.fake_chat_models",
+          "specifiers": [
+            "FakeMessagesListChatModel"
+          ]
+        },
+        {
+          "source": "langchain_core.messages",
+          "specifiers": [
+            "AIMessage",
+            "AIMessageChunk",
+            "HumanMessage"
+          ]
+        },
+        {
+          "source": "langchain_core.outputs",
+          "specifiers": [
+            "ChatGeneration",
+            "ChatGenerationChunk",
+            "ChatResult"
+          ]
+        },
+        {
+          "source": "langchain_core.tools",
+          "specifiers": [
+            "tool"
+          ]
+        },
+        {
+          "source": "agents.agent",
+          "specifiers": [
+            "STOP_PLACEHOLDER",
+            "GeneralAgent",
+            "TurnRegistry"
+          ]
+        },
+        {
+          "source": "agents.config",
+          "specifiers": [
+            "AgentPostgreConfig"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        },
+        {
+          "source": "main",
+          "specifiers": [
+            "app"
+          ]
+        }
+      ],
+      "exports": [
+        "step",
+        "ToolModel",
+        "SlowStreamModel",
+        "EchoModel",
+        "slow_tool",
+        "agent_db_execute",
+        "db_execute",
+        "cleanup",
+        "abort_midway",
+        "history",
+        "raw_state",
+        "part_a",
+        "part_b",
+        "main"
+      ],
+      "totalLines": 433,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_chat_stop_cross.py": {
+      "filePath": "tests/test_chat_stop_cross.py",
+      "contentHash": "0b9b021ec795896fb9b27848044fa657f0e55f06e75a2e8d63484f6d9516c0a5",
+      "functions": [
+        {
+          "name": "step",
+          "params": [
+            "name"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "agent_db_execute",
+          "params": [
+            "sql",
+            "params"
+          ],
+          "returnType": "list[tuple]",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "cleanup",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "history",
+          "params": [
+            "agent",
+            "thread_id"
+          ],
+          "returnType": "list[tuple[str, str]]",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "start_turn",
+          "params": [
+            "agent",
+            "thread_id",
+            "message"
+          ],
+          "returnType": "asyncio.Task",
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "settle",
+          "params": [
+            "task"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "wait_for",
+          "params": [
+            "predicate",
+            "timeout",
+            "what"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "service",
+          "params": [
+            "agent"
+          ],
+          "returnType": "ChatService",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "part_a",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 185
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [
+        {
+          "name": "ToolModel",
+          "methods": [
+            "bind_tools"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "SlowModel",
+          "methods": [
+            "bind_tools",
+            "_llm_type",
+            "_generate",
+            "_astream"
+          ],
+          "properties": [
+            "CHUNKS",
+            "DELAY"
+          ],
+          "exported": true,
+          "lineCount": 20
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "ClassVar"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "psycopg",
+          "specifiers": [
+            "psycopg"
+          ]
+        },
+        {
+          "source": "langchain_core.language_models",
+          "specifiers": [
+            "BaseChatModel"
+          ]
+        },
+        {
+          "source": "langchain_core.language_models.fake_chat_models",
+          "specifiers": [
+            "FakeMessagesListChatModel"
+          ]
+        },
+        {
+          "source": "langchain_core.messages",
+          "specifiers": [
+            "AIMessage",
+            "AIMessageChunk",
+            "HumanMessage"
+          ]
+        },
+        {
+          "source": "langchain_core.outputs",
+          "specifiers": [
+            "ChatGeneration",
+            "ChatGenerationChunk",
+            "ChatResult"
+          ]
+        },
+        {
+          "source": "agents.agent",
+          "specifiers": [
+            "GeneralAgent"
+          ]
+        },
+        {
+          "source": "agents.config",
+          "specifiers": [
+            "AgentPostgreConfig"
+          ]
+        },
+        {
+          "source": "agents.turns",
+          "specifiers": [
+            "CHANNEL",
+            "TURN_HEARTBEAT_TTL"
+          ]
+        },
+        {
+          "source": "models",
+          "specifiers": [
+            "User"
+          ]
+        },
+        {
+          "source": "services.chat",
+          "specifiers": [
+            "ChatService"
+          ]
+        }
+      ],
+      "exports": [
+        "step",
+        "ToolModel",
+        "SlowModel",
+        "agent_db_execute",
+        "cleanup",
+        "history",
+        "start_turn",
+        "settle",
+        "wait_for",
+        "service",
+        "part_a",
+        "main"
+      ],
+      "totalLines": 348,
+      "hasStructuralAnalysis": true
+    },
+    "tests/test_chat_stop_cross_http.py": {
+      "filePath": "tests/test_chat_stop_cross_http.py",
+      "contentHash": "d23ad6efeb1aaf5396841777252bfd95103f1b804e4cef8d47194e2cde7c4340",
+      "functions": [
+        {
+          "name": "step",
+          "params": [
+            "name"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "agent_db_execute",
+          "params": [
+            "sql",
+            "params"
+          ],
+          "returnType": "list[tuple]",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "db_execute",
+          "params": [
+            "sql",
+            "params"
+          ],
+          "returnType": "list[tuple]",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "cleanup",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "headers",
+          "params": [
+            "client",
+            "account",
+            "create"
+          ],
+          "returnType": "dict[str, str]",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "run",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 134
+        }
+      ],
+      "classes": [
+        {
+          "name": "SlowModel",
+          "methods": [
+            "bind_tools",
+            "_llm_type",
+            "_generate",
+            "_astream"
+          ],
+          "properties": [
+            "CHUNKS",
+            "DELAY"
+          ],
+          "exported": true,
+          "lineCount": 20
+        }
+      ],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "threading",
+          "specifiers": [
+            "threading"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "ClassVar"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid4"
+          ]
+        },
+        {
+          "source": "psycopg",
+          "specifiers": [
+            "psycopg"
+          ]
+        },
+        {
+          "source": "fastapi.testclient",
+          "specifiers": [
+            "TestClient"
+          ]
+        },
+        {
+          "source": "langchain_core.language_models",
+          "specifiers": [
+            "BaseChatModel"
+          ]
+        },
+        {
+          "source": "langchain_core.messages",
+          "specifiers": [
+            "AIMessage",
+            "AIMessageChunk"
+          ]
+        },
+        {
+          "source": "langchain_core.outputs",
+          "specifiers": [
+            "ChatGeneration",
+            "ChatGenerationChunk",
+            "ChatResult"
+          ]
+        },
+        {
+          "source": "agents.agent",
+          "specifiers": [
+            "GeneralAgent"
+          ]
+        },
+        {
+          "source": "agents.config",
+          "specifiers": [
+            "AgentPostgreConfig"
+          ]
+        },
+        {
+          "source": "config",
+          "specifiers": [
+            "app_config"
+          ]
+        },
+        {
+          "source": "main",
+          "specifiers": [
+            "create_app"
+          ]
+        }
+      ],
+      "exports": [
+        "step",
+        "SlowModel",
+        "agent_db_execute",
+        "db_execute",
+        "cleanup",
+        "headers",
+        "main",
+        "run"
+      ],
+      "totalLines": 260,
+      "hasStructuralAnalysis": true
+    }
+  },
+  "deletedFiles": []
+}
