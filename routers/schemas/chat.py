@@ -8,8 +8,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from models import DEFAULT_WORKSPACE
-
 __all__ = [
     "ChatApprove",
     "ChatDeleteMessages",
@@ -32,12 +30,6 @@ THREAD_ID_PATTERN = r"^[A-Za-z0-9_-]{1,64}$"
 class ChatSend(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    workspace_id: str = Field(
-        DEFAULT_WORKSPACE,
-        min_length=1,
-        max_length=32,
-        description="业务空间 id；不传就落虚拟的 default 空间（日常聊天）",
-    )
     message: str = Field(min_length=1, max_length=10_000, description="用户这一轮说的话")
     thread_id: str | None = Field(
         default=None,
@@ -88,7 +80,6 @@ class ChatStopOut(BaseModel):
 
 class ChatStateOut(BaseModel):
     thread_id: str
-    workspace_id: str | None
     messages: int = Field(description="该会话短期记忆里的消息条数")
     answer: str = Field(description="最后一条有内容的回答")
     files: list[str] = Field(description="会话内临时文件（StateBackend）路径")
@@ -96,7 +87,6 @@ class ChatStateOut(BaseModel):
 
 class ChatThreadOut(BaseModel):
     thread_id: str
-    workspace_id: str | None
     updated_at: str | None = Field(default=None, description="检查点时间戳（ISO）")
 
 

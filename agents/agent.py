@@ -3,13 +3,9 @@
 持久化（连接参数见 agents/config.py，默认库 ``agents``）：
 
 - **短期记忆**：``AsyncPostgresSaver`` 检查点，按 ``user_id:thread_id`` 落库，跨进程续聊；
-- **长期记忆**：``AsyncPostgresStore`` + ``/memories/`` 扇出挂载，**一棵目录树**：
-  ``/memories/{业务空间名}/...``，每格一个命名空间 ``(user_id, workspace_id, "filesystem")``，
-  可见范围来自当轮 ``AgentContext.memory_workspaces``；agent **只写 default 那一格**（要人工批准），
-  其余格子是用户投喂的只读资料（走 REST，见 ``docs/adr/0010``）；
-- **公共空间挂载**：``/public/{公共空间名}/`` **只读**，命名空间 ``("public", id, "filesystem")``
-  （不含 user_id，成员共享同一份），可见范围来自当轮 ``AgentContext.public_workspaces``；
-  实现见 ``agents/public_workspace.py``，取舍见 ``docs/adr/0003`` 与 ``docs/adr/0004``；
+- **长期记忆**：``AsyncPostgresStore`` + ``/memories/`` 挂载，命名空间 ``(user_id, "filesystem")``
+  一人一份；agent 写 ``/memories/`` 必须人工批准（见 ``MEMORY_PERMISSIONS``），
+  用户侧直写走 REST（``/memories/*``）；
 - 其余路径走 ``StateBackend``（线程内临时文件）。
 
 停止（用户按暂停键，见 ``CONTEXT.md`` 与 ``docs/adr/0006`` / ``0007`` / ``0008``）：
@@ -23,9 +19,8 @@
 
 记忆写入（两条路，互不干扰）：
 
-- **agent 写**：调文件工具写 ``/memories/default/**``（只有这一格可写）会 ``interrupt``，
-  等人批准（见 ``MEMORY_PERMISSIONS``）；写其它格子直接 ``deny`` —— 那些是用户的只读资料，
-  由 ``/memories/write`` 与 ``/memories/upload`` 投喂（``docs/adr/0010``）；
+- **agent 写**：调文件工具写 ``/memories/**`` 会 ``interrupt``，等人批准
+  （见 ``MEMORY_PERMISSIONS``）；
 - **用户写**：走 :class:`AgentMemory` 的 ``awrite_memory`` / ``adelete_memory``，不经模型、不需批准。
 
 职责分离（对应 agents/readme.md）：
@@ -43,18 +38,18 @@
             yield
 
     # 聊天：被拦下时 run.interrupt 非空，原样丢给用户看，批准后 resume 接着跑
-    run = await agent.ainvoke("记住我喜欢简短回答", thread_id="t1", user_id="u1", workspace_id="ws1")
+    run = await agent.ainvoke("记住我喜欢简短回答", thread_id="t1", user_id="u1")
     if run.interrupt:
         run = await agent.ainvoke(
-            thread_id="t1", user_id="u1", workspace_id="ws1",
+            thread_id="t1", user_id="u1",
             resume={"decisions": [{"type": "approve"}]},
         )
     print(run.answer)
-    async for event in agent.astream("你好", thread_id="t1", user_id="u1", workspace_id="ws1"):
+    async for event in agent.astream("你好", thread_id="t1", user_id="u1"):
         print(event.kind, event.text, event.data)
-    # 记忆：用户侧直接改（user_id / workspace_id 必须来自登录态，不能来自请求参数）
-    memories = await agent.memory.alist_memories("u1", "ws1")
-    await agent.memory.awrite_memory("u1", "ws1", "prefs.md", "喜欢简短回答")
+    # 记忆：用户侧直接改（user_id 必须来自登录态，不能来自请求参数）
+    memories = await agent.memory.alist_memories("u1")
+    await agent.memory.awrite_memory("u1", "prefs.md", "喜欢简短回答")
 """
 
 import asyncio
@@ -66,7 +61,8 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from deepagents import FilesystemPermission, create_deep_agent
-from deepagents.backends import CompositeBackend, StateBackend
+from deepagents.backends import CompositeBackend, StateBackend, StoreBackend
+from deepagents.backends.protocol import FileUploadResponse
 from deepagents.backends.utils import create_file_data, validate_path
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, RemoveMessage
@@ -75,16 +71,9 @@ from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.store.postgres.aio import AsyncPostgresStore
 from langgraph.types import Command
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from agents.config import ModelConfig, AgentPostgreConfig, model_cfg
-from agents.fanout import FanoutMountBackend
-from agents.public_workspace import (
-    PUBLIC_PERMISSIONS,
-    PUBLIC_ROUTE,
-    PublicMountBackend,
-    PublicWorkspaceStore,
-)
 from agents.turns import (  # noqa: F401  ——  ``Turn`` / ``TurnRegistry`` 从这重导出，服务层从这里引
     STOP_TIMEOUT,
     RunningTurns,
@@ -92,10 +81,8 @@ from agents.turns import (  # noqa: F401  ——  ``Turn`` / ``TurnRegistry`` �
     TurnRegistry,
 )
 from logger import logger
-from models import DEFAULT_WORKSPACE
 
 __all__ = [
-    "MEMORY_DENIED",
     "MEMORY_PERMISSIONS",
     "MEMORY_ROUTE",
     "AgentContext",
@@ -113,59 +100,60 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # 长期记忆（store）挂载的虚拟路径前缀；其余路径为线程内临时文件。
-# 它下面**每个业务空间一个子目录**（``/memories/{空间名}/...``），当前空间不再特殊。
+# 它就是这个人的记忆根：命名空间 ``(user_id, "filesystem")``，一人一份。
 MEMORY_ROUTE = "/memories/"
 
-# agent（模型）对记忆的写入一律中断等人批准，**且只有 default 那一格可写**。
-# 静态规则表达不了“按人按轮决定哪格可写”，但 ``default`` 是保留空间名（真实空间不许叫它，
-# ``WorkspaceService._reject_reserved``），所以这一格是稳定无歧义的静态前缀。规则**按顺序
-# 第一条命中即生效**（``_check_fs_permission``），所以 interrupt 必须排在 deny 前面，否则
-# default 格会被下面的 deny 吃掉。裸 "/memories/default"（无尾斜杠）匹配不上 "**"，单独列一条，
-# 否则能绕过规则写到格子根。用户侧写入走 AgentMemory，不经模型、不需批准。
+# agent（模型）对记忆的写入一律中断等人批准。规则**按顺序**第一条命中即生效
+# （``_check_fs_permission``）。裸 "/memories"（无尾斜杠）匹配不上 "**"，单独列一条，
+# 否则能绕过规则写到挂载根。用户侧写入走 AgentMemory，不经模型、不需批准。
 MEMORY_PERMISSIONS = [
     FilesystemPermission(
         operations=["write"],
-        paths=[
-            f"{MEMORY_ROUTE}{DEFAULT_WORKSPACE}/**",
-            f"{MEMORY_ROUTE}{DEFAULT_WORKSPACE}",
-        ],
-        mode="interrupt",
-    ),
-    FilesystemPermission(
-        operations=["write"],
         paths=[f"{MEMORY_ROUTE}**", MEMORY_ROUTE.rstrip("/")],
-        mode="deny",
+        mode="interrupt",
     ),
 ]
 
-MEMORY_DENIED = (
-    f"记忆只有 {MEMORY_ROUTE}{DEFAULT_WORKSPACE}/ 能写（会先请用户确认）："
-    "其它业务空间里的资料由用户通过 API 投喂，agent 只能读"
-)
+
+class MemoryMountBackend(StoreBackend):
+    """``/memories/`` 挂载：直接映射到 ``(context.user_id, "filesystem")``，没有格子层。
+
+    只额外做一件事：**批量上传一律拒**。它是写，却走中间件的内部调用，
+    绕开 ``MEMORY_PERMISSIONS`` 的人工批准 —— 宁可让“写记忆要批准”没有例外。
+    """
+
+    def __init__(self, store: AsyncPostgresStore) -> None:
+        super().__init__(
+            namespace=lambda rt: (rt.context.user_id, "filesystem"), store=store
+        )
+
+    @staticmethod
+    def _rejected(files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
+        return [
+            FileUploadResponse(path=path, error="permission_denied")
+            for path, _ in files
+        ]
+
+    def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
+        return self._rejected(files)
+
+    async def aupload_files(
+        self, files: list[tuple[str, bytes]]
+    ) -> list[FileUploadResponse]:
+        return self._rejected(files)
 
 
-def memory_mount(store: AsyncPostgresStore) -> FanoutMountBackend:
-    """``/memories/`` 挂载：可见的每个业务空间一个子目录，**只有 default 那格能写**。
+def memory_mount(store: AsyncPostgresStore) -> MemoryMountBackend:
+    """``/memories/`` 挂载：这个人的记忆根，命名空间 ``(user_id, "filesystem")``。
 
-    可见范围来自当轮 ``AgentContext.memory_workspaces``（每轮查库，见 ``docs/adr/0004``）；
-    格子里的内容就是 ``AgentMemory`` 按 ``(user_id, 空间 id, "filesystem")`` 读写的那份。
     单独写成函数，是为了让测试建出**同一个**挂载，而不是照拄一份配置。
     """
-    return FanoutMountBackend(
-        store,
-        context_attr="memory_workspaces",
-        namespace=lambda context, workspace_id: _memory_ns(
-            context.user_id, workspace_id
-        ),
-        writable=DEFAULT_WORKSPACE,
-        denied=MEMORY_DENIED,
-    )
+    return MemoryMountBackend(store)
 
 DEFAULT_SYSTEM_PROMPT = """你是一个可长期协作的中文助手。
 
 - 需要规划时先拆解任务再执行。
-- 用户明确要求记住的内容，写入 `/memories/default/` 下的文件；该目录持久保存，重启后依然可读。
-- `/memories/{空间名}/` 下各是你参与的业务空间：**只有 default 能写**，其它空间里的资料只读。
+- 用户明确要求记住的内容，写入 `/memories/` 下的文件；该目录持久保存，重启后依然可读。
 - 写 `/memories/` 会先请用户确认，确认后再落库。
 - 其它临时文件放普通路径即可，它们只在本会话内有效。
 - 回答简洁、直接，不要复述这些规则。"""
@@ -176,22 +164,13 @@ STOP_PLACEHOLDER = "（用户停止了本轮）"
 
 
 class AgentContext(BaseModel):
-    """运行期上下文：透传给挂载层，决定记忆落在哪个命名空间、两个挂载里各能看哪几格。
+    """运行期上下文：透传给挂载层，决定记忆落在哪个命名空间。
 
-    ``(user_id, workspace_id)`` 是本次会话所在的格子（命名空间 ``(user_id, workspace_id,
-    "filesystem")``）。``workspace_id`` 默认 ``"default"``（虚拟的日常聊天空间，人人都是 admin）；
     ``user_id`` 没有默认值：漏传直接报错，而不是静默写进同一个共享命名空间。
-
-    ``memory_workspaces`` / ``public_workspaces`` 是当轮可见的格子（名字 -> id），决定
-    ``/memories/`` 与 ``/public/`` 挂载里能看到哪几个子目录。**每轮重新查**，不写进 checkpoint
-    metadata —— 被移出空间必须立刻失效（见 ``docs/adr/0004``）。super 的公共空间可见范围是
-    "全部"，由 dependency 填充时体现。
+    记忆命名空间是 ``(user_id, "filesystem")``，一人一份。
     """
 
     user_id: str
-    workspace_id: str = DEFAULT_WORKSPACE
-    public_workspaces: dict[str, str] = Field(default_factory=dict)
-    memory_workspaces: dict[str, str] = Field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -237,8 +216,6 @@ class GeneralAgent:
         self._graph: Any = None
         # 启动后可用：记忆操作入口（借 graph/store，无独立生命周期）
         self.memory: AgentMemory | None = None
-        # 启动后可用：公共空间内容的 store 读写（REST 侧与删除清理用）
-        self.public_store: PublicWorkspaceStore | None = None
         # 随时可用：**本进程**正在跑的轮次（找 task + 攒已流出文本）；停止时用
         self.turns = TurnRegistry()
         # 启动后可用：**跨进程**的在跑轮次（表 + LISTEN 通道）；停止时的意图与归属
@@ -264,21 +241,12 @@ class GeneralAgent:
                 backend=CompositeBackend(
                     default=StateBackend(),
                     routes={
-                        # /memories/{业务空间名}/...：一棵目录树，每格一个命名空间（互不相干）。
-                        # 可见范围来自当轮的 AgentContext.memory_workspaces（每轮查库）；
-                        # 只有 default 那一格可写，其余是用户投喂的只读资料（docs/adr/0010）。
+                        # /memories/：这个人的记忆根，命名空间 (user_id, "filesystem")；
+                        # 写入由 MEMORY_PERMISSIONS 拦下等人批准。
                         MEMORY_ROUTE: memory_mount(store),
-                        # /public/{公共空间名}/...：只读，可见范围来自当轮的 AgentContext。
-                        # 路由是启动时定死的静态前缀，所以"这个人能看哪几个公共空间"只能由
-                        # PublicMountBackend 每次操作去读 rt.context，不能往 routes 里塞。
-                        #
-                        # ponytail: 目录说明靠约定（谁建公共空间谁在里面放 README.md），
-                        # 不注入 system prompt。模型老是读错公共空间时再加一层按用户动态
-                        # 注入 prompt 的 middleware —— 那时它由证据支撑，不是预防性的。
-                        PUBLIC_ROUTE: PublicMountBackend(store),
                     },
                 ),
-                permissions=[*MEMORY_PERMISSIONS, *PUBLIC_PERMISSIONS],
+                permissions=MEMORY_PERMISSIONS,
                 checkpointer=saver,
                 store=store,
                 context_schema=AgentContext,
@@ -287,7 +255,6 @@ class GeneralAgent:
             self._stack = stack.pop_all()  # 所有权移交给 self；异常时上面已自动清理
             self._graph = graph
             self.memory = AgentMemory(graph, store, saver)
-            self.public_store = PublicWorkspaceStore(store)
         # 建表 + 起 LISTEN；拿不到就整个启动失败 —— 开轮次的互斥也靠这张表，降级不了
         running_turns = RunningTurns(self.postgres.uri, self._on_stop_request)
         try:
@@ -295,7 +262,6 @@ class GeneralAgent:
         except Exception:
             self._graph = None
             self.memory = None
-            self.public_store = None
             stack, self._stack = self._stack, None
             if stack is not None:
                 await stack.aclose()
@@ -313,7 +279,6 @@ class GeneralAgent:
     async def __aexit__(self, *exc_info: Any) -> None:
         """关闭 listener 与连接池。幂等，可重复调用。"""
         self.memory = None
-        self.public_store = None
         self._graph = None
         running_turns, self.running_turns = self.running_turns, None
         if running_turns is not None:
@@ -333,9 +298,7 @@ class GeneralAgent:
         await self._cancel(turn)
         if self.memory is None:  # __aexit__ 已经跑过了
             raise RuntimeError("GeneralAgent 尚未启动，请先 `async with GeneralAgent() as agent:`")
-        return await self.memory.astop(
-            turn.thread_id, turn.user_id, turn.workspace_id, text=turn.text
-        )
+        return await self.memory.astop(turn.thread_id, turn.user_id, text=turn.text)
 
     async def _on_stop_request(self, thread_id: str, turn: Turn) -> None:
         """收到 ``chat_drain`` 通知且**这一轮是本进程跑的**：收尾，把答案写回表。"""
@@ -372,9 +335,6 @@ class GeneralAgent:
         *,
         thread_id: str,
         user_id: str,
-        workspace_id: str,
-        public_workspaces: dict[str, str] | None = None,
-        memory_workspaces: dict[str, str] | None = None,
         recursion_limit: int = 100,
         resume: dict[str, Any] | None = None,
     ) -> AgentRun:
@@ -382,16 +342,11 @@ class GeneralAgent:
 
         ``resume`` 是上一次 ``run.interrupt`` 的答复（``{"decisions": [...]}``），
         传了它就不需要 ``message``，图从中断点接着跑。
-
-        ``public_workspaces`` / ``memory_workspaces``（都是名字 -> id）决定两个挂载里能
-        看到哪几格，由调用方每轮重新给（包括 resume）—— 不落 metadata，见 ``docs/adr/0004``。
         """
         state = await self._require_graph().ainvoke(
             _payload(message, resume),
-            config=_run_config(thread_id, user_id, recursion_limit, workspace_id),
-            context=_agent_context(
-                user_id, workspace_id, public_workspaces, memory_workspaces
-            ),
+            config=_run_config(thread_id, user_id, recursion_limit),
+            context=AgentContext(user_id=user_id),
         )
         return AgentRun(answer=_last_text(state.get("messages", [])), interrupt=_pending(state))
 
@@ -401,9 +356,6 @@ class GeneralAgent:
         *,
         thread_id: str,
         user_id: str,
-        workspace_id: str,
-        public_workspaces: dict[str, str] | None = None,
-        memory_workspaces: dict[str, str] | None = None,
         recursion_limit: int = 100,
         resume: dict[str, Any] | None = None,
     ) -> AsyncIterator[AgentEvent]:
@@ -412,10 +364,8 @@ class GeneralAgent:
         final: dict[str, Any] = {}
         async for mode, payload in self._require_graph().astream(
             _payload(message, resume),
-            config=_run_config(thread_id, user_id, recursion_limit, workspace_id),
-            context=_agent_context(
-                user_id, workspace_id, public_workspaces, memory_workspaces
-            ),
+            config=_run_config(thread_id, user_id, recursion_limit),
+            context=AgentContext(user_id=user_id),
             stream_mode=["messages", "values"],
         ):
             if mode == "messages":
@@ -484,8 +434,8 @@ class AgentMemory:
     async def aget_meta(self, thread_id: str, user_id: str) -> dict[str, Any] | None:
         """会话归属：checkpoint metadata（没有这个会话就返回 ``None``）。
 
-        值来自 ``_run_config`` 里的 metadata，所以路由可以用它确认「这是不是我的会话」
-        并取回当时的 workspace_id，不必另建归属表。
+        值来自 ``_run_config`` 里的 metadata，所以路由可以用它确认「这是不是我的会话」，
+        不必另建归属表。
         """
         snapshot = await self._graph.aget_state(_run_config(thread_id, user_id))
         return dict(snapshot.metadata) if snapshot.metadata else None
@@ -509,7 +459,6 @@ class AgentMemory:
                 {
                     # 对外只暴露不带用户前缀的短 id
                     "thread_id": _short_thread_id(conversation_id, user_id),
-                    "workspace_id": item.metadata.get("workspace_id"),
                     "updated_at": item.checkpoint.get("ts"),
                 },
             )
@@ -557,21 +506,14 @@ class AgentMemory:
             state["files"] = {path: None for path in delete_files}
         if not state:
             return
-        # update_state 会写一份新检查点，metadata 得把 workspace_id 一起带上，
+        # update_state 会写一份新检查点，metadata 得保持原样，
         # 否则会话归属（/chat/state、/chat/mine）就读不到了
-        snapshot = await self._graph.aget_state(_run_config(thread_id, user_id))
-        config = _run_config(
-            thread_id,
-            user_id,
-            workspace_id=(snapshot.metadata or {}).get("workspace_id"),
-        )
-        await self._graph.aupdate_state(config, state)
+        await self._graph.aupdate_state(_run_config(thread_id, user_id), state)
 
     async def astop(
         self,
         thread_id: str,
         user_id: str,
-        workspace_id: str,
         *,
         text: str = "",
     ) -> str:
@@ -597,7 +539,7 @@ class AgentMemory:
 
         已经跑完的轮次什么都不做（幂等）：不能因为用户晚按了一下就往正常历史里塞占位文案。
         """
-        config = _run_config(thread_id, user_id, workspace_id=workspace_id)
+        config = _run_config(thread_id, user_id)
         snapshot = await self._graph.aget_state(config)
         if not snapshot.next and not snapshot.interrupts:
             return _last_text((snapshot.values or {}).get("messages", []))
@@ -618,7 +560,7 @@ class AgentMemory:
             await self._graph.ainvoke(
                 None,
                 config,
-                context=AgentContext(user_id=user_id, workspace_id=workspace_id),
+                context=AgentContext(user_id=user_id),
             )
         return answer
 
@@ -630,36 +572,36 @@ class AgentMemory:
         await self._saver.adelete_thread(_conversation_id(thread_id, user_id))
 
     async def alist_memories(
-        self, user_id: str, workspace_id: str, *, limit: int = 50
+        self, user_id: str, *, limit: int = 50
     ) -> list[str]:
-        """长期记忆：列出该 (用户, 空间) 下的文件路径（**格子内路径**，如 ``notes/a.md``）。
+        """长期记忆：列出该用户下的文件路径（如 ``notes/a.md``）。
 
-        agent 眼里的完整路径是 ``/memories/{空间名}/notes/a.md`` —— 前缀是挂载层的事，
-        这里只按 (用户, 空间) 寻址（见 ``services/memory.py``）。
+        agent 眼里的完整路径是 ``/memories/notes/a.md`` —— 前缀是挂载层的事，
+        这里只按用户寻址（见 ``services/memory.py``）。
         """
-        items = await self._store.asearch(_memory_ns(user_id, workspace_id), limit=limit)
+        items = await self._store.asearch(_memory_ns(user_id), limit=limit)
         return sorted(item.key.lstrip("/") for item in items)
 
-    async def aread_memory(self, user_id: str, workspace_id: str, path: str) -> str | None:
+    async def aread_memory(self, user_id: str, path: str) -> str | None:
         """读一份长期记忆，不存在返回 ``None``（``path`` 可写 ``prefs.md`` / ``notes/a.md``）。"""
         key = _memory_key(path)
-        item = await self._store.aget(_memory_ns(user_id, workspace_id), key)
+        item = await self._store.aget(_memory_ns(user_id), key)
         content = item.value.get("content") if item else None
         return content if isinstance(content, str) else None
 
     async def awrite_memory(
-        self, user_id: str, workspace_id: str, path: str, content: str
+        self, user_id: str, path: str, content: str
     ) -> str:
-        """写/覆盖一份长期记忆，返回**格子内路径**（如 ``notes/a.md``）。"""
+        """写/覆盖一份长期记忆，返回相对路径（如 ``notes/a.md``）。"""
         key = _memory_key(path)
         await self._store.aput(
-            _memory_ns(user_id, workspace_id), key, create_file_data(content)
+            _memory_ns(user_id), key, create_file_data(content)
         )
         return key.lstrip("/")
 
-    async def adelete_memory(self, user_id: str, workspace_id: str, path: str) -> bool:
+    async def adelete_memory(self, user_id: str, path: str) -> bool:
         """删一份长期记忆，不存在返回 ``False``。"""
-        namespace = _memory_ns(user_id, workspace_id)
+        namespace = _memory_ns(user_id)
         key = _memory_key(path)
         if await self._store.aget(namespace, key) is None:
             return False
@@ -680,13 +622,13 @@ def _short_thread_id(conversation_id: str, user_id: str) -> str:
     return conversation_id.removeprefix(f"{user_id}:")
 
 
-def _memory_ns(user_id: str, workspace_id: str) -> tuple[str, str, str]:
-    """长期记忆的 store 命名空间：一个 (用户, 空间) 一份，互相看不见。"""
-    return (user_id, workspace_id, "filesystem")
+def _memory_ns(user_id: str) -> tuple[str, str]:
+    """长期记忆的 store 命名空间：一个用户一份，互相看不见。"""
+    return (user_id, "filesystem")
 
 
 def _memory_key(path: str) -> str:
-    """用户侧传入的记忆路径 -> store key（与工具写 ``/memories/{格子名}/x`` 落库的 key 同形：``/x``）。"""
+    """用户侧传入的记忆路径 -> store key（与工具写 ``/memories/x`` 落库的 key 同形：``/x``）。"""
     normalized = validate_path(f"{MEMORY_ROUTE}{path.strip().removeprefix(MEMORY_ROUTE).lstrip('/')}")
     key = normalized[len(MEMORY_ROUTE) - 1 :]
     if not key.strip("/"):
@@ -694,19 +636,6 @@ def _memory_key(path: str) -> str:
     return key
 
 
-def _agent_context(
-    user_id: str,
-    workspace_id: str,
-    public_workspaces: dict[str, str] | None,
-    memory_workspaces: dict[str, str] | None,
-) -> AgentContext:
-    """每轮的运行期上下文：两个挂载的可见范围都由调用方每轮给（``docs/adr/0004``）。"""
-    return AgentContext(
-        user_id=user_id,
-        workspace_id=workspace_id,
-        public_workspaces=public_workspaces or {},
-        memory_workspaces=memory_workspaces or {},
-    )
 
 
 def _pending(state: dict[str, Any]) -> dict[str, Any] | None:
@@ -726,17 +655,14 @@ def _run_config(
     thread_id: str,
     user_id: str,
     recursion_limit: int = 100,
-    workspace_id: str | None = None,
 ) -> dict[str, Any]:
     """运行配置。
 
     ``metadata`` 会被 langgraph 的 ``get_checkpoint_metadata`` 合并进 ``checkpoints.metadata``，
-    所以「这个会话属于谁 / 属于哪个空间」不用另建表：写一次就存在检查点里，
+    所以「这个会话属于谁」不用另建表：写一次就存在检查点里，
     读用 ``aget_state().metadata``，列用 ``saver.alist(filter={"user_id": ...})``。
     """
     metadata: dict[str, Any] = {"user_id": user_id}
-    if workspace_id is not None:
-        metadata["workspace_id"] = workspace_id
     return {
         "configurable": {"thread_id": _conversation_id(thread_id, user_id)},
         "recursion_limit": recursion_limit,

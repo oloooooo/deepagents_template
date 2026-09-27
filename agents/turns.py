@@ -76,13 +76,12 @@ class Turn:
     ``text`` 是**已流出的增量文本**的累加：它不落检查点（AI 消息只在超步结束时才写），
     所以停止时必须靠它把用户已经看到的字写回历史。
 
-    ``user_id`` / ``workspace_id`` 也放在这里，是为了让收到停止通知的那个进程**不再查库**
+    ``user_id`` 也放在这里，是为了让收到停止通知的那个进程**不再查库**
     就能拼出 ``{user_id}:{thread_id}`` 去收尾 —— 它在收到通知的那一刻只有 ``thread_id``。
     """
 
     thread_id: str
     user_id: str
-    workspace_id: str
     task: asyncio.Task[Any] | None = None
     """跑这一轮的那个 task，由服务层绑上（``None`` = 还没开始跑）。停止时取消它。"""
     text: str = ""
@@ -104,7 +103,7 @@ class TurnRegistry:
     def get(self, thread_id: str) -> Turn | None:
         return self._turns.get(thread_id)
 
-    def reserve(self, thread_id: str, user_id: str, workspace_id: str) -> Turn:
+    def reserve(self, thread_id: str, user_id: str) -> Turn:
         """占一个位置**（调用方必须先拿到 ``running_turns`` 表的行，那张表才是互斥）**。
 
         **同步、无 await**：调用方必须在任何 await 之前调它，否则两个并发请求会双双通过检查。
@@ -120,7 +119,6 @@ class TurnRegistry:
         turn = Turn(
             thread_id=thread_id,
             user_id=user_id,
-            workspace_id=workspace_id,
             task=asyncio.current_task(),
         )
         self._turns[thread_id] = turn

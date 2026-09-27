@@ -46,8 +46,8 @@ ACCOUNT_FAMILY = "chat_stop_"
 ACCOUNT = f"{ACCOUNT_FAMILY}{SUFFIX}"
 PASSWORD = "Passw0rd!123"
 
-# agent 层的固定标识（不建用户，直接借 (user_id, workspace_id) 命名空间）
-USER, WORKSPACE = f"u_stop_{SUFFIX}", f"ws_stop_{SUFFIX}"
+# agent 层的固定标识（不建用户，直接借 user_id 命名空间）
+USER = f"u_stop_{SUFFIX}"
 
 checks = 0
 
@@ -135,9 +135,7 @@ async def abort_midway(agent: GeneralAgent, *, thread_id: str, message: str, aft
     """起一轮流式对话，``after`` 秒后掐掉消费方（模拟用户按停止）。"""
 
     async def consume() -> None:
-        async for _ in agent.astream(
-            message, thread_id=thread_id, user_id=USER, workspace_id=WORKSPACE
-        ):
+        async for _ in agent.astream(message, thread_id=thread_id, user_id=USER):
             pass
 
     task = asyncio.create_task(consume())
@@ -188,7 +186,7 @@ async def part_a() -> None:
         step(f"中止后 next={pending}（这一轮没跑完）")
         assert pending, "中止后应该停在半路"
 
-        answer = await agent.memory.astop(thread, USER, WORKSPACE)
+        answer = await agent.memory.astop(thread, USER)
         step(f"astop 返回 {answer!r}")
         assert answer == STOP_PLACEHOLDER, "一个字都没流出来，应该用占位文案"
         assert await history(agent, thread) == [("human", "跑"), ("ai", STOP_PLACEHOLDER)], (
@@ -197,9 +195,7 @@ async def part_a() -> None:
         pending, interrupted = await raw_state(agent, thread)
         assert not pending and not interrupted, f"收尾后应该是终点：next={pending}"
 
-        await agent.ainvoke(
-            "接着聊", thread_id=thread, user_id=USER, workspace_id=WORKSPACE
-        )
+        await agent.ainvoke("接着聊", thread_id=thread, user_id=USER)
         messages = await history(agent, thread)
         step(f"续聊后 {messages}")
         assert messages == [
@@ -222,12 +218,12 @@ async def part_a() -> None:
             "生成中途的增量不落检查点，历史里只剩 human 消息"
         )
 
-        answer = await agent.memory.astop(thread, USER, WORKSPACE, text="一二三")
+        answer = await agent.memory.astop(thread, USER, text="一二三")
         step(f"astop(text='一二三') 返回 {answer!r}")
         assert answer == "一二三"
         assert await history(agent, thread) == [("human", "讲个长的"), ("ai", "一二三")]
 
-        await agent.ainvoke("在吗", thread_id=thread, user_id=USER, workspace_id=WORKSPACE)
+        await agent.ainvoke("在吗", thread_id=thread, user_id=USER)
         messages = await history(agent, thread)
         step(f"续聊后 {messages}")
         assert messages[-2:] == [("human", "在吗"), ("ai", "完整回答")], (
@@ -245,7 +241,7 @@ async def part_a() -> None:
                     tool_calls=[
                         {
                             "name": "write_file",
-                            "args": {"file_path": "/memories/default/x.md", "content": "hi"},
+                            "args": {"file_path": "/memories/x.md", "content": "hi"},
                             "id": "w1",
                         }
                     ],
@@ -260,15 +256,13 @@ async def part_a() -> None:
             "记一下",
             thread_id=thread,
             user_id=USER,
-            workspace_id=WORKSPACE,
-            memory_workspaces={"default": "default"},
         )
         step(f"第一轮被拦下等人批准：{run.interrupt is not None}")
-        assert run.interrupt is not None, "写 /memories/default/ 应该触发人工批准"
+        assert run.interrupt is not None, "写 /memories/ 应该触发人工批准"
         _, interrupted = await raw_state(agent, thread)
         assert interrupted, "应该有待批准的请求"
 
-        answer = await agent.memory.astop(thread, USER, WORKSPACE)
+        answer = await agent.memory.astop(thread, USER)
         step(f"astop 返回 {answer!r}")
         assert answer == STOP_PLACEHOLDER
         pending, interrupted = await raw_state(agent, thread)
@@ -280,29 +274,29 @@ async def part_a() -> None:
     agent = GeneralAgent(model=EchoModel())
     async with agent:
         assert agent.memory is not None
-        await agent.ainvoke("你好", thread_id=thread, user_id=USER, workspace_id=WORKSPACE)
+        await agent.ainvoke("你好", thread_id=thread, user_id=USER)
         before = await history(agent, thread)
-        answer = await agent.memory.astop(thread, USER, WORKSPACE, text="不该出现")
+        answer = await agent.memory.astop(thread, USER, text="不该出现")
         step(f"astop 返回 {answer!r}，历史 {await history(agent, thread)}")
         assert answer == "收到：你好", "跑完的轮次应该返回原来的回答"
         assert await history(agent, thread) == before, "跑完的轮次不该被塞占位文案"
 
     print("-- A5 TurnRegistry：本地登记与释放（互斥不在这，在 running_turns 表里）--")
     registry = TurnRegistry()
-    first = registry.reserve("t", "u1", "w1")
+    first = registry.reserve("t", "u1")
     step("第一次 reserve 成功")
     assert registry.get("t") is first, "应该能按 thread_id 找到"
-    assert (first.user_id, first.workspace_id) == ("u1", "w1"), (
-        "owner 收到停止通知时只有 thread_id，user_id / workspace_id 必须随身带着"
+    assert first.user_id == "u1", (
+        "owner 收到停止通知时只有 thread_id，user_id 必须随身带着"
     )
     try:
-        registry.reserve("t", "u1", "w1")
+        registry.reserve("t", "u1")
         raise AssertionError("同一进程里同一 thread 第二次 reserve 应该拒绝")
     except RuntimeError:
         step("第二次 reserve 被拒")
     registry.release(first)
     assert registry.get("t") is None, "释放后应该查不到"
-    assert registry.reserve("t", "u1", "w1") is not None, "释放后应该能再占"
+    assert registry.reserve("t", "u1") is not None, "释放后应该能再占"
 
 
 def part_b() -> None:

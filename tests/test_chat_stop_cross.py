@@ -40,7 +40,6 @@ from services.chat import ChatService  # noqa: E402
 
 SUFFIX = uuid4().hex[:8]
 USER = f"u_cross_{SUFFIX}"
-WORKSPACE = "default"  # 虚拟空间，WorkspaceAccess 不查库，所以 session 可以给 None
 
 checks = 0
 
@@ -103,15 +102,13 @@ async def start_turn(agent: GeneralAgent, thread_id: str, message: str) -> async
     """在 ``agent`` 上开一轮（模拟"这一轮跑在这台 worker 上"），返回它的 task。"""
     assert agent.running_turns is not None
     assert await agent.running_turns.open_turn(thread_id), "拿不到轮次登记"
-    turn = agent.turns.reserve(thread_id, USER, WORKSPACE)
+    turn = agent.turns.reserve(thread_id, USER)
 
     async def consume() -> None:
         rows = agent.running_turns  # 捕获下来：__aexit__ 之后 self.running_turns 会是 None
         turn.task = asyncio.current_task()  # 和 ChatService._tracked 做的事一样
         try:
-            async for event in agent.astream(
-                message, thread_id=thread_id, user_id=USER, workspace_id=WORKSPACE
-            ):
+            async for event in agent.astream(message, thread_id=thread_id, user_id=USER):
                 if event.kind == "token":
                     turn.text += event.text
                 elif event.kind == "tool_call":
@@ -144,8 +141,7 @@ async def wait_for(predicate, timeout: float, what: str) -> None:  # noqa: ANN00
 
 
 def service(agent: GeneralAgent) -> ChatService:
-    """session 给 None 是安全的：workspace 用虚拟的 default，鉴权不查库。"""
-    return ChatService(None, agent)  # type: ignore[arg-type]
+    return ChatService(agent)
 
 
 async def part_a() -> None:
@@ -260,11 +256,8 @@ async def part_a() -> None:
         # 走 ChatService.open_turn（孤儿恢复就在那里），不是直接调 agent
         _, run = await service(worker_b).send(
             User(id=USER),
-            workspace_id=WORKSPACE,
             message="接着聊",
             thread_id=thread,
-            public_workspaces={},
-            memory_workspaces={},
         )
         messages = await history(worker_b, thread)
         step(f"续聊后 {messages}")

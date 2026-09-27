@@ -5,12 +5,7 @@
 1. ``user_id`` 来自登录态；
 2. 真正落库的 ``conversation_id`` 是 ``{user_id}:{thread_id}``（agent 内部拼），
    所以前端猜别人的 thread_id 也读不到任何东西；
-3. 归属校验读 checkpoint metadata（``AgentMemory.aget_meta``），查不到一律 404；
-4. ``workspace_id`` 从 metadata 取（不信任请求体），每轮再校验一次成员权限 ——
-   被移出空间后立刻失效；metadata 里没有它（虚拟 default 空间之前建的会话）就当 ``default``。
-
-``public_workspaces`` / ``memory_workspaces``（可见格子，都是名字 -> id）是**每轮由路由传进来**的，
-不落 metadata：被移出空间必须立刻失效，包括 ``/chat/approve`` 续跑那一轮（见 ``docs/adr/0004``）。
+3. 归属校验读 checkpoint metadata（``AgentMemory.aget_meta``），查不到一律 404。
 
 停止（用户按暂停键）与中断（agent 等人批准）是两件事，别搞反（见 ``CONTEXT.md``）：
 
@@ -26,13 +21,11 @@ from collections.abc import AsyncIterator
 from uuid import uuid4
 
 from fastapi import HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents.agent import AgentEvent, AgentMemory, AgentRun, GeneralAgent, Turn
 from agents.turns import STOP_TIMEOUT
 from logger import logger
-from models import DEFAULT_WORKSPACE, User
-from services.access import WorkspaceAccess
+from models import User
 
 __all__ = ["THREAD_NOT_FOUND", "TURN_RUNNING", "ChatService"]
 
@@ -44,7 +37,7 @@ REMOTE_STOP_TIMEOUT = STOP_TIMEOUT + 1.0
 
 
 class ChatService:
-    def __init__(self, session: AsyncSession, agent: GeneralAgent) -> None:
+    def __init__(self, agent: GeneralAgent) -> None:
         memory: AgentMemory | None = agent.memory
         if memory is None:  # AgentDep 只返回启动好的 agent，这里兜底
             raise HTTPException(
@@ -52,7 +45,6 @@ class ChatService:
             )
         self.agent = agent
         self.memory = memory
-        self.access = WorkspaceAccess(session)
 
     def _rows(self):
         """跨进程的轮次登记（表 + 通道）—— agent 没启动好就没有它，那就是 503。"""
@@ -64,26 +56,25 @@ class ChatService:
         return rows
 
     async def open_turn(
-        self, user: User, *, workspace_id: str, thread_id: str | None = None
+        self, user: User, *, thread_id: str | None = None
     ) -> tuple[str, Turn]:
-        """开一轮对话前的把关：没在跑别的轮次、有空间权限（viewer 也能聊），并定下 thread_id。
+        """开一轮对话前的把关：没在跑别的轮次，并定下 thread_id。
 
         **互斥在 ``running_turns`` 表的 PK 上**（跨进程），不是内存表 —— 多 worker 下
         两个进程能同时给一个会话开轮次的话，停止通知会让两个 owner 都去收尾。
 
-        顺序不能改：先拿表行（异步，真正的互斥）→ 再占内存位（同步）→ 再查权限。
-        中途失败要把两处都回滚，否则一条无权限的请求就能把会话锁住。
+        顺序不能改：先拿表行（异步，真正的互斥）→ 再占内存位（同步）。
+        中途失败要把两处都回滚，否则一条失败的请求就能把会话锁住。
         """
         rows = self._rows()
         conversation = thread_id or uuid4().hex
         if not await rows.open_turn(conversation):
             raise HTTPException(status.HTTP_409_CONFLICT, TURN_RUNNING)
-        turn = self.agent.turns.reserve(conversation, user.id, workspace_id)
+        turn = self.agent.turns.reserve(conversation, user.id)
         try:
             # 上一轮跑到一半就挂了（进程被杀/重启），没人给它收尾 —— 不收的话这一轮的
             # 新消息会和那条没回答的 human 消息合并成一次请求（见 docs/adr/0007）
             await self._recover_orphan(conversation, user)
-            await self.access.permission(user, workspace_id)
         except Exception:
             self.agent.turns.release(turn)
             await rows.close_turn(conversation)
@@ -99,31 +90,21 @@ class ChatService:
         meta = await self.memory.aget_meta(thread_id, user.id)
         if meta is None:
             return
-        await self.memory.astop(
-            thread_id, user.id, meta.get("workspace_id") or DEFAULT_WORKSPACE
-        )
+        await self.memory.astop(thread_id, user.id)
 
     async def send(
         self,
         user: User,
         *,
-        workspace_id: str,
         message: str,
-        public_workspaces: dict[str, str],
-        memory_workspaces: dict[str, str],
         thread_id: str | None = None,
     ) -> tuple[str, AgentRun]:
-        conversation, turn = await self.open_turn(
-            user, workspace_id=workspace_id, thread_id=thread_id
-        )
+        conversation, turn = await self.open_turn(user, thread_id=thread_id)
         try:
             run = await self.agent.ainvoke(
                 message,
                 thread_id=conversation,
                 user_id=user.id,
-                workspace_id=workspace_id,
-                public_workspaces=public_workspaces,
-                memory_workspaces=memory_workspaces,
             )
         finally:
             self.agent.turns.release(turn)
@@ -134,22 +115,14 @@ class ChatService:
         self,
         user: User,
         *,
-        workspace_id: str,
         message: str,
-        public_workspaces: dict[str, str],
-        memory_workspaces: dict[str, str],
         thread_id: str | None = None,
     ) -> tuple[str, AsyncIterator[AgentEvent]]:
-        conversation, turn = await self.open_turn(
-            user, workspace_id=workspace_id, thread_id=thread_id
-        )
+        conversation, turn = await self.open_turn(user, thread_id=thread_id)
         events = self.agent.astream(
             message,
             thread_id=conversation,
             user_id=user.id,
-            workspace_id=workspace_id,
-            public_workspaces=public_workspaces,
-            memory_workspaces=memory_workspaces,
         )
         return conversation, self._tracked(events, turn)
 
@@ -191,7 +164,7 @@ class ChatService:
 
         归属走 ``own``：别人的 / 不存在的会话一律 404，不泄露存在性。
         """
-        workspace_id = await self.own(user, thread_id)
+        await self.own(user, thread_id)
         rows = self._rows()
         turn = self.agent.turns.get(thread_id)
         if turn is not None:  # 1) 这一轮就在本进程 -> 快路径
@@ -201,7 +174,7 @@ class ChatService:
 
         request = await rows.request_stop(thread_id)
         if request is None:  # 2) 没人在跑（已跑完 / 等人批准）-> 直接收尾，幂等
-            return await self.memory.astop(thread_id, user.id, workspace_id)
+            return await self.memory.astop(thread_id, user.id)
         if request.answer is not None:  # 上次没清干净，结果还在
             await rows.drop_stop(thread_id)
             return request.answer
@@ -211,7 +184,7 @@ class ChatService:
             # owner 挂了（心跳还没停满）或者卡在不可取消的调用里。它在另一台进程，这里拉不住它，
             # 只能自己兑底收尾 —— 代价是可能和它地板写检查点（见 docs/adr/0006）。
             logger.warning("等 {} 收尾超时，自己兑底：thread_id={}", request.owner, thread_id)
-            answer = await self.memory.astop(thread_id, user.id, workspace_id)
+            answer = await self.memory.astop(thread_id, user.id)
         await rows.drop_stop(thread_id)
         return answer
 
@@ -221,25 +194,17 @@ class ChatService:
         *,
         thread_id: str,
         decisions: list[dict],
-        public_workspaces: dict[str, str],
-        memory_workspaces: dict[str, str],
     ) -> AgentRun:
-        """人工批准后接着跑：空间取自会话 metadata，不接受请求体里的 workspace_id。
-
-        两个可见范围**重新传一遍**（不取 metadata）：续跑也要反映最新的授权状态。
-        """
-        workspace_id = await self.own(user, thread_id)
+        """人工批准后接着跑。"""
+        await self.own(user, thread_id)
         rows = self._rows()
         if not await rows.open_turn(thread_id):
             raise HTTPException(status.HTTP_409_CONFLICT, TURN_RUNNING)
-        turn = self.agent.turns.reserve(thread_id, user.id, workspace_id)
+        turn = self.agent.turns.reserve(thread_id, user.id)
         try:
             return await self.agent.ainvoke(
                 thread_id=thread_id,
                 user_id=user.id,
-                workspace_id=workspace_id,
-                public_workspaces=public_workspaces,
-                memory_workspaces=memory_workspaces,
                 resume={"decisions": decisions},
             )
         finally:
@@ -277,14 +242,10 @@ class ChatService:
         await self.own(user, thread_id)
         await self.memory.adelete_thread(thread_id, user.id)
 
-    async def own(self, user: User, thread_id: str) -> str:
-        """确认这条 thread_id 是本人的会话，返回它绑定的 workspace_id。"""
+    async def own(self, user: User, thread_id: str) -> None:
+        """确认这条 thread_id 是本人的会话，否则 404。"""
         meta = await self.memory.aget_meta(thread_id, user.id)
         if meta is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=THREAD_NOT_FOUND
             )
-        # 虚拟 default 空间之前建的会话 metadata 里没有 workspace_id，一律按 default 处理
-        workspace_id = meta.get("workspace_id") or DEFAULT_WORKSPACE
-        await self.access.permission(user, workspace_id)  # 还在空间里才行
-        return workspace_id

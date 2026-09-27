@@ -7,15 +7,9 @@ from sqlalchemy import DateTime, MetaData, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 __all__ = [
-    "DEFAULT_WORKSPACE",
     "Base",
     "BaseModel",
-    "PublicWorkspace",
     "User",
-    "UserPublicWorkspace",
-    "UserWorkspace",
-    "Workspace",
-    "WorkspacePermission",
 ]
 
 # 统一索引/约束命名，便于 alembic 生成可预期的迁移脚本
@@ -52,7 +46,3 @@ class BaseModel(Base):
 
 # 放在末尾导入，保证 Base/BaseModel 先定义好（避免循环导入）
 from .user import User  # noqa: E402
-from .user_workspace import UserWorkspace, WorkspacePermission  # noqa: E402
-from .workspace import DEFAULT_WORKSPACE, Workspace  # noqa: E402
-from .public_workspace import PublicWorkspace  # noqa: E402
-from .user_public_workspace import UserPublicWorkspace  # noqa: E402

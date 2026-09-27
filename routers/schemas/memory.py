@@ -9,7 +9,6 @@
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from models import DEFAULT_WORKSPACE
 from routers.schemas.paths import safe_store_path
 
 __all__ = [
@@ -17,8 +16,6 @@ __all__ = [
     "MemoryOut",
     "MemoryPath",
     "MemoryStored",
-    "MemoryTreeItem",
-    "MemoryTreeOut",
     "MemoryUploadItem",
     "MemoryUploadOut",
     "MemoryWrite",
@@ -26,23 +23,14 @@ __all__ = [
 
 
 class MemoryPath(BaseModel):
-    """定位一份记忆：哪个空间 + 哪条路径。"""
+    """定位一份记忆：哪条路径。"""
 
     model_config = ConfigDict(extra="forbid")
 
-    workspace_id: str = Field(
-        DEFAULT_WORKSPACE,
-        min_length=1,
-        max_length=32,
-        description="业务空间 id；不传就落虚拟的 default 空间（日常聊天）",
-    )
     path: str = Field(
         min_length=1,
         max_length=256,
-        description=(
-            "格子内路径（如 prefs.md、notes/a.md）；也收 /memories/notes/a.md、"
-            "/memories/{空间名}/notes/a.md 两种 agent 写法"
-        ),
+        description="记忆路径（如 prefs.md、notes/a.md）；也收 /memories/notes/a.md 这种 agent 写法",
     )
 
     @field_validator("path")
@@ -59,7 +47,7 @@ class MemoryWrite(MemoryPath):
 
 class MemoryStored(BaseModel):
     path: str = Field(
-        description="落库后的虚拟路径，形如 /memories/{空间名}/notes/a.md（agent 能直接读到）"
+        description="落库后的虚拟路径，形如 /memories/notes/a.md（agent 能直接读到）"
     )
 
 
@@ -68,23 +56,8 @@ class MemoryOut(MemoryStored):
 
 
 class MemoryListOut(BaseModel):
-    workspace_id: str
     memories: list[str] = Field(
-        description="该空间下的文件虚拟路径（形如 /memories/{空间名}/notes/a.md）"
-    )
-
-
-class MemoryTreeItem(BaseModel):
-    """记忆树里的一格：一个业务空间。"""
-
-    name: str = Field(description="空间名（agent 挂载路径 /memories/{名字}/ 里那一段）")
-    workspace_id: str
-    memories: list[str] = Field(description="该空间下的文件虚拟路径，空空间是空列表")
-
-
-class MemoryTreeOut(BaseModel):
-    workspaces: list[MemoryTreeItem] = Field(
-        description="我参与的全部空间（含虚拟 default 与没有任何文件的空间）"
+        description="记忆文件的虚拟路径（形如 /memories/notes/a.md）"
     )
 
 
@@ -99,5 +72,4 @@ class MemoryUploadItem(BaseModel):
 class MemoryUploadOut(BaseModel):
     """逐份结果：某一份失败不影响其它份，所以不整批回滚。"""
 
-    workspace_id: str
     results: list[MemoryUploadItem]

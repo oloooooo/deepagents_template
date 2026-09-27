@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, Request, status
 
 from agents.agent import GeneralAgent
 
-__all__ = ["AgentDep", "OptionalAgentDep", "get_agent", "get_optional_agent"]
+__all__ = ["AgentDep", "get_agent"]
 
 
 def get_agent(request: Request) -> GeneralAgent:
@@ -25,16 +25,3 @@ def get_agent(request: Request) -> GeneralAgent:
 
 
 AgentDep = Annotated[GeneralAgent, Depends(get_agent)]
-
-
-def get_optional_agent(request: Request) -> GeneralAgent | None:
-    """和 ``get_agent`` 一样，但 agent 没起来时返回 ``None`` 而不是 503。
-
-    给「主功能不依赖 agent、有它才能顺手多做一件事」的接口用 —— 目前只有
-    ``DELETE /public-workspaces/delete/{id}``：删空间本身是纯数据库操作，
-    清 store 里的内容是顺带的，清理失败本来就只记日志（见 ``docs/adr/0005``）。
-    """
-    return getattr(request.app.state, "agent", None)
-
-
-OptionalAgentDep = Annotated[GeneralAgent | None, Depends(get_optional_agent)]

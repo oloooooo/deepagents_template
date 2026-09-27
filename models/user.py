@@ -1,16 +1,9 @@
 """用户表 ORM 模型。"""
 
-from typing import TYPE_CHECKING
-
 from sqlalchemy import Boolean, String, false, true
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from models import BaseModel
-
-# 只给类型检查用：运行时导入会和 models.workspace 循环，
-# 注解里的字符串由 SQLAlchemy 自己从 registry 解析。
-if TYPE_CHECKING:
-    from models.workspace import Workspace
 
 __all__ = ["User"]
 
@@ -39,13 +32,9 @@ class User(BaseModel):
         Boolean, default=True, server_default=true(), comment="是否启用"
     )
     # 超级用户标志：故意不提供任何 repository/API 写入口，只能直接改库
-    # （注册、登录、找回密码都碰不到这个字段）。
+    # （注册、登录、找回密码都碰不到这个字段）。空间管理已移除，暂时是死字段。
     is_super: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=false(), comment="超级用户，只能直接改库"
-    )
-    # 只读视图：带权限的关联走 UserWorkspace，写入请直接操作它
-    workspaces: Mapped[list["Workspace"]] = relationship(
-        secondary="user_workspaces", viewonly=True
     )
 
     def __repr__(self) -> str:

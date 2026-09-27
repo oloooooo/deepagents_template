@@ -17,7 +17,7 @@ from agents.config import model_cfg
 from config import app_config
 from dependencies import engine
 from logger import logger
-from routers import auth, chat, memory, public_workspace, workspace
+from routers import auth, chat, memory
 
 # Windows 默认的 ProactorEventLoop 跑不了 psycopg 异步驱动，
 # 而 uvicorn 非 reload 模式恰好会选 Proactor，所以显式指定 SelectorEventLoop。
@@ -38,7 +38,7 @@ def create_app() -> FastAPI:
     async def lifespan(app: FastAPI):
         db = app_config.postgresql.user
         logger.info("应用启动，业务库 {}@{}:{}/{}", db.user, db.host, db.port, db.db_name)
-        # 与业务库无关：auth / workspace 路由不依赖 agent，所以没配模型也照常起服务，
+        # 与业务库无关：auth 路由不依赖 agent，所以没配模型也照常起服务，
         # 只有 agent 端点会 503（见 dependencies/agent.py）。配了模型但连不上库则直接启动失败。
         async with AsyncExitStack() as stack:
             if model_cfg.ready:
@@ -54,8 +54,6 @@ def create_app() -> FastAPI:
 
     application = FastAPI(title="DeepAgents Template", lifespan=lifespan)
     application.include_router(auth.router)
-    application.include_router(workspace.router)
-    application.include_router(public_workspace.router)
     application.include_router(memory.router)
     application.include_router(chat.router)
 
