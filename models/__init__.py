@@ -9,7 +9,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 __all__ = [
     "Base",
     "BaseModel",
+    "Microservice",
     "User",
+    "UserMicroservice",
 ]
 
 # 统一索引/约束命名，便于 alembic 生成可预期的迁移脚本
@@ -45,4 +47,6 @@ class BaseModel(Base):
 
 
 # 放在末尾导入，保证 Base/BaseModel 先定义好（避免循环导入）
+from .microservice import Microservice  # noqa: E402
 from .user import User  # noqa: E402
+from .user_microservice import UserMicroservice  # noqa: E402

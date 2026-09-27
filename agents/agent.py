@@ -8,7 +8,7 @@
   用户侧直写走 REST（``/memories/*``）；
 - 其余路径走 ``StateBackend``（线程内临时文件）。
 
-停止（用户按暂停键，见 ``CONTEXT.md`` 与 ``docs/adr/0006`` / ``0007`` / ``0008``）：
+停止（用户按暂停键，见 ``CONTEXT.md`` 与 ``docs/adr/0004`` / ``0005`` / ``0006``）：
 
 - 正在跑的轮次记在 ``GeneralAgent.turns``（**本进程**：那个 ``Task`` 和已流出的文本）；
 - “谁在跑 / 要不要停 / 结果是什么”记在 ``running_turns`` 表（**跨进程**），
@@ -71,9 +71,11 @@ from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.store.postgres.aio import AsyncPostgresStore
 from langgraph.types import Command
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from agents.config import ModelConfig, AgentPostgreConfig, model_cfg
+from agents.kb import KB_PERMISSIONS, KB_ROUTE, kb_mount
+from agents.prompt import load_system_prompt
 from agents.turns import (  # noqa: F401  ——  ``Turn`` / ``TurnRegistry`` 从这重导出，服务层从这里引
     STOP_TIMEOUT,
     RunningTurns,
@@ -151,13 +153,8 @@ def memory_mount(store: AsyncPostgresStore) -> MemoryMountBackend:
     return MemoryMountBackend(store)
 
 
-DEFAULT_SYSTEM_PROMPT = """你是一个可长期协作的中文助手。
-
-- 需要规划时先拆解任务再执行。
-- 用户明确要求记住的内容，写入 `/memories/` 下的文件；该目录持久保存，重启后依然可读。
-- 写 `/memories/` 会先请用户确认，确认后再落库。
-- 其它临时文件放普通路径即可，它们只在本会话内有效。
-- 回答简洁、直接，不要复述这些规则。"""
+DEFAULT_SYSTEM_PROMPT = load_system_prompt()
+"""从 ``agents/prompt/*.md`` 加载（system.md 人格 + kb.md 知识库挂载说明）。"""
 
 
 STOP_PLACEHOLDER = "（用户停止了本轮）"
@@ -165,13 +162,17 @@ STOP_PLACEHOLDER = "（用户停止了本轮）"
 
 
 class AgentContext(BaseModel):
-    """运行期上下文：透传给挂载层，决定记忆落在哪个命名空间。
+    """运行期上下文：透传给挂载层，决定记忆与知识库落在哪个命名空间。
 
     ``user_id`` 没有默认值：漏传直接报错，而不是静默写进同一个共享命名空间。
-    记忆命名空间是 ``(user_id, "filesystem")``，一人一份。
+
+    ``kb_cells`` 是**当轮**可见的微服务（名字 -> id），由 ``dependencies/kb.py`` 查库
+    每轮填入（不落 checkpoint metadata——成员关系会变，见 ``docs/adr/0004``）；
+    漏传 = 空字典 = ``/kb/`` 下什么都看不见（不是报错，也不串号）。
     """
 
     user_id: str
+    kb_cells: dict[str, str] = Field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -215,6 +216,8 @@ class GeneralAgent:
         self._model = model
         self._stack: AsyncExitStack | None = None
         self._graph: Any = None
+        # 启动后可用：langgraph store（知识库 REST / 删库清内容要用；agent 没起时为 None）
+        self.store: AsyncPostgresStore | None = None
         # 启动后可用：记忆操作入口（借 graph/store，无独立生命周期）
         self.memory: AgentMemory | None = None
         # 随时可用：**本进程**正在跑的轮次（找 task + 攒已流出文本）；停止时用
@@ -245,9 +248,12 @@ class GeneralAgent:
                         # /memories/：这个人的记忆根，命名空间 (user_id, "filesystem")；
                         # 写入由 MEMORY_PERMISSIONS 拦下等人批准。
                         MEMORY_ROUTE: memory_mount(store),
+                        # /kb/：知识库（一格一微服务，格内 shared / private 两层）；
+                        # 对 agent 只读，见 KB_PERMISSIONS 与 docs/adr/0003。
+                        KB_ROUTE: kb_mount(store),
                     },
                 ),
-                permissions=MEMORY_PERMISSIONS,
+                permissions=MEMORY_PERMISSIONS + KB_PERMISSIONS,
                 checkpointer=saver,
                 store=store,
                 context_schema=AgentContext,
@@ -255,6 +261,7 @@ class GeneralAgent:
             )
             self._stack = stack.pop_all()  # 所有权移交给 self；异常时上面已自动清理
             self._graph = graph
+            self.store = store
             self.memory = AgentMemory(graph, store, saver)
         # 建表 + 起 LISTEN；拿不到就整个启动失败 —— 开轮次的互斥也靠这张表，降级不了
         running_turns = RunningTurns(self.postgres.uri, self._on_stop_request)
@@ -262,6 +269,7 @@ class GeneralAgent:
             await running_turns.start(self.turns)
         except Exception:
             self._graph = None
+            self.store = None
             self.memory = None
             stack, self._stack = self._stack, None
             if stack is not None:
@@ -280,6 +288,7 @@ class GeneralAgent:
     async def __aexit__(self, *exc_info: Any) -> None:
         """关闭 listener 与连接池。幂等，可重复调用。"""
         self.memory = None
+        self.store = None
         self._graph = None
         running_turns, self.running_turns = self.running_turns, None
         if running_turns is not None:
@@ -342,16 +351,20 @@ class GeneralAgent:
         user_id: str,
         recursion_limit: int = 100,
         resume: dict[str, Any] | None = None,
+        kb_cells: dict[str, str] | None = None,
     ) -> AgentRun:
         """跑一轮对话（短期记忆自动落检查点）。
 
         ``resume`` 是上一次 ``run.interrupt`` 的答复（``{"decisions": [...]}``），
         传了它就不需要 ``message``，图从中断点接着跑。
+
+        ``kb_cells`` 是当轮可见的微服务（名字 -> id），**每轮都要传**（包括 approve 续跑），
+        漏传 = ``/kb/`` 下什么都看不见（见 ``AgentContext``）。
         """
         state = await self._require_graph().ainvoke(
             _payload(message, resume),
             config=_run_config(thread_id, user_id, recursion_limit),
-            context=AgentContext(user_id=user_id),
+            context=AgentContext(user_id=user_id, kb_cells=kb_cells or {}),
         )
         return AgentRun(
             answer=_last_text(state.get("messages", [])), interrupt=_pending(state)
@@ -365,6 +378,7 @@ class GeneralAgent:
         user_id: str,
         recursion_limit: int = 100,
         resume: dict[str, Any] | None = None,
+        kb_cells: dict[str, str] | None = None,
     ) -> AsyncIterator[AgentEvent]:
         """流式跑一轮：逐 token / 工具调用事件，需要批准时补一个 interrupt，最后补 done。"""
         pending: dict[str, Any] | None = None
@@ -372,7 +386,7 @@ class GeneralAgent:
         async for mode, payload in self._require_graph().astream(
             _payload(message, resume),
             config=_run_config(thread_id, user_id, recursion_limit),
-            context=AgentContext(user_id=user_id),
+            context=AgentContext(user_id=user_id, kb_cells=kb_cells or {}),
             stream_mode=["messages", "values"],
         ):
             if mode == "messages":

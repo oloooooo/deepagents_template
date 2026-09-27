@@ -31,6 +31,12 @@ deepagent:
   api_key_env: DEEPSEEK_API_KEY
   temperature: 0.0
 
+# 知识库存储后端（docs/adr/0002）：全局默认 + 按微服务名覆盖；s3 枚举预留、实现未提供
+kb:
+  backend: store          # store = postgres langgraph store；local = 磁盘目录；s3 = 未实现，取到会报错
+  local_root: data/kb     # 相对项目根；backend=local 时生效
+  overrides: {}           # 微服务名 -> store|local|s3，没配的微服务用上面的全局 backend
+
 logger:
   # 日志目录（相对项目根，也可写绝对路径）
   level: ${oc.env:LOG_LEVEL,INFO}

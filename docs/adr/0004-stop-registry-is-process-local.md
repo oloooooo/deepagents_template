@@ -11,13 +11,13 @@
 | **意图与归属** | `running_turns` 表（跨进程） | 谁在跑、要不要停、结果是什么 |
 | **执行能力** | `TurnRegistry`（进程内存） | 那个 `Task` 和已流出的增量文本 |
 
-投递走 Postgres 的 `LISTEN/NOTIFY`（**方案 B**，实现见 `docs/adr/0008`）：
+投递走 Postgres 的 `LISTEN/NOTIFY`（**方案 B**，实现见 `docs/adr/0006`）：
 任何一个 worker 收到停止请求都往 `chat_drain` 通道里喊一声，**所有** worker 都收得到，
 只有认领那一条的那个会动手。
 
 **能力这一半不是可以“优化掉”的**：它是“立刻中断”这个语义的直接后果。
 如果接受“在下个超步边界停”（langgraph 的 `RunControl.request_drain`），那一半确实能归零 ——
-控制面由 langgraph 自己持有。两条路的完整对比见 `docs/adr/0008`。
+控制面由 langgraph 自己持有。两条路的完整对比见 `docs/adr/0006`。
 
 **Consequences**：
 
@@ -26,4 +26,4 @@
 - 但每个 worker 多两条专用连接（一条 `LISTEN`、一条控制查询），连接预算要算上
   `workers × 2`（见 README 的连接数那一段）；
 - 两个“半可靠”的地方：**通知是即发即弃的**（不在监听时发出的会丢，靠重连后补扫表兜），
-  **owner 挂了没人收尾**（靠心跳回收 + 孤儿恢复，见 `docs/adr/0008`）。
+  **owner 挂了没人收尾**（靠心跳回收 + 孤儿恢复，见 `docs/adr/0006`）。

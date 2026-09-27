@@ -1,66 +1,64 @@
 # 领域词汇
 
-两组容易混的词：**「空间」**（谁能看到同一份文件）和**「轮次」**（一次对话从开始到结束）。
-混用会让鉴权判断和状态机判断出错，所以先把词定死。
+三组容易混的词：**「知识库与空间」**（谁能看到哪些资料）、**「记忆」**（一个人自己的长期文件）
+和**「轮次」**（一次对话从开始到结束）。混用会让鉴权判断和状态机判断出错，所以先把词定死。
 
 ## Language
 
-### 空间与记忆
+### 知识库与空间
 
-**Workspace（业务空间）**：
-用户之间共享的私有工作区，成员按 admin / editor / viewer 三级权限访问。
-_Avoid_: 工作区、team、project
+**Microservice（微服务）**：
+一个业务服务；它同时**就是**自己的知识库空间，两者一一对应，不是两个实体。
+_Avoid_: 服务、KB space ——「创建 / 删除知识库空间」就是创建 / 删除微服务
 
-**Public workspace（公共空间）**：
-面向一组指定用户的共享空间，被授权的成员只读，只有 super user 能读写删。
-与 Workspace 是**两类实体**，权限模型不同（二元成员关系 vs 三级权限）。
-_Avoid_: 公开空间、公共工作区、shared workspace
+**Knowledge base（知识库）**：
+一个微服务下的全部持久文档，分共享知识与私有文档两类。
+_Avoid_: 记忆、memory、RAG —— 记忆是另一个词，见下
 
-**Default workspace（虚拟 default 空间）**：
-每个登录用户自带、库里没有记录的虚拟空间，人人都是 admin。
-它占用了 `default` 这个名字，真实空间不许叫它。
-_Avoid_: 默认空间、个人空间、home
+**Shared knowledge（共享知识）**：
+微服务空间里人人可读的文档（如 `概念.md`），由 super 维护，成员只读。
+_Avoid_: 公共空间、共享工作区
 
-**Super user**：
-`users.is_super = true` 的用户。只能通过数据库授权，没有任何 API 写入口。
-对 Workspace 是「建 / 改 / 删 / 授权」的唯一人选。
-_Avoid_: 管理员、admin —— admin 是 Workspace 内的权限等级，不是这个
+**Private document（私有文档）**：
+微服务空间里归某个用户个人的文档（如 `xlsx`），本人和 super 可见，其余成员不可见。
+_Avoid_: 个人空间 —— 存个人偏好的是「记忆」，不是它
 
 **Member（成员）**：
-在某个空间里有一条关联记录的用户。Workspace 的成员带三级权限；
-Public workspace 的成员一律只读。
-_Avoid_: 用户、参与者、subscriber
+与微服务有成员记录的用户。关系是**二元的**（是 / 不是），没有等级、没有权限列。
+_Avoid_: admin / editor / viewer —— 旧体系的三级权限已废
+
+**Super user（super）**：
+`users.is_super = true` 的用户，只能改库授权。建 / 删微服务、分配成员、写知识库的唯一人选。
+_Avoid_: 管理员、admin
 
 **Visibility（可见范围）**：
-谁能读到某个空间的内容。Workspace 的可见范围**等于**成员关系；
-Public workspace 的可见范围是「成员关系 ∪ super」—— super 不是成员也能读、能写、能删。
-所以「我是不是成员」（`/mine`）和「我能读哪些」（`/list`、`/public/` 挂载）是两个不同的问题。
-_Avoid_: 权限、access —— 权限是「能做什么」，可见范围是「能看到哪些」
+谁能读到什么：共享知识 = 成员 ∪ super；私有文档 = 本人 ∪ super。
+「我是不是成员」（`/microservices/mine`）和「我能读哪些」是两个不同的问题。
+_Avoid_: 权限 —— 权限是「能做什么」，可见范围是「能看到哪些」
 
-**Memory（长期记忆）**：
-跨会话保留的文件，落在 `/memories/`，按 (用户, 空间) 隔离，别人看不到。
-_Avoid_: 记忆库、knowledge base、RAG
-
-**Public mount（`/public/`）**：
-agent 视角下的公共空间挂载点，形如 `/public/{公共空间名}/...`，把当前用户可访问的公共空间
-各挂一个子目录。它对 agent 只读，不是存储位置，也不是 REST 路由前缀。
-_Avoid_: 公共目录、public 文件夹、shared drive
-
-**Memory mount（`/memories/`）**：
-agent 视角下的长期记忆挂载点，形如 `/memories/{业务空间名}/...`，把这个人自己参与的每个空间
-各挂一个子目录，虚拟的 `default` 是其中一格。只有 `default` 那一格能写（且要人工批准），
-其余格子是用户投喂进来的只读资料。
-_Avoid_: 记忆目录、memory 文件夹、个人空间——它下面不止一格
+**KB mount（`/kb/`）**：
+agent 视角的知识库挂载点：`/kb/{微服务名}/shared/...` 与 `/kb/{微服务名}/private/...`。
+private 那半永远只有本人那份。它对 agent **只读**，不是存储位置，也不是 REST 前缀。
+_Avoid_: 知识库目录、kb 文件夹
 
 **Cell（格子）**：
-挂载点下的一个子目录，一个格子一份独立内容，路径的第一段就是格子名。两个挂载都是
-「一格一个空间」：`/memories/{空间名}/…` 与 `/public/{公共空间名}/…`。
-_Avoid_: 命名空间、分区、folder——“命名空间”是在讲 store 的键，不是 agent 看到的东西
+挂载根下的一个微服务一个子目录，一格一份独立内容；`shared` / `private` 是格子里的两层。
+_Avoid_: 命名空间、分区 —— 那是在讲存储的键，不是 agent 看到的东西
 
 **Fan-out（扇出）**：
-挂载根上的一次 `ls` / `glob` / `grep` 覆盖多个格子，结果合成一个列表返回，每条路径自带格子名前缀。
-各格子的内容互不相干，**没有合并**；按路径寻址的读写（`read` / `write` / `edit` / `delete`）从不扇出。
-_Avoid_: 合并、聚合、merged view
+挂载根上的一次 `ls` / `glob` / `grep` 覆盖多个格子，结果合成一个列表返回，每条自带格子名前缀。
+各格子内容互不相干，没有合并；按路径寻址的读从不扇出。
+_Avoid_: 合并视图、merged view
+
+### 记忆
+
+**Memory（长期记忆）**：
+每个用户自己的跨会话文件，一人一份，用来存个人偏好这类东西；与知识库互不相干。
+_Avoid_: 知识库、knowledge base —— 现在是两个词，不再互相当同义词
+
+**Memory mount（`/memories/`）**：
+agent 视角的个人记忆挂载点，一人一份根目录。agent 写它要人工批准，用户侧走 REST 直写。
+_Avoid_: 个人空间 —— 太模糊，指偏好就叫「记忆」
 
 ### 对话轮次
 

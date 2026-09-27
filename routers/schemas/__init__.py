@@ -21,6 +21,18 @@ from .chat import (
     ChatThreadOut,
     ChatThreadsOut,
 )
+from .kb import (
+    KbEntry,
+    KbFileRef,
+    KbList,
+    KbListOut,
+    KbReadOut,
+    KbStored,
+    KbUploadItem,
+    KbUploadOut,
+    KbWrite,
+    Layer,
+)
 from .memory import (
     MemoryListOut,
     MemoryOut,
@@ -29,6 +41,12 @@ from .memory import (
     MemoryUploadItem,
     MemoryUploadOut,
     MemoryWrite,
+)
+from .microservice import (
+    MicroserviceCreate,
+    MicroserviceGrant,
+    MicroserviceListOut,
+    MicroserviceOut,
 )
 
 __all__ = [
@@ -44,6 +62,16 @@ __all__ = [
     "ChatStopOut",
     "ChatThreadOut",
     "ChatThreadsOut",
+    "KbEntry",
+    "KbFileRef",
+    "KbList",
+    "KbListOut",
+    "KbReadOut",
+    "KbStored",
+    "KbUploadItem",
+    "KbUploadOut",
+    "KbWrite",
+    "Layer",
     "LoginRequest",
     "MemoryListOut",
     "MemoryOut",
@@ -52,6 +80,10 @@ __all__ = [
     "MemoryUploadItem",
     "MemoryUploadOut",
     "MemoryWrite",
+    "MicroserviceCreate",
+    "MicroserviceGrant",
+    "MicroserviceListOut",
+    "MicroserviceOut",
     "RefreshRequest",
     "RegisterRequest",
     "TokenPair",

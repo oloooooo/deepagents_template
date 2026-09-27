@@ -98,6 +98,7 @@ class ChatService:
         *,
         message: str,
         thread_id: str | None = None,
+        kb_cells: dict[str, str] | None = None,
     ) -> tuple[str, AgentRun]:
         conversation, turn = await self.open_turn(user, thread_id=thread_id)
         try:
@@ -105,6 +106,7 @@ class ChatService:
                 message,
                 thread_id=conversation,
                 user_id=user.id,
+                kb_cells=kb_cells,
             )
         finally:
             self.agent.turns.release(turn)
@@ -117,12 +119,14 @@ class ChatService:
         *,
         message: str,
         thread_id: str | None = None,
+        kb_cells: dict[str, str] | None = None,
     ) -> tuple[str, AsyncIterator[AgentEvent]]:
         conversation, turn = await self.open_turn(user, thread_id=thread_id)
         events = self.agent.astream(
             message,
             thread_id=conversation,
             user_id=user.id,
+            kb_cells=kb_cells,
         )
         return conversation, self._tracked(events, turn)
 
@@ -194,6 +198,7 @@ class ChatService:
         *,
         thread_id: str,
         decisions: list[dict],
+        kb_cells: dict[str, str] | None = None,
     ) -> AgentRun:
         """人工批准后接着跑。"""
         await self.own(user, thread_id)
@@ -206,6 +211,7 @@ class ChatService:
                 thread_id=thread_id,
                 user_id=user.id,
                 resume={"decisions": decisions},
+                kb_cells=kb_cells,
             )
         finally:
             self.agent.turns.release(turn)

@@ -45,6 +45,7 @@ from fastapi.responses import StreamingResponse
 from agents.agent import AgentEvent
 from dependencies.agent import AgentDep
 from dependencies.auth import CurrentUser
+from dependencies.kb import KbCellsDep
 from routers.schemas import (
     ChatApprove,
     ChatDeleteFiles,
@@ -70,12 +71,14 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 async def send_message(
     payload: ChatSend,
     current_user: CurrentUser,
+    kb_cells: KbCellsDep,
     agent: AgentDep,
 ):
     thread_id, run = await ChatService(agent).send(
         current_user,
         message=payload.message,
         thread_id=payload.thread_id,
+        kb_cells=kb_cells,
     )
     return ChatRunOut(
         thread_id=thread_id, answer=run.answer, interrupt=run.interrupt
@@ -86,12 +89,14 @@ async def send_message(
 async def stream_message(
     payload: ChatSend,
     current_user: CurrentUser,
+    kb_cells: KbCellsDep,
     agent: AgentDep,
 ) -> StreamingResponse:
     thread_id, events = await ChatService(agent).stream(
         current_user,
         message=payload.message,
         thread_id=payload.thread_id,
+        kb_cells=kb_cells,
     )
     return StreamingResponse(
         _sse(events),
@@ -108,12 +113,14 @@ async def stream_message(
 async def approve_message(
     payload: ChatApprove,
     current_user: CurrentUser,
+    kb_cells: KbCellsDep,
     agent: AgentDep,
 ):
     run = await ChatService(agent).approve(
         current_user,
         thread_id=payload.thread_id,
         decisions=payload.decisions,
+        kb_cells=kb_cells,
     )
     return ChatRunOut(
         thread_id=payload.thread_id, answer=run.answer, interrupt=run.interrupt

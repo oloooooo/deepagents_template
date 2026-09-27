@@ -17,8 +17,11 @@
 好处是「哪些配置能从外部改」在 yaml 里一眼看得见，而不是靠一套隐式命名约定。
 """
 
+import os
 from pathlib import Path
 from urllib.parse import quote
+
+from typing import Literal
 
 from dotenv import load_dotenv
 from omegaconf import DictConfig, OmegaConf
@@ -130,6 +133,28 @@ class DeepAgentConfig(_Strict):
         return key
 
 
+class KbConfig(_Strict):
+    """知识库存储后端（见 docs/adr/0002）：全局默认 + 按微服务名覆盖。
+
+    ``s3`` 在枚举里预留但没有实现——取到它会在 backend 工厂里明确报错，
+    不是静默降级。
+    """
+
+    backend: Literal["store", "local", "s3"] = "store"
+    local_root: Path = Path("data/kb")
+    overrides: dict[str, Literal["store", "local", "s3"]] = Field(default_factory=dict)
+    """微服务名 -> backend；没配的微服务用全局 ``backend``。"""
+
+    @property
+    def resolved_local_root(self) -> Path:
+        """local 模式的根目录（相对路径按项目根解析，与 LoggerConfig.log_dir 同规则）。"""
+        return self.local_root if self.local_root.is_absolute() else BASE_DIR / self.local_root
+
+    def backend_for(self, microservice_name: str) -> Literal["store", "local", "s3"]:
+        """某个微服务最终用哪个 backend（覆盖优先，否则全局默认）。"""
+        return self.overrides.get(microservice_name, self.backend)
+
+
 class AppConfig(_Strict):
     """应用总配置，字段与 config.yaml 的顶层键一一对应。"""
 
@@ -137,6 +162,7 @@ class AppConfig(_Strict):
     logger: LoggerConfig = LoggerConfig()
     auth: AuthConfig = AuthConfig()
     deepagent: DeepAgentConfig = DeepAgentConfig()
+    kb: KbConfig = KbConfig()
 
 
 def load_config(config_file: Path | str = CONFIG_FILE) -> AppConfig:

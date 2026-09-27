@@ -19,7 +19,7 @@ from agents.config import model_cfg
 from config import app_config
 from dependencies import engine
 from logger import logger
-from routers import auth, chat, memory
+from routers import auth, chat, kb, memory, microservice
 
 # Windows 默认的 ProactorEventLoop 跑不了 psycopg 异步驱动，
 # 而 uvicorn 非 reload 模式恰好会选 Proactor，所以显式指定 SelectorEventLoop。
@@ -58,6 +58,8 @@ def create_app() -> FastAPI:
     application.include_router(auth.router)
     application.include_router(memory.router)
     application.include_router(chat.router)
+    application.include_router(microservice.router)
+    application.include_router(kb.router)
 
     @application.get("/health", tags=["system"], summary="健康检查")
     async def health() -> dict[str, str]:
