@@ -13,6 +13,7 @@ import sys
 from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
 
 from agents.agent import GeneralAgent
 from agents.config import model_cfg
@@ -55,6 +56,15 @@ def create_app() -> FastAPI:
         logger.info("应用退出，数据库连接池已释放")
 
     application = FastAPI(title="DeepAgents Template", lifespan=lifespan)
+
+    # 允许跨域（鉴权走 Authorization 头，非 cookie，"*" 可用）
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     application.include_router(auth.router)
     application.include_router(memory.router)
     application.include_router(chat.router)
