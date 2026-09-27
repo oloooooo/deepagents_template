@@ -12,7 +12,7 @@
 
 - 正在跑的轮次记在 ``GeneralAgent.turns``（**本进程**：那个 ``Task`` 和已流出的文本）；
 - “谁在跑 / 要不要停 / 结果是什么”记在 ``running_turns`` 表（**跨进程**），
-  由 :class:`RunningTurns` 维护，投递走 Postgres 的 ``LISTEN/NOTIFY`` —— 
+  由 :class:`RunningTurns` 维护，投递走 Postgres 的 ``LISTEN/NOTIFY`` ——
   所以 ``/chat/stop`` 落到哪个 worker 都行，不需要负载均衡器做会话粘性；
 - owner 收到通知后取消那一轮（:meth:`GeneralAgent.astop_turn`），
   再把答案写回表；请求方轮询表拿结果。
@@ -149,6 +149,7 @@ def memory_mount(store: AsyncPostgresStore) -> MemoryMountBackend:
     单独写成函数，是为了让测试建出**同一个**挂载，而不是照拄一份配置。
     """
     return MemoryMountBackend(store)
+
 
 DEFAULT_SYSTEM_PROMPT = """你是一个可长期协作的中文助手。
 
@@ -297,7 +298,9 @@ class GeneralAgent:
         """
         await self._cancel(turn)
         if self.memory is None:  # __aexit__ 已经跑过了
-            raise RuntimeError("GeneralAgent 尚未启动，请先 `async with GeneralAgent() as agent:`")
+            raise RuntimeError(
+                "GeneralAgent 尚未启动，请先 `async with GeneralAgent() as agent:`"
+            )
         return await self.memory.astop(turn.thread_id, turn.user_id, text=turn.text)
 
     async def _on_stop_request(self, thread_id: str, turn: Turn) -> None:
@@ -324,7 +327,9 @@ class GeneralAgent:
         if pending:
             # 那一轮还活着，稍后可能再写一份检查点、盖掉我们的收尾；概率低但没法根除
             logger.warning(
-                "停止轮次超时（{}s），不等待收尾：thread_id={}", STOP_TIMEOUT, turn.thread_id
+                "停止轮次超时（{}s），不等待收尾：thread_id={}",
+                STOP_TIMEOUT,
+                turn.thread_id,
             )
 
     # ---------- 聊天 ----------
@@ -348,7 +353,9 @@ class GeneralAgent:
             config=_run_config(thread_id, user_id, recursion_limit),
             context=AgentContext(user_id=user_id),
         )
-        return AgentRun(answer=_last_text(state.get("messages", [])), interrupt=_pending(state))
+        return AgentRun(
+            answer=_last_text(state.get("messages", [])), interrupt=_pending(state)
+        )
 
     async def astream(
         self,
@@ -374,7 +381,9 @@ class GeneralAgent:
                     yield AgentEvent(kind="token", text=text)
                 for call in getattr(chunk, "tool_call_chunks", None) or []:
                     if name := call.get("name"):
-                        yield AgentEvent(kind="tool_call", text=name, data={"id": call.get("id")})
+                        yield AgentEvent(
+                            kind="tool_call", text=name, data={"id": call.get("id")}
+                        )
             else:  # values：每个超步后的完整 state，留最后一份取完整回答
                 final = payload
                 pending = _pending(payload) or pending
@@ -387,7 +396,9 @@ class GeneralAgent:
     def _require_graph(self) -> Any:
         """未启动时给出明确报错（替代 tmp.py 里成堆的 @property 判空）。"""
         if self._graph is None:
-            raise RuntimeError("GeneralAgent 尚未启动，请先 `async with GeneralAgent() as agent:`")
+            raise RuntimeError(
+                "GeneralAgent 尚未启动，请先 `async with GeneralAgent() as agent:`"
+            )
         return self._graph
 
     def _build_model(self) -> BaseChatModel:
@@ -571,9 +582,7 @@ class AgentMemory:
         """
         await self._saver.adelete_thread(_conversation_id(thread_id, user_id))
 
-    async def alist_memories(
-        self, user_id: str, *, limit: int = 50
-    ) -> list[str]:
+    async def alist_memories(self, user_id: str, *, limit: int = 50) -> list[str]:
         """长期记忆：列出该用户下的文件路径（如 ``notes/a.md``）。
 
         agent 眼里的完整路径是 ``/memories/notes/a.md`` —— 前缀是挂载层的事，
@@ -589,14 +598,10 @@ class AgentMemory:
         content = item.value.get("content") if item else None
         return content if isinstance(content, str) else None
 
-    async def awrite_memory(
-        self, user_id: str, path: str, content: str
-    ) -> str:
+    async def awrite_memory(self, user_id: str, path: str, content: str) -> str:
         """写/覆盖一份长期记忆，返回相对路径（如 ``notes/a.md``）。"""
         key = _memory_key(path)
-        await self._store.aput(
-            _memory_ns(user_id), key, create_file_data(content)
-        )
+        await self._store.aput(_memory_ns(user_id), key, create_file_data(content))
         return key.lstrip("/")
 
     async def adelete_memory(self, user_id: str, path: str) -> bool:
@@ -629,13 +634,13 @@ def _memory_ns(user_id: str) -> tuple[str, str]:
 
 def _memory_key(path: str) -> str:
     """用户侧传入的记忆路径 -> store key（与工具写 ``/memories/x`` 落库的 key 同形：``/x``）。"""
-    normalized = validate_path(f"{MEMORY_ROUTE}{path.strip().removeprefix(MEMORY_ROUTE).lstrip('/')}")
+    normalized = validate_path(
+        f"{MEMORY_ROUTE}{path.strip().removeprefix(MEMORY_ROUTE).lstrip('/')}"
+    )
     key = normalized[len(MEMORY_ROUTE) - 1 :]
     if not key.strip("/"):
         raise ValueError(f"记忆路径不能为空：{path!r}")
     return key
-
-
 
 
 def _pending(state: dict[str, Any]) -> dict[str, Any] | None:

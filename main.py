@@ -5,6 +5,8 @@
     uv run python main.py                                      # 开发（reload，日志统一走 loguru）
     uv run alembic upgrade head                                # 首次使用前初始化 users 表
     uv run uvicorn main:app --loop asyncio:SelectorEventLoop   # Windows 非 reload 时必须带 --loop
+
+checkpoints / store 四张表由 DeepAgent 启动时自动创建，无需迁移。
 """
 
 import sys
